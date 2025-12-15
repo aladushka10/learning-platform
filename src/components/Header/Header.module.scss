@@ -1,0 +1,19 @@
+/* Header component styles (minimal - layout kept in Tailwind) */
+.header {
+  /* keep sticky behavior and simple background handled by tailwind classes applied in component */
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue";
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}

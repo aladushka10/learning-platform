@@ -1,0 +1,126 @@
+.SignUp {
+  .container {
+    max-width: 900px;
+    padding: 40px 0;
+    margin: auto;
+    .SignUpWrap {
+      .backHomeBtn {
+        text-decoration: none;
+
+        font-family: Inter;
+        font-size: 16px;
+        font-weight: 400;
+        margin-bottom: 28px;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+      .SignUpFormBorder {
+        display: flex;
+        flex-direction: column;
+        width: 400px;
+        margin: auto;
+        padding: 40px;
+        border: 1px solid rgba(218, 218, 218, 1);
+
+        .SignUpForm {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+
+          .SignUpBtn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 46px;
+            padding: 16px 32px 16px 32px;
+            border: none;
+            border-radius: 2px;
+            background-color: #2231aa;
+            font-family: Inter;
+            font-size: 18px;
+            font-weight: 600;
+
+            color: rgba(255, 255, 255, 1);
+            margin: 20px 0 30px;
+            cursor: pointer;
+          }
+          .withoutAccWrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: rgba(141, 142, 151, 1);
+            .signInBtn {
+              text-decoration: none;
+              color: #5360cd;
+              &:hover {
+                text-decoration: underline;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .SignUp {
+    .container {
+      max-width: 688px;
+      .SignUpWrap {
+        .backHomeBtn {
+        }
+        .SignUpFormBorder {
+          width: 600px;
+
+          .SignUpForm {
+            .forgotPsw {
+            }
+            .SignUpBtn {
+              margin-top: 0;
+            }
+            .withoutAccWrap {
+              .signInBtn {
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 320px) {
+  .SignUp {
+    .container {
+      max-width: 272px;
+      .SignUpWrap {
+        .backHomeBtn {
+        }
+        .SignUpFormBorder {
+          width: 230px;
+          padding: 24px;
+
+          .SignUpForm {
+            &:nth-child(4) {
+              display: none;
+            }
+            .SignUpBtn {
+              margin-top: 0;
+            }
+            .withoutAccWrap {
+              font-family: Inter;
+              font-size: 14px;
+              font-weight: 500;
+              line-height: 20px;
+              .signInBtn {
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

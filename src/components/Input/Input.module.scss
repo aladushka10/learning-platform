@@ -1,0 +1,99 @@
+.inputWrap {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 15px;
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  .inputLabel {
+    font-family: Inter;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 7px;
+  }
+  .errorInput {
+    background-color: #fff;
+    color: rgba(49, 48, 55, 1);
+
+    font-family: Inter;
+    font-size: 16px;
+    font-weight: 400;
+    padding: 20px;
+    width: 100%;
+    height: 52px;
+    border: 2px solid rgba(253, 52, 25, 1);
+    border-radius: 2px;
+
+    &::after {
+      content: "Error";
+      display: block;
+      height: 20px;
+      width: 100px;
+      margin-top: 10px;
+      color: rgba(253, 52, 25, 1);
+      font-family: Inter;
+      font-size: 16px;
+      font-weight: 400;
+    }
+  }
+  .input {
+    background-color: #fff;
+    color: rgba(49, 48, 55, 1);
+
+    font-family: Inter;
+    font-size: 16px;
+    font-weight: 400;
+    padding-left: 20px;
+    width: calc(100% - 22px);
+    height: 38px;
+    border: none;
+    border-radius: 2px;
+    outline: none;
+
+    &:focus {
+      outline: 2px solid rgba(218, 218, 218, 1);
+    }
+    &:active {
+      border: none;
+    }
+    &:disabled {
+      background-color: rgba(232, 232, 232, 1);
+      color: rgba(141, 142, 151, 1);
+      font-family: Inter;
+      font-size: 16px;
+      font-weight: 400;
+    }
+
+    &::placeholder {
+      color: rgba(141, 142, 151, 1);
+      font-family: Inter;
+      font-size: 16px;
+      font-weight: 400;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .inputWrap {
+    .inputLabel {
+    }
+    .errorInput {
+    }
+    .input {
+      margin-bottom: 40px;
+    }
+  }
+}
+
+@media (max-width: 320px) {
+  .inputWrap {
+    .inputLabel {
+    }
+    .errorInput {
+    }
+    .input {
+      margin-bottom: 32px;
+    }
+  }
+}

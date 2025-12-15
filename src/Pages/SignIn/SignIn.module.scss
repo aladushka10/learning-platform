@@ -1,0 +1,132 @@
+.signIn {
+  .container {
+    max-width: 900px;
+    padding: 40px 0;
+    margin: auto;
+    .signInWrap {
+      .backHomeBtn {
+        text-decoration: none;
+
+        font-family: Inter;
+        font-size: 16px;
+        font-weight: 400;
+        margin-bottom: 28px;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+      .signInFormBorder {
+        display: flex;
+        flex-direction: column;
+        width: 400px;
+        margin: auto;
+        padding: 40px;
+        border: 1px solid rgba(218, 218, 218, 1);
+        .signInForm {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          .forgotPsw {
+            text-decoration: none;
+            font-family: Inter;
+            font-size: 16px;
+            font-weight: 400;
+            margin-bottom: 26px;
+            &:hover {
+              text-decoration: underline;
+            }
+          }
+          .signInBtn {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 46px;
+            padding: 16px 32px 16px 32px;
+            border: none;
+            border-radius: 2px 0px 0px 0px;
+            background-color: #2231aa;
+            font-family: Inter;
+            font-size: 18px;
+            font-weight: 600;
+
+            color: rgba(255, 255, 255, 1);
+            margin-bottom: 30px;
+            cursor: pointer;
+          }
+          .withoutAccWrap {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: rgba(141, 142, 151, 1);
+            .signUpBtn {
+              text-decoration: none;
+              color: #5360cd;
+              &:hover {
+                text-decoration: underline;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .signIn {
+    .container {
+      max-width: 688px;
+      .signInWrap {
+        .backHomeBtn {
+        }
+        .signInFormBorder {
+          width: 600px;
+
+          .signInForm {
+            .forgotPsw {
+            }
+            .signInBtn {
+            }
+            .withoutAccWrap {
+              .signUpBtn {
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 320px) {
+  .signIn {
+    .container {
+      max-width: 272px;
+      .signInWrap {
+        .backHomeBtn {
+        }
+        .signInFormBorder {
+          width: 230px;
+          padding: 24px;
+
+          .signInForm {
+            .forgotPsw {
+            }
+            .signInBtn {
+            }
+            .withoutAccWrap {
+              font-family: Inter;
+              font-size: 14px;
+              font-weight: 500;
+              line-height: 20px;
+
+              .signUpBtn {
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

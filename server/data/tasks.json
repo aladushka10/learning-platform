@@ -1,0 +1,20 @@
+[
+  {
+    "id": "1",
+    "title": "Бинарное дерево поиска",
+    "description": "Реализуйте бинарное дерево поиска с операциями вставки и поиска",
+    "difficulty": "Medium",
+    "category": "Computer Science",
+    "topic": "Структуры данных",
+    "completed": true
+  },
+  {
+    "id": "2",
+    "title": "Линейная алгебра",
+    "description": "Решите систему линейных уравнений методом Гаусса",
+    "difficulty": "Hard",
+    "category": "Mathematics",
+    "topic": "Линейная алгебра",
+    "completed": false
+  }
+]

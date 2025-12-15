@@ -1,0 +1,9 @@
+node_modules/
+dist/
+/.idea
+/.vscode
+*.log
+*.local
+/.env
+server/data/app.db
+

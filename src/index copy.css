@@ -1,0 +1,46 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+body.light-theme a {
+  color: rgba(49, 48, 55, 1);
+}
+
+body.dark-theme a {
+  color: white;
+}
+
+body.light-theme button {
+  color: rgba(49, 48, 55, 1);
+}
+body.dark-theme button {
+  color: white;
+}
+
+.light-theme {
+  background-color: rgba(243, 243, 243, 1);
+  color: rgba(49, 48, 55, 1);
+}
+.dark-theme {
+  background-color: rgba(49, 48, 55, 1);
+  color: white;
+}
