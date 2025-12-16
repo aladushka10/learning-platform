@@ -1,10 +1,9 @@
 import { Search, Bell, User } from "lucide-react"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
 import { Avatar, AvatarFallback } from "../ui/avatar"
 import style from "./Header.module.scss"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import { logout } from "../../store/signInSlice"
 
@@ -15,6 +14,7 @@ interface HeaderProps {
 
 export function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const dispatch = useDispatch()
+  const navigate = useNavigate()
   const { auth, username } = useSelector((state: any) => state.signIn)
 
   const handleLogout = () => {
@@ -27,12 +27,15 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
     >
       <div className="flex items-center justify-between h-16 px-6">
         <div className="flex items-center gap-8">
-          <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate("/")}
+            className="flex items-center gap-3 hover:opacity-75 transition-opacity"
+          >
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white">π</span>
             </div>
-            <span className="text-gray-900">LearnLab</span>
-          </div>
+            <span className="text-gray-900 font-semibold">LearnLab</span>
+          </button>
         </div>
 
         <div className="flex-1 max-w-xl mx-8">
@@ -49,18 +52,15 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5 text-gray-600" />
-            <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-red-500">
-              3
-            </Badge>
-          </Button>
-
           <div className="h-8 w-px bg-gray-200" />
 
           {auth ? (
             <div className="flex items-center gap-2">
-              <Button variant="ghost" className="gap-2">
+              <Button
+                variant="ghost"
+                className="gap-2"
+                onClick={() => navigate("/profile")}
+              >
                 <Avatar className="w-8 h-8">
                   <AvatarFallback className="bg-blue-100 text-blue-600">
                     <User className="w-4 h-4" />
@@ -74,12 +74,18 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <Link to="/sign-in" className="text-gray-700 hover:text-gray-900">
+              <button
+                onClick={() => navigate("/sign-in")}
+                className="text-gray-700 hover:text-gray-900"
+              >
                 Sign In
-              </Link>
-              <Link to="/sign-up" className="text-blue-600">
+              </button>
+              <button
+                onClick={() => navigate("/sign-up")}
+                className="text-blue-600 hover:text-blue-700"
+              >
                 Sign Up
-              </Link>
+              </button>
             </div>
           )}
         </div>

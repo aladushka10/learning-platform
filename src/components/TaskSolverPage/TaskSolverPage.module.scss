@@ -1,0 +1,39 @@
+.solverPage {
+  animation: fadeIn 0.3s ease-in-out;
+  margin: auto;
+  width: 80%;
+  margin-top: 80px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.solverPage {
+  h1 {
+    background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .prose {
+    p {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #374151;
+
+      strong {
+        color: #1f2937;
+        font-weight: 600;
+      }
+    }
+  }
+}

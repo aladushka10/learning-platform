@@ -1,10 +1,21 @@
 import { useEffect, useState } from "react"
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom"
 import { Header } from "./components/Header/Header"
 import { Sidebar } from "./components/Sidebar/Sidebar"
 import { TaskCard } from "./components/TaskCard/TaskCard"
 import { TaskView } from "./components/TaskView/TaskView"
 import { ProgressPanel } from "./components/ProgressPanel/ProgressPanel"
 import { Footer } from "./components/Footer/Footer"
+import TaskSolverPage from "./components/TaskSolverPage/TaskSolverPage"
+import LecturePage from "./components/LecturePage/LecturePage"
+import ProfilePage from "./components/ProfilePage/ProfilePage"
+import SignIn from "./Pages/SignIn/SignIn"
+import SignUp from "./Pages/SignUp/SignUp"
 
 export interface Task {
   id: string
@@ -23,7 +34,13 @@ interface Course {
   category?: string
 }
 
-export default function App() {
+// Protected route component
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  // In a real app, check auth here
+  return <>{children}</>
+}
+
+function TasksPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
@@ -39,7 +56,7 @@ export default function App() {
     const load = async () => {
       setLoading(true)
       try {
-        const res = await fetch("/api/courses")
+        const res = await fetch("http://localhost:4000/courses")
         if (!res.ok) throw new Error("failed to load courses")
         const data: Course[] = await res.json()
         setCourses(data)
@@ -62,7 +79,9 @@ export default function App() {
     const loadTasks = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/courses/${selectedCourseId}/tasks`)
+        const res = await fetch(
+          `http://localhost:4000/courses/${selectedCourseId}/tasks`
+        )
         if (!res.ok) throw new Error("failed to load tasks")
         const rawTasks = await res.json()
 
@@ -147,7 +166,7 @@ export default function App() {
             sidebarCollapsed ? "ml-16" : "ml-64"
           }`}
         >
-          <div className="flex gap-6 p-6 max-w-[1800px] mx-auto">
+          <div className="flex gap-6 p-6 max-w-7xl mx-auto">
             <div className="flex-1">
               {loading && <p>Загрузка...</p>}
               {error && <p className="text-red-600">{error}</p>}
@@ -157,6 +176,7 @@ export default function App() {
                   task={selectedTask}
                   onBack={handleBackToGrid}
                   onComplete={handleTaskComplete}
+                  courseId={selectedCourseId || ""}
                 />
               ) : (
                 <div className="space-y-6">
@@ -189,6 +209,7 @@ export default function App() {
                         key={task.id}
                         task={task}
                         onSelect={handleTaskSelect}
+                        courseId={selectedCourseId || ""}
                       />
                     ))}
                   </div>
@@ -203,5 +224,27 @@ export default function App() {
 
       <Footer />
     </div>
+  )
+}
+
+export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<TasksPage />} />
+        <Route
+          path="/course/:courseId/task/:taskId"
+          element={
+            <ProtectedRoute>
+              <TaskSolverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="/lecture/:lectureId" element={<LecturePage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/sign-in" element={<SignIn />} />
+        <Route path="/sign-up" element={<SignUp />} />
+      </Routes>
+    </Router>
   )
 }

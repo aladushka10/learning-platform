@@ -5,29 +5,25 @@ interface ISignUpData {
   password: string
   firstName: string
   lastName?: string
-  phone?: string
-  dateOfBirth?: string
 }
 
 export const signUpUser = createAsyncThunk(
   "auth/signUpUser",
   async (userData: ISignUpData, { rejectWithValue }) => {
     try {
-      let formattedDateOfBirth = userData.dateOfBirth || null
-      if (formattedDateOfBirth) {
-        const parts = formattedDateOfBirth.split("-")
-        if (parts.length === 3 && parts[2].length === 4) {
-          formattedDateOfBirth = `${parts[2]}-${parts[1]}-${parts[0]}`
-        }
-      }
+      // let formattedDateOfBirth = userData.dateOfBirth || null
+      // if (formattedDateOfBirth) {
+      //   const parts = formattedDateOfBirth.split("-")
+      //   if (parts.length === 3 && parts[2].length === 4) {
+      //     formattedDateOfBirth = `${parts[2]}-${parts[1]}-${parts[0]}`
+      //   }
+      // }
 
       const payload = {
         email: userData.email,
-        passwordHash: userData.password,
+        password: userData.password,
         firstName: userData.firstName,
         lastName: userData.lastName || "",
-        phone: userData.phone || "",
-        dateOfBirth: formattedDateOfBirth,
       }
 
       console.log("Sending sign-up payload:", payload)

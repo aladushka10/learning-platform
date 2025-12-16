@@ -5,12 +5,13 @@ import { Textarea } from "../ui/textarea"
 import { Badge } from "../ui/badge"
 import { useState } from "react"
 import type { Task } from "../../App"
-import style from "./TaskView.module.scss"
+import style from "../TaskView/TaskView.module.scss"
 
 interface TaskViewProps {
   task: Task
   onBack: () => void
   onComplete: (taskId: string) => void
+  courseId?: string
 }
 
 const taskDetails: Record<

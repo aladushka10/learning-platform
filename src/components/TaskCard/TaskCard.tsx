@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardFooter, CardHeader } from "../ui/card"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
@@ -8,6 +9,7 @@ import { Task } from "../../App"
 interface TaskCardProps {
   task: Task
   onSelect: (task: Task) => void
+  courseId?: string
 }
 
 const difficultyColors = {
@@ -22,7 +24,17 @@ const difficultyLabels = {
   Hard: "Сложно",
 }
 
-export function TaskCard({ task, onSelect }: TaskCardProps) {
+export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
+  const navigate = useNavigate()
+
+  const handleSolve = () => {
+    if (courseId) {
+      navigate(`/course/${courseId}/task/${task.id}`)
+    } else {
+      onSelect(task)
+    }
+  }
+
   return (
     <Card
       className={`hover:shadow-md transition-shadow cursor-pointer group ${style.card}`}
@@ -62,7 +74,7 @@ export function TaskCard({ task, onSelect }: TaskCardProps) {
       <CardFooter>
         <Button
           className="w-full bg-blue-600 hover:bg-blue-700"
-          onClick={() => onSelect(task)}
+          onClick={handleSolve}
         >
           {task.completed ? "Повторить" : "Решить"}
         </Button>

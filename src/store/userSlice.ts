@@ -7,8 +7,7 @@ interface User {
   email: string
   firstName: string
   lastName: string
-  phone: string | null
-  dateOfBirth: string | null
+
   roles: string[]
   createdAt: string
 }

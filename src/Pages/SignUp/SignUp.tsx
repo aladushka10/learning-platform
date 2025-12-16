@@ -1,209 +1,210 @@
-import { Link, useNavigate } from "react-router-dom"
-import Input from "../../Components/Input/Input"
-import style from "./SignUp.module.scss"
-import { useState, useEffect } from "react"
-import Title from "../../Components/Title/Title"
+import { useNavigate } from "react-router-dom"
+import { useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
+import { ArrowLeft } from "lucide-react"
+import { Button } from "../../components/ui/button"
+import { Card, CardContent, CardHeader } from "../../components/ui/card"
+import { Input } from "../../components/ui/input"
 import { signUpUser, clearError } from "../../store/signUpSlice"
 
 const SignUp = () => {
-  const [registrationData, setRegistrationData] = useState({
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const { loading, error, success } = useSelector((state: any) => state.signUp)
+
+  const [formData, setFormData] = useState({
     email: "",
     password: "",
+    passwordConfirm: "",
     firstName: "",
     lastName: "",
-    phone: "",
-    dateOfBirth: "",
-    passwordConfirm: "",
   })
 
   const [localError, setLocalError] = useState("")
-  const dispatch = useDispatch()
-  const navigate = useNavigate()
 
-  const { loading, error, success } = useSelector((state: any) => state.signUp)
-
-  const formHandler = (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (
-      !registrationData.email ||
-      !registrationData.password ||
-      !registrationData.firstName
-    ) {
-      setLocalError("Please fill in required fields")
-      return
-    }
-
-    if (registrationData.password !== registrationData.passwordConfirm) {
-      setLocalError("Passwords do not match")
-      return
-    }
-
-    if (!registrationData.email.includes("@")) {
-      setLocalError("Please enter a valid email")
-      return
-    }
-
-    let formattedDateOfBirth = registrationData.dateOfBirth
-    if (formattedDateOfBirth) {
-      const parts = formattedDateOfBirth.split("-")
-      if (parts.length === 3 && parts[2].length === 4) {
-        formattedDateOfBirth = `${parts[2]}-${parts[1]}-${parts[0]}`
-      }
-    }
-
-    dispatch(
-      signUpUser({
-        email: registrationData.email,
-        password: registrationData.password,
-        firstName: registrationData.firstName,
-        lastName: registrationData.lastName || "",
-        phone: registrationData.phone || "",
-        dateOfBirth: formattedDateOfBirth || null,
-      })
-    )
-  }
-
-  const inputHandler = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    setRegistrationData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
     setLocalError("")
     if (error) {
       dispatch(clearError())
     }
   }
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setLocalError("")
+
+    if (!formData.email || !formData.password || !formData.firstName) {
+      setLocalError("Please fill in required fields")
+      return
+    }
+
+    if (!formData.email.includes("@")) {
+      setLocalError("Please enter a valid email")
+      return
+    }
+
+    if (formData.password.length < 6) {
+      setLocalError("Password must be at least 6 characters")
+      return
+    }
+
+    if (formData.password !== formData.passwordConfirm) {
+      setLocalError("Passwords do not match")
+      return
+    }
+
+    dispatch(
+      signUpUser({
+        email: formData.email,
+        password: formData.password,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+      })
+    )
+  }
+
   useEffect(() => {
     if (success) {
-      navigate("/sign-in", {
-        state: { message: "Registration successful! Please sign in." },
-      })
+      navigate("/", { replace: true })
     }
   }, [success, navigate])
 
   return (
-    <div className={style.SignUp}>
-      <div className={style.container}>
-        <div className={style.SignUpWrap}>
-          <Link className={style.backHomeBtn} to={"/"}>
-            Back to Home
-          </Link>
-          <Title title={"Sign Up"} />
-
-          {/* Отображение ошибок */}
-          {(error || localError) && (
-            <div
-              className={style.errorMessage}
-              style={{ color: "red", marginBottom: "15px" }}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md border-0 shadow-xl">
+        <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => navigate("/")}
+              className="hover:opacity-75 transition-opacity"
             >
-              {error || localError}
-            </div>
-          )}
-
-          {success && (
-            <div
-              className={style.successMessage}
-              style={{ color: "green", marginBottom: "15px" }}
-            >
-              Registration successful! Redirecting...
-            </div>
-          )}
-
-          <div className={style.SignUpFormBorder}>
-            <form className={style.SignUpForm} onSubmit={formHandler}>
-              <Input
-                name={"firstName"}
-                title={"First Name*"}
-                type={"text"}
-                placeholder="Your first name"
-                inputEvent={inputHandler}
-                value={registrationData.firstName}
-                required
-              />
-              <Input
-                name={"lastName"}
-                title={"Last Name"}
-                type={"text"}
-                placeholder="Your last name (optional)"
-                inputEvent={inputHandler}
-                value={registrationData.lastName}
-              />
-              <Input
-                name={"email"}
-                title={"Email*"}
-                type={"email"}
-                placeholder="Your email"
-                inputEvent={inputHandler}
-                value={registrationData.email}
-                required
-              />
-              <Input
-                name={"phone"}
-                title={"Phone"}
-                type={"tel"}
-                placeholder="Your phone (optional)"
-                inputEvent={inputHandler}
-                value={registrationData.phone}
-              />
-              <Input
-                name={"dateOfBirth"}
-                title={"Date of Birth"}
-                type={"text"}
-                placeholder="DD-MM-YYYY (optional)"
-                inputEvent={inputHandler}
-                value={registrationData.dateOfBirth}
-              />
-              <div
-                style={{
-                  fontSize: "12px",
-                  color: "#666",
-                  marginBottom: "10px",
-                }}
-              >
-                Please use format: DD-MM-YYYY
-              </div>
-
-              <Input
-                name={"password"}
-                title={"Password*"}
-                type={"password"}
-                placeholder="Your password"
-                inputEvent={inputHandler}
-                value={registrationData.password}
-                required
-              />
-              <Input
-                name={"passwordConfirm"}
-                title={"Confirm Password*"}
-                type={"password"}
-                placeholder="Confirm password"
-                inputEvent={inputHandler}
-                value={registrationData.passwordConfirm}
-                required
-              />
-              <button
-                type="submit"
-                className={style.SignUpBtn}
-                disabled={loading}
-              >
-                {loading ? "Loading..." : "Sign Up"}
-              </button>
-
-              <div className={style.withoutAccWrap}>
-                <span>Already have an account?</span>
-                <Link to={"/sign-in"} className={style.signInBtn}>
-                  Sign In
-                </Link>
-              </div>
-            </form>
+              <ArrowLeft size={20} />
+            </button>
           </div>
-        </div>
-      </div>
+          <h2 className="text-3xl font-bold">Create Account</h2>
+          <p className="text-blue-100 mt-2">Join LearnLab and start learning</p>
+        </CardHeader>
+
+        <CardContent className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {(localError || error) && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-700 text-sm">{localError || error}</p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  First Name *
+                </label>
+                <Input
+                  type="text"
+                  placeholder="John"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Last Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="Doe"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email *
+              </label>
+              <Input
+                type="email"
+                placeholder="your@email.com"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password *
+              </label>
+              <Input
+                type="password"
+                placeholder="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                At least 6 characters
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password *
+              </label>
+              <Input
+                type="password"
+                placeholder="password"
+                name="passwordConfirm"
+                value={formData.passwordConfirm}
+                onChange={handleChange}
+                className="w-full"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-10"
+            >
+              {loading ? "Creating account..." : "Create Account"}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-500">
+                  Already have an account?
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate("/sign-in")}
+              className="w-full"
+            >
+              Sign In
+            </Button>
+          </form>
+
+          <p className="text-xs text-gray-500 text-center mt-6">
+            By signing up, you agree to our Terms of Service
+          </p>
+        </CardContent>
+      </Card>
     </div>
   )
 }
+
 export default SignUp

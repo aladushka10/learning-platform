@@ -3,7 +3,7 @@ import { fetchUserProfile } from "./userSlice"
 
 interface Credentials {
   email: string
-  passwordHash: string
+  password: string
 }
 
 interface SignInState {
@@ -37,7 +37,7 @@ export const signInUser = createAsyncThunk(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: credentials.email,
-          passwordHash: credentials.passwordHash,
+          password: credentials.password,
         }),
       })
       const data = await res.json()

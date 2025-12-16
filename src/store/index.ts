@@ -14,6 +14,8 @@ import userSlice from "./userSlice"
 import cartSlice from "./cartSlice"
 import createBookSlice from "./createBookSlice"
 import orderSlice from "./orderSlice"
+import solutionSlice from "./solutionSlice"
+import progressSlice from "./progressSlice"
 
 export default configureStore({
   reducer: {
@@ -32,5 +34,7 @@ export default configureStore({
     cart: cartSlice,
     createBook: createBookSlice,
     order: orderSlice,
+    solution: solutionSlice,
+    progress: progressSlice,
   },
 })
