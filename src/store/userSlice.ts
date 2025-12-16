@@ -1,14 +1,12 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 
-const API = "https://bookstore-backend-qgjq.onrender.com/api"
+const API_BASE = "http://localhost:4000"
 
 interface User {
   id: string
   email: string
   firstName: string
   lastName: string
-
-  roles: string[]
   createdAt: string
 }
 
@@ -29,17 +27,16 @@ export const fetchUserProfile = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem("accessToken")
+      const email = localStorage.getItem("username")
 
-      if (!token) {
-        return rejectWithValue("No access token")
+      if (!token || !email) {
+        return rejectWithValue("No auth info")
       }
 
-      const response = await fetch(`${API}/users`, {
+      const response = await fetch(`${API_BASE}/auth/user`, {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
-          Accept: "application/json",
         },
       })
 
@@ -51,7 +48,7 @@ export const fetchUserProfile = createAsyncThunk(
       }
 
       const data = await response.json()
-      return Array.isArray(data) && data.length > 0 ? data[0] : null
+      return data
     } catch (error: any) {
       return rejectWithValue(error.message || "Network error")
     }

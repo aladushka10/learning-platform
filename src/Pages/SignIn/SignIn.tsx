@@ -37,7 +37,7 @@ const SignIn = () => {
       dispatch(
         signInUser({
           email,
-          passwordHash: password,
+          password,
         })
       )
 

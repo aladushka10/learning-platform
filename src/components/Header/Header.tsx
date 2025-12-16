@@ -15,11 +15,15 @@ interface HeaderProps {
 export function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { auth, username } = useSelector((state: any) => state.signIn)
+  const { auth, username, firstName, lastName } = useSelector(
+    (state: any) => state.signIn
+  )
 
   const handleLogout = () => {
     dispatch(logout())
   }
+
+  const displayName = firstName || username?.split("@")[0] || "User"
 
   return (
     <header
@@ -63,10 +67,10 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
               >
                 <Avatar className="w-8 h-8">
                   <AvatarFallback className="bg-blue-100 text-blue-600">
-                    <User className="w-4 h-4" />
+                    {displayName.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-gray-700">{username || "User"}</span>
+                <span className="text-gray-700">{displayName}</span>
               </Button>
               <Button variant="outline" onClick={handleLogout}>
                 Sign Out

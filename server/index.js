@@ -402,6 +402,35 @@ app.post("/auth/sign-in", (req, res) => {
   })
 })
 
+app.get("/auth/user", (req, res) => {
+  const email = req.headers["x-user-email"]
+  if (!email) {
+    const username = req.query.username || "unknown"
+    const user = db.getUserByEmail(username)
+    if (!user) {
+      return res.status(401).json({ error: "unauthorized" })
+    }
+    return res.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      createdAt: user.createdAt,
+    })
+  }
+  const user = db.getUserByEmail(email)
+  if (!user) {
+    return res.status(401).json({ error: "unauthorized" })
+  }
+  res.json({
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    createdAt: user.createdAt,
+  })
+})
+
 app.post("/auth/sign-up", (req, res) => {
   const { email, password, firstName, lastName } = req.body
 
