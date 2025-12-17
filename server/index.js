@@ -283,13 +283,14 @@ app.post("/tasks/:id/solutions", (req, res) => {
 
     // 1️⃣ создаём solution
     const solutionId = uuidv4()
-    db.createSolution({
+    const solutionObj = {
       id: solutionId,
       user_id: userId,
       task_id: taskId,
       code,
       created_at: Date.now(),
-    })
+    }
+    db.createSolution(solutionObj)
 
     // 2️⃣ проверка
     const userAnswer = normalizeAnswer(code)
@@ -297,14 +298,15 @@ app.post("/tasks/:id/solutions", (req, res) => {
     const isCorrect = userAnswer === correctAnswer
 
     // 3️⃣ сохраняем результат проверки
-    db.createCheckResult({
+    const checkResultObj = {
       id: uuidv4(),
       solution_id: solutionId,
       status: isCorrect ? "correct" : "wrong",
       time_ms: 0,
       passed_tests: isCorrect ? 1 : 0,
       error_message: isCorrect ? null : "Неверный ответ",
-    })
+    }
+    db.createCheckResult(checkResultObj)
 
     // 4️⃣ прогресс
     db.createProgress({
@@ -318,6 +320,8 @@ app.post("/tasks/:id/solutions", (req, res) => {
     res.json({
       ok: true,
       correct: isCorrect,
+      solution: solutionObj,
+      checkResult: checkResultObj,
     })
   } catch (e) {
     console.error(e)

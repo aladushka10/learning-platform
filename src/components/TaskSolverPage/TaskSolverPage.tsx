@@ -145,25 +145,18 @@ const TaskSolverPage = () => {
     setErrorState(null)
 
     try {
-      // Create solution
-      const solution = await createSolution(taskId!, {
+      // Create solution (server also creates checkResult and progress)
+      const resp = await createSolution(taskId!, {
         user_id: "demo-user",
         task_id: taskId!,
         code: userAnswer,
         created_at: Date.now(),
       })
 
-      // Check if answer is correct
-      const correct = isAnswerCorrect(userAnswer, task.meta.answer)
-
-      // Create check result
-      const checkResult = await createCheckResult(solution.id, {
-        solution_id: solution.id,
-        status: correct ? "passed" : "failed",
-        time_ms: Math.random() * 100,
-        passed_tests: correct ? 1 : 0,
-        error_message: correct ? null : "Answer does not match expected result",
-      })
+      // Use server-side result
+      const solution = resp.solution
+      const checkResult = resp.checkResult
+      const correct = resp.correct === true
 
       setCheckStatus({
         passed: correct,
