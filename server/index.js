@@ -219,19 +219,112 @@ app.delete("/testcases/:id", (req, res) => {
 app.get("/tasks/:id/solutions", (req, res) =>
   res.json(db.getSolutionsByTask(req.params.id))
 )
+const normalizeAnswer = require("./utils/normalizeAnswer")
+
+// app.post("/tasks/:id/solutions", (req, res) => {
+//   try {
+//     const { userId, code } = req.body
+//     const taskId = req.params.id
+
+//     if (!userId || !code) {
+//       return res.status(400).json({ error: "invalid_payload" })
+//     }
+
+//     const task = db.getTaskById(taskId)
+//     if (!task) return res.status(404).json({ error: "not_found" })
+
+//     const meta = JSON.parse(task.meta || "{}")
+
+//     const solutionId = uuidv4()
+//     db.createSolution({
+//       id: solutionId,
+//       user_id: userId,
+//       task_id: taskId,
+//       code,
+//       created_at: Date.now(),
+//     })
+
+//     const isCorrect = normalizeAnswer(code) === normalizeAnswer(meta.answer)
+
+//     db.createCheckResult({
+//       id: uuidv4(),
+//       solution_id: solutionId,
+//       status: isCorrect ? "correct" : "wrong",
+//       time_ms: 0,
+//       passed_tests: isCorrect ? 1 : 0,
+//       error_message: isCorrect ? null : "Неверный ответ",
+//     })
+
+//     db.createProgress({
+//       id: uuidv4(),
+//       userId,
+//       taskId,
+//       status: isCorrect ? "completed" : "in_progress",
+//       updatedAt: Date.now(),
+//     })
+
+//     res.json({ ok: true, correct: isCorrect })
+//   } catch (e) {
+//     console.error(e)
+//     res.status(500).json({ error: "internal_error" })
+//   }
+// })
 app.post("/tasks/:id/solutions", (req, res) => {
-  if (!req.body?.user_id || !req.body?.code)
-    return res.status(400).json({ error: "invalid" })
-  const s = {
-    id: uuidv4(),
-    user_id: req.body.user_id,
-    task_id: req.params.id,
-    code: req.body.code,
-    created_at: Date.now(),
+  try {
+    const taskId = req.params.id
+    const { userId, code } = req.body
+
+    const task = db.getTaskById(taskId)
+    if (!task) {
+      return res.status(404).json({ error: "Задача не найдена" })
+    }
+
+    const meta = JSON.parse(task.meta || "{}")
+
+    // 1️⃣ создаём solution
+    const solutionId = uuidv4()
+    db.createSolution({
+      id: solutionId,
+      user_id: userId,
+      task_id: taskId,
+      code,
+      created_at: Date.now(),
+    })
+
+    // 2️⃣ проверка
+    const userAnswer = normalizeAnswer(code)
+    const correctAnswer = normalizeAnswer(meta.answer)
+    const isCorrect = userAnswer === correctAnswer
+
+    // 3️⃣ сохраняем результат проверки
+    db.createCheckResult({
+      id: uuidv4(),
+      solution_id: solutionId,
+      status: isCorrect ? "correct" : "wrong",
+      time_ms: 0,
+      passed_tests: isCorrect ? 1 : 0,
+      error_message: isCorrect ? null : "Неверный ответ",
+    })
+
+    // 4️⃣ прогресс
+    db.createProgress({
+      id: uuidv4(),
+      userId,
+      taskId,
+      status: isCorrect ? "completed" : "failed",
+      updatedAt: Date.now(),
+    })
+
+    res.json({
+      ok: true,
+      correct: isCorrect,
+    })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: "Ошибка проверки решения" })
   }
-  db.createSolution(s)
-  res.status(201).json(s)
 })
+
 app.get("/solutions/:id", (req, res) => {
   const s = db.getSolutionById(req.params.id)
   if (!s) return res.status(404).json({ error: "not_found" })

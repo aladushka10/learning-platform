@@ -4,6 +4,7 @@ import { Provider } from "react-redux"
 import App from "./App"
 import store from "./store"
 import "./index.css"
+import "katex/dist/katex.min.css"
 
 const container = document.getElementById("root")!
 const root = createRoot(container)

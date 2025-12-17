@@ -85,6 +85,20 @@ function TasksPage() {
         if (!res.ok) throw new Error("failed to load tasks")
         const rawTasks = await res.json()
 
+        // Try to load user progress
+        let userProgress = null
+        try {
+          const progressRes = await fetch(
+            "http://localhost:4000/users/demo-user/stats"
+          )
+          if (progressRes.ok) {
+            const stats = await progressRes.json()
+            userProgress = stats.tasks || []
+          }
+        } catch (e) {
+          // Progress loading is optional
+        }
+
         // map backend task shape to client Task
         const course = courses.find((c) => c.id === selectedCourseId)
         const mapped: Task[] = rawTasks.map((t: any) => {
@@ -96,6 +110,10 @@ function TasksPage() {
           } catch (e) {
             meta = {}
           }
+
+          // Check if task is completed in user progress
+          const taskProgress = userProgress?.find((p: any) => p.taskId === t.id)
+          const isCompleted = taskProgress?.status === "completed"
 
           return {
             id: t.id,
@@ -111,7 +129,7 @@ function TasksPage() {
                 ? "Mathematics"
                 : "Computer Science",
             topic: (meta as any).topic || (course && course.title) || "",
-            completed: !!(meta as any).completed,
+            completed: isCompleted,
           }
         })
 

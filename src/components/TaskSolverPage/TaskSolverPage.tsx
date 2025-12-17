@@ -9,6 +9,10 @@ import {
   Clock,
   BookOpen,
 } from "lucide-react"
+import ReactMarkdown from "react-markdown"
+import rehypeKatex from "rehype-katex"
+import remarkMath from "remark-math"
+import "katex/dist/katex.min.css"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { Textarea } from "../ui/textarea"
@@ -20,14 +24,12 @@ import {
   addSolution,
   setCheckResults,
 } from "../../store/solutionSlice"
-import { updateProgress } from "../../store/progressSlice"
 import {
   fetchTask,
   fetchLectures,
   createSolution,
   createCheckResult,
   createProgress,
-  updateProgress as updateProgressAPI,
   isAnswerCorrect,
   fetchLectureById,
 } from "../../utils/api"
@@ -100,9 +102,25 @@ const TaskSolverPage = () => {
         try {
           const lectData = await fetchLectures(courseId)
           setLectures(lectData)
-          // Try to find a relevant lecture
+
+          // Try to find a relevant lecture by topic
           if (lectData.length > 0) {
-            setRelatedLecture(lectData[0])
+            let selectedLecture = lectData[0]
+
+            // Try to match by topic
+            const topic = meta.topic
+            if (topic) {
+              const topicLower = String(topic).toLowerCase()
+              const matched = lectData.find(
+                (l) =>
+                  l.id === topic || l.title.toLowerCase().includes(topicLower)
+              )
+              if (matched) {
+                selectedLecture = matched
+              }
+            }
+
+            setRelatedLecture(selectedLecture)
           }
         } catch (e) {
           // Lectures loading is optional
@@ -156,11 +174,8 @@ const TaskSolverPage = () => {
 
       // Update progress
       try {
-        if (correct) {
-          await updateProgressAPI("demo-user", taskId!, "completed")
-        } else {
-          await updateProgressAPI("demo-user", taskId!, "in_progress")
-        }
+        const status = correct ? "completed" : "in_progress"
+        await createProgress("demo-user", taskId!, status)
       } catch (e) {
         // Progress update is optional
       }
@@ -386,10 +401,16 @@ const TaskSolverPage = () => {
                 >
                   Показать подсказку
                 </Button>
-              ) : (
+              ) : task.meta.explanation ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                   <p className="text-sm text-gray-700">
                     {task.meta.explanation}
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <p className="text-sm text-gray-600">
+                    Подсказка недоступна. Изучите теорию для решения задачи.
                   </p>
                 </div>
               )}
@@ -405,16 +426,24 @@ const TaskSolverPage = () => {
                   Теория
                 </h3>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <p className="text-sm text-gray-600 mb-3">
                   Рекомендуемый материал для изучения:
                 </p>
+                {/* <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {relatedLecture.content}
+                  </ReactMarkdown>
+                </div> */}
                 <Button
                   onClick={handleLectureClick}
                   variant="outline"
-                  className="w-full justify-start text-left"
+                  className="w-full"
                 >
-                  <span className="truncate">📖 {relatedLecture.title}</span>
+                  📖 {relatedLecture.title}
                 </Button>
               </CardContent>
             </Card>

@@ -78,7 +78,10 @@ export async function createSolution(
   const res = await fetch(`${API_BASE}/tasks/${taskId}/solutions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(solution),
+    body: JSON.stringify({
+      userId: solution.user_id,
+      code: solution.code,
+    }),
   })
   if (!res.ok) throw new Error("Failed to create solution")
   return res.json()

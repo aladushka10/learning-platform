@@ -4,6 +4,10 @@ import { ArrowLeft, BookOpen } from "lucide-react"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { fetchLectureById } from "../../utils/api"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
 
 interface LectureData {
   id: string
@@ -109,9 +113,12 @@ const LecturePage = () => {
           </CardHeader>
           <CardContent className="prose prose-lg max-w-none pt-8">
             <div className="bg-white rounded-lg p-6">
-              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex]}
+              >
                 {lecture.content}
-              </p>
+              </ReactMarkdown>
             </div>
 
             {/* Action Buttons */}
