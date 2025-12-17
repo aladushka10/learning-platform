@@ -158,6 +158,14 @@ module.exports = {
         "INSERT INTO courses (id, title, description, category, createdAt) VALUES (?, ?, ?, ?, ?)"
       )
       .run(c.id, c.title, c.description, c.category, c.createdAt),
+  updateCourse: (id, data) =>
+    db
+      .prepare(
+        "UPDATE courses SET title = ?, description = ?, category = ? WHERE id = ?"
+      )
+      .run(data.title, data.description, data.category, id),
+  deleteCourse: (id) => db.prepare("DELETE FROM courses WHERE id = ?").run(id),
+
   // modules
   getModules: (courseId) =>
     db
@@ -171,8 +179,16 @@ module.exports = {
         "INSERT INTO modules (id, courseId, title, description, ord) VALUES (?, ?, ?, ?, ?)"
       )
       .run(m.id, m.courseId, m.title, m.description, m.ord),
-  getModulesById: (id) =>
+  getModuleById: (id) =>
     db.prepare("SELECT * FROM modules WHERE id = ?").get(id),
+  updateModule: (id, data) =>
+    db
+      .prepare(
+        "UPDATE modules SET title = ?, description = ?, ord = ? WHERE id = ?"
+      )
+      .run(data.title, data.description, data.ord, id),
+  deleteModule: (id) => db.prepare("DELETE FROM modules WHERE id = ?").run(id),
+
   // lectures
   getLectures: (courseId) =>
     db
@@ -180,12 +196,27 @@ module.exports = {
         "SELECT id, courseId, title, content, ord FROM lectures WHERE courseId = ? ORDER BY ord ASC"
       )
       .all(courseId),
+  getLectureById: (id) =>
+    db
+      .prepare(
+        "SELECT id, courseId, title, content, ord FROM lectures WHERE id = ?"
+      )
+      .get(id),
   createLecture: (l) =>
     db
       .prepare(
         "INSERT INTO lectures (id, courseId, title, content, ord) VALUES (?, ?, ?, ?, ?)"
       )
       .run(l.id, l.courseId, l.title, l.content, l.ord),
+  updateLecture: (id, data) =>
+    db
+      .prepare(
+        "UPDATE lectures SET title = ?, content = ?, ord = ? WHERE id = ?"
+      )
+      .run(data.title, data.content, data.ord, id),
+  deleteLecture: (id) =>
+    db.prepare("DELETE FROM lectures WHERE id = ?").run(id),
+
   // tasks
   getTasks: (courseId) =>
     db
@@ -200,6 +231,14 @@ module.exports = {
         "INSERT INTO tasks (id, courseId, title, description, meta, ord) VALUES (?, ?, ?, ?, ?, ?)"
       )
       .run(t.id, t.courseId, t.title, t.description, t.meta, t.ord),
+  updateTask: (id, data) =>
+    db
+      .prepare(
+        "UPDATE tasks SET title = ?, description = ?, meta = ?, ord = ? WHERE id = ?"
+      )
+      .run(data.title, data.description, data.meta, data.ord, id),
+  deleteTask: (id) => db.prepare("DELETE FROM tasks WHERE id = ?").run(id),
+
   // users
   getUsers: () =>
     db
@@ -207,6 +246,12 @@ module.exports = {
         "SELECT id, email, firstName, lastName, createdAt FROM users ORDER BY createdAt DESC"
       )
       .all(),
+  getUserById: (id) =>
+    db
+      .prepare(
+        "SELECT id, email, passwordHash, firstName, lastName, createdAt FROM users WHERE id = ?"
+      )
+      .get(id),
   getUserByEmail: (email) =>
     db
       .prepare(
@@ -219,6 +264,14 @@ module.exports = {
         "INSERT INTO users (id, email, passwordHash, firstName, lastName, createdAt) VALUES (?, ?, ?, ?, ?, ?)"
       )
       .run(u.id, u.email, u.passwordHash, u.firstName, u.lastName, u.createdAt),
+  updateUser: (id, data) =>
+    db
+      .prepare(
+        "UPDATE users SET email = ?, firstName = ?, lastName = ? WHERE id = ?"
+      )
+      .run(data.email, data.firstName, data.lastName, id),
+  deleteUser: (id) => db.prepare("DELETE FROM users WHERE id = ?").run(id),
+
   // categories
   getCategories: () =>
     db.prepare("SELECT id, name FROM categories ORDER BY name ASC").all(),
@@ -228,6 +281,13 @@ module.exports = {
     db
       .prepare("INSERT INTO categories (id, name) VALUES (?, ?)")
       .run(c.id, c.name),
+  updateCategory: (id, data) =>
+    db
+      .prepare("UPDATE categories SET name = ? WHERE id = ?")
+      .run(data.name, id),
+  deleteCategory: (id) =>
+    db.prepare("DELETE FROM categories WHERE id = ?").run(id),
+
   // task_categories
   createTaskCategory: (tc) =>
     db
@@ -235,39 +295,76 @@ module.exports = {
         "INSERT INTO task_categories (id, task_id, category_id) VALUES (?, ?, ?)"
       )
       .run(tc.id, tc.task_id, tc.category_id),
+  getTaskCategoriesByTask: (taskId) =>
+    db.prepare("SELECT * FROM task_categories WHERE task_id = ?").all(taskId),
+  deleteTaskCategory: (id) =>
+    db.prepare("DELETE FROM task_categories WHERE id = ?").run(id),
+
   // test cases
-  createTestCase: (t) =>
+  getTestCases: (taskId) =>
+    db.prepare("SELECT * FROM test_cases WHERE task_id = ?").all(taskId),
+  getTestCaseById: (id) =>
+    db.prepare("SELECT * FROM test_cases WHERE id = ?").get(id),
+  updateTestCase: (id, data) =>
     db
       .prepare(
-        "INSERT INTO test_cases (id, task_id, input, expected_output) VALUES (?, ?, ?, ?)"
+        "UPDATE test_cases SET input = ?, expected_output = ? WHERE id = ?"
       )
-      .run(t.id, t.task_id, t.input, t.expected_output),
+      .run(data.input, data.expected_output, id),
+  deleteTestCase: (id) =>
+    db.prepare("DELETE FROM test_cases WHERE id = ?").run(id),
+
   // solutions/checks/progress
-  createSolution: (s) =>
+  getSolutionsByTask: (taskId) =>
     db
       .prepare(
-        "INSERT INTO solutions (id, user_id, task_id, code, created_at) VALUES (?, ?, ?, ?, ?)"
+        "SELECT * FROM solutions WHERE task_id = ? ORDER BY created_at DESC"
       )
-      .run(s.id, s.user_id, s.task_id, s.code, s.created_at),
-  createCheckResult: (c) =>
+      .all(taskId),
+  getSolutionById: (id) =>
+    db.prepare("SELECT * FROM solutions WHERE id = ?").get(id),
+  updateSolution: (id, data) =>
+    db.prepare("UPDATE solutions SET code = ? WHERE id = ?").run(data.code, id),
+  deleteSolution: (id) =>
+    db.prepare("DELETE FROM solutions WHERE id = ?").run(id),
+
+  getCheckResultsBySolution: (solutionId) =>
     db
       .prepare(
-        "INSERT INTO check_results (id, solution_id, status, time_ms, passed_tests, error_message) VALUES (?, ?, ?, ?, ?, ?)"
+        "SELECT * FROM check_results WHERE solution_id = ? ORDER BY ROWID DESC"
+      )
+      .all(solutionId),
+  getCheckResultById: (id) =>
+    db.prepare("SELECT * FROM check_results WHERE id = ?").get(id),
+  updateCheckResult: (id, data) =>
+    db
+      .prepare(
+        "UPDATE check_results SET status = ?, time_ms = ?, passed_tests = ?, error_message = ? WHERE id = ?"
       )
       .run(
-        c.id,
-        c.solution_id,
-        c.status,
-        c.time_ms,
-        c.passed_tests,
-        c.error_message
+        data.status,
+        data.time_ms,
+        data.passed_tests,
+        data.error_message,
+        id
       ),
-  createProgress: (p) =>
+  deleteCheckResult: (id) =>
+    db.prepare("DELETE FROM check_results WHERE id = ?").run(id),
+
+  getProgressByUser: (userId) =>
     db
       .prepare(
-        "INSERT INTO progress (id, userId, taskId, status, updatedAt) VALUES (?, ?, ?, ?, ?)"
+        "SELECT * FROM progress WHERE userId = ? ORDER BY updatedAt DESC"
       )
-      .run(p.id, p.userId, p.taskId, p.status, p.updatedAt),
+      .all(userId),
+  getProgressById: (id) =>
+    db.prepare("SELECT * FROM progress WHERE id = ?").get(id),
+  updateProgress: (id, data) =>
+    db
+      .prepare("UPDATE progress SET status = ?, updatedAt = ? WHERE id = ?")
+      .run(data.status, data.updatedAt, id),
+  deleteProgress: (id) =>
+    db.prepare("DELETE FROM progress WHERE id = ?").run(id),
 }
 
 // Seeding: idempotent — only seeds when course doesn't exist
@@ -329,42 +426,157 @@ function seedIfEmpty() {
       id: "lec-1",
       courseId,
       title: "1. Понятие предела функции",
-      content: "Пределы и определения",
+      content: `
+### Понятие предела функции
+
+Понятие предела является одним из базовых понятий математического анализа и служит основой для изучения непрерывности, производных и интегралов. Интуитивно предел функции описывает поведение значений функции при приближении аргумента к некоторой фиксированной точке.
+
+Пусть функция \\( f(x) \\) определена в окрестности точки \\( x_0 \\), за исключением, возможно, самой точки \\( x_0 \\). Число \\( L \\) называется **пределом функции** \\( f(x) \\) при \\( x \\to x_0 \\), если значения функции становятся сколь угодно близкими к \\( L \\) при достаточно близких к \\( x_0 \\) значениях аргумента:
+
+\\[
+\\lim_{x \\to x_0} f(x) = L
+\\]
+
+Формальное определение предела даётся с помощью \\( \\varepsilon \\)–\\( \\delta \\) определения: для любого \\( \\varepsilon > 0 \\) существует такое \\( \\delta > 0 \\), что при выполнении условия  
+\\( 0 < |x - x_0| < \\delta \\) выполняется неравенство  
+\\( |f(x) - L| < \\varepsilon \\).
+
+Рассматриваются также **односторонние пределы** — левосторонний и правосторонний, которые характеризуют поведение функции при приближении к точке только с одной стороны.
+
+К основным свойствам пределов относятся:
+- единственность предела;
+- линейность;
+- правила вычисления пределов суммы, произведения и частного функций.
+
+Эти свойства позволяют находить пределы сложных выражений, сводя задачу к более простым случаям.
+`,
       ord: 1,
     },
     {
       id: "lec-2",
       courseId,
       title: "2. Непрерывность функции",
-      content: "Непрерывность и свойства",
+      content: `
+### Непрерывность функции
+
+Понятие непрерывности функции тесно связано с понятием предела и описывает отсутствие скачков и разрывов в поведении функции. Интуитивно функция считается непрерывной, если её график можно начертить, не отрывая карандаша от бумаги.
+
+Функция \\( f(x) \\) называется **непрерывной в точке** \\( x_0 \\), если выполняются три условия:
+1. функция определена в точке \\( x_0 \\);
+2. существует предел \\( \\lim_{x \\to x_0} f(x) \\);
+3. значение предела равно значению функции в точке:
+\\[
+\\lim_{x \\to x_0} f(x) = f(x_0)
+\\]
+
+Если функция непрерывна в каждой точке некоторого промежутка, то говорят, что она непрерывна на этом промежутке.
+
+Классами непрерывных функций являются многочлены, показательные, логарифмические и тригонометрические функции в областях их определения.
+
+Непрерывные функции обладают важными свойствами:
+- принимают все промежуточные значения;
+- достигают на замкнутом отрезке максимума и минимума.
+
+Эти свойства широко используются при решении прикладных и теоретических задач.
+`,
       ord: 2,
     },
     {
       id: "lec-3",
       courseId,
       title: "3. Производная и её смысл",
-      content: "Производная — геометрический и физический смысл",
+      content: `
+### Производная функции и её смысл
+
+Производная является одной из ключевых характеристик функции и показывает, как быстро изменяется значение функции при изменении аргумента.
+
+Производная функции \\( f(x) \\) в точке \\( x_0 \\) определяется как предел:
+\\[
+f'(x_0) = \\lim_{\\Delta x \\to 0}
+\\frac{f(x_0 + \\Delta x) - f(x_0)}{\\Delta x}
+\\]
+
+**Геометрический смысл производной** заключается в том, что она равна угловому коэффициенту касательной к графику функции в данной точке.
+
+**Физический смысл производной** связан со скоростью изменения величины. Например, если функция описывает путь тела во времени, то её производная соответствует мгновенной скорости.
+
+Не каждая функция имеет производную. Для существования производной функция должна быть непрерывной в данной точке, однако непрерывность не гарантирует дифференцируемость.
+`,
       ord: 3,
     },
     {
       id: "lec-4",
       courseId,
       title: "4. Таблица производных",
-      content: "Правила дифференцирования",
+      content: `
+### Таблица производных и правила дифференцирования
+
+Для упрощения вычислений в математическом анализе используется таблица производных элементарных функций. Она позволяет находить производные без применения определения через предел.
+
+К основным формулам относятся:
+- \\( (x^n)' = nx^{n-1} \\)
+- \\( (\\sin x)' = \\cos x \\)
+- \\( (\\cos x)' = -\\sin x \\)
+- \\( (e^x)' = e^x \\)
+
+Помимо таблицы используются **правила дифференцирования**:
+- правило суммы;
+- правило произведения;
+- правило частного;
+- правило цепочки.
+
+Использование этих правил позволяет находить производные сложных функций и является основой для исследования функций и решения прикладных задач.
+`,
       ord: 4,
     },
     {
       id: "lec-5",
       courseId,
       title: "5. Неопределённый интеграл",
-      content: "Интегралы и таблицы",
+      content: `
+### Неопределённый интеграл
+
+Неопределённый интеграл является операцией, обратной дифференцированию, и используется для нахождения функции по известной производной.
+
+Неопределённым интегралом функции \\( f(x) \\) называется совокупность всех её первообразных:
+\\[
+\\int f(x)\\,dx = F(x) + C,
+\\]
+где \\( F'(x) = f(x) \\), а \\( C \\) — произвольная постоянная.
+
+Для вычисления интегралов применяется таблица основных интегралов и правила интегрирования:
+- линейность;
+- замена переменной;
+- интегрирование по частям.
+
+Неопределённые интегралы широко применяются при решении дифференциальных уравнений и прикладных задач.
+`,
       ord: 5,
     },
     {
       id: "lec-6",
       courseId,
       title: "6. Определённый интеграл",
-      content: "Определённый интеграл и приложения",
+      content: `
+### Определённый интеграл
+
+Определённый интеграл используется для вычисления численных характеристик и имеет наглядный геометрический смысл.
+
+Определённый интеграл функции \\( f(x) \\) на отрезке \\([a, b]\\) обозначается:
+\\[
+\\int_a^b f(x)\\,dx
+\\]
+
+Он определяется как предел интегральных сумм при стремлении длины разбиения к нулю.
+
+Важнейшим результатом является **формула Ньютона–Лейбница**:
+\\[
+\\int_a^b f(x)\\,dx = F(b) - F(a),
+\\]
+где \\( F(x) \\) — первообразная функции \\( f(x) \\).
+
+Определённые интегралы применяются для вычисления площадей, объёмов тел, работы силы и других физических величин.
+`,
       ord: 6,
     },
   ]
