@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useSelector } from "react-redux"
 import {
   BrowserRouter as Router,
   Routes,
@@ -14,6 +15,7 @@ import { Footer } from "./components/Footer/Footer"
 import TaskSolverPage from "./components/TaskSolverPage/TaskSolverPage"
 import LecturePage from "./components/LecturePage/LecturePage"
 import ProfilePage from "./components/ProfilePage/ProfilePage"
+import AchievementsPage from "./components/AchievementsPage/AchievementsPage"
 import SignIn from "./Pages/SignIn/SignIn"
 import SignUp from "./Pages/SignUp/SignUp"
 
@@ -44,10 +46,19 @@ function TasksPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const auth = useSelector((state: any) => state.signIn?.auth)
+  const userIdFromStore = useSelector((state: any) => state.signIn?.userId as string | undefined)
+  const userId = auth ? (userIdFromStore || (typeof localStorage !== "undefined" ? localStorage.getItem("userId") : null)) : null
+  const effectiveUserId = auth && userId ? userId : null
 
   const [courses, setCourses] = useState<Course[]>([])
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
+  const [userStats, setUserStats] = useState<{
+    streakDays?: number
+    achievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number | null }[]
+    recentAchievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number }[]
+  } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -85,18 +96,27 @@ function TasksPage() {
         if (!res.ok) throw new Error("failed to load tasks")
         const rawTasks = await res.json()
 
-        // Try to load user progress
+        // Загружаем прогресс только для авторизованного пользователя
         let userProgress = null
-        try {
-          const progressRes = await fetch(
-            "http://localhost:4000/users/demo-user/stats"
-          )
-          if (progressRes.ok) {
-            const stats = await progressRes.json()
-            userProgress = stats.tasks || []
+        if (effectiveUserId) {
+          try {
+            const progressRes = await fetch(
+              `http://localhost:4000/users/${effectiveUserId}/stats`
+            )
+            if (progressRes.ok) {
+              const stats = await progressRes.json()
+              userProgress = stats.tasks || []
+              setUserStats({
+                streakDays: stats.streakDays ?? 0,
+                achievements: stats.achievements ?? [],
+                recentAchievements: stats.recentAchievements ?? [],
+              })
+            }
+          } catch (e) {
+            // Progress loading is optional
           }
-        } catch (e) {
-          // Progress loading is optional
+        } else {
+          setUserStats(null)
         }
 
         // map backend task shape to client Task
@@ -142,7 +162,7 @@ function TasksPage() {
     }
 
     loadTasks()
-  }, [selectedCourseId, courses])
+  }, [selectedCourseId, courses, effectiveUserId])
 
   const filteredTasks = tasks.filter(
     (task) =>
@@ -235,7 +255,7 @@ function TasksPage() {
               )}
             </div>
 
-            <ProgressPanel tasks={tasks} />
+            <ProgressPanel tasks={tasks} userStats={userStats} />
           </div>
         </main>
       </div>
@@ -260,6 +280,7 @@ export default function App() {
         />
         <Route path="/lecture/:lectureId" element={<LecturePage />} />
         <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/achievements" element={<AchievementsPage />} />
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
       </Routes>

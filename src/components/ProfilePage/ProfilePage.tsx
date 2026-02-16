@@ -1,65 +1,70 @@
+import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSelector } from "react-redux"
 import { ArrowLeft, Trophy, Calendar, BookOpen, Zap, Award } from "lucide-react"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader } from "../ui/card"
 
-interface Achievement {
+const API_BASE = "http://localhost:4000"
+
+interface AchievementItem {
   id: string
   name: string
   description: string
   icon: string
-  unlockedAt?: number
+  unlockedAt?: number | null
+}
+
+interface StatsResponse {
+  completedTasks: number
+  inProgressTasks: number
+  totalTasks: number
+  streakDays: number
+  achievements: AchievementItem[]
+  recentAchievements: { id: string; name: string; description: string; icon: string; unlockedAt: number }[]
 }
 
 const ProfilePage = () => {
   const navigate = useNavigate()
-  const { username } = useSelector((state: any) => state.signIn)
+  const { username, userId, auth } = useSelector((state: any) => state.signIn)
+  const effectiveUserId = auth ? (userId || localStorage.getItem("userId")) : null
 
-  // Demo data - в реальном приложении это будет из API
-  const stats = {
-    tasksCompleted: 7,
-    tasksInProgress: 3,
-    streakDays: 14,
-    totalPoints: 2450,
-    level: 5,
-  }
+  const [stats, setStats] = useState<StatsResponse | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const achievements: Achievement[] = [
-    {
-      id: "1",
-      name: "Первый шаг",
-      description: "Решить первую задачу",
-      icon: "🎯",
-      unlockedAt: Date.now() - 30 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: "2",
-      name: "Неделя активности",
-      description: "Решать задачи 7 дней подряд",
-      icon: "🔥",
-      unlockedAt: Date.now() - 14 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: "3",
-      name: "Эксперт",
-      description: "Достичь уровня 5",
-      icon: "⭐",
-      unlockedAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
-    },
-    {
-      id: "4",
-      name: "Спидран",
-      description: "Решить задачу быстрее 1 минуты",
-      icon: "⚡",
-    },
-    {
-      id: "5",
-      name: "Перфекционист",
-      description: "Решить все задачи в курсе без ошибок",
-      icon: "💎",
-    },
-  ]
+  useEffect(() => {
+    if (!effectiveUserId) {
+      setStats(null)
+      setLoading(false)
+      return
+    }
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/users/${effectiveUserId}/stats`)
+        if (!res.ok) throw new Error("Failed to load stats")
+        const data = await res.json()
+        if (!cancelled) setStats(data)
+      } catch {
+        if (!cancelled) setStats(null)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [effectiveUserId])
+
+  const tasksCompleted = stats?.completedTasks ?? 0
+  const tasksInProgress = stats?.inProgressTasks ?? 0
+  const streakDays = stats?.streakDays ?? 0
+  const totalTasks = stats?.totalTasks ?? 0
+  const totalPoints = Math.min(3000, tasksCompleted * 150)
+  const level = Math.floor(totalPoints / 300) + 1
+  const achievements = stats?.achievements ?? []
+  const recentAchievements = stats?.recentAchievements ?? []
 
   const activityData = [
     { day: "Пн", solved: 2 },
@@ -70,8 +75,28 @@ const ProfilePage = () => {
     { day: "Сб", solved: 2 },
     { day: "Вс", solved: 1 },
   ]
+  const maxSolved = Math.max(1, ...activityData.map((d) => d.solved))
 
-  const maxSolved = Math.max(...activityData.map((d) => d.solved))
+  if (!auth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-8 text-center">
+            <p className="text-gray-600 mb-4">Войдите в аккаунт, чтобы видеть прогресс и достижения.</p>
+            <Button onClick={() => navigate("/sign-in")}>Войти</Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <p className="text-gray-600">Загрузка профиля...</p>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
@@ -159,30 +184,13 @@ const ProfilePage = () => {
               <div className="space-y-3 mt-6">
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-gray-700 font-medium">
-                      Высшая математика
-                    </span>
-                    <span className="text-gray-600">7 из 10</span>
+                    <span className="text-gray-700 font-medium">Прогресс по задачам</span>
+                    <span className="text-gray-600">{tasksCompleted} из {totalTasks}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <div
-                      className="bg-green-500 h-2 rounded-full"
-                      style={{ width: "70%" }}
-                    ></div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-gray-700 font-medium">
-                      Программирование
-                    </span>
-                    <span className="text-gray-600">5 из 8</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-yellow-500 h-2 rounded-full"
-                      style={{ width: "62.5%" }}
+                      className="bg-green-500 h-2 rounded-full transition-all"
+                      style={{ width: totalTasks > 0 ? `${(tasksCompleted / totalTasks) * 100}%` : "0%" }}
                     ></div>
                   </div>
                 </div>
@@ -223,6 +231,39 @@ const ProfilePage = () => {
           </Card>
         </div>
 
+        {/* Недавние достижения */}
+        {recentAchievements.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h3 className="text-xl font-semibold flex items-center gap-2">
+                <Award size={24} className="text-yellow-500" />
+                Недавно полученные достижения
+              </h3>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recentAchievements.map((a) => (
+                  <div
+                    key={a.id}
+                    className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200"
+                  >
+                    <div className="text-4xl">{a.icon || "🏆"}</div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900">{a.name}</h4>
+                      <p className="text-sm text-gray-600">{a.description}</p>
+                      {a.unlockedAt && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          Получено {new Date(a.unlockedAt).toLocaleDateString("ru-RU")}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Achievements */}
         <Card>
           <CardHeader>
@@ -233,36 +274,35 @@ const ProfilePage = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {achievements.map((achievement) => (
-                <div
-                  key={achievement.id}
-                  className={`relative p-4 rounded-lg border-2 transition-all duration-300 ${
-                    achievement.unlockedAt
-                      ? "bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300 hover:shadow-lg"
-                      : "bg-gray-50 border-gray-300 opacity-60"
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-4xl mb-2">{achievement.icon}</div>
-                    <h4 className="font-semibold text-gray-900 text-sm">
-                      {achievement.name}
-                    </h4>
-                    <p className="text-xs text-gray-600 mt-1">
-                      {achievement.description}
-                    </p>
-                  </div>
-
-                  {achievement.unlockedAt && (
-                    <div className="absolute top-2 right-2">
-                      <Award
-                        size={16}
-                        className="text-yellow-500"
-                        fill="currentColor"
-                      />
+              {achievements.length > 0 ? (
+                achievements.map((achievement) => (
+                  <div
+                    key={achievement.id}
+                    className={`relative p-4 rounded-lg border-2 transition-all duration-300 ${
+                      achievement.unlockedAt
+                        ? "bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300 hover:shadow-lg"
+                        : "bg-gray-50 border-gray-300 opacity-60"
+                    }`}
+                  >
+                    <div className="text-center">
+                      <div className="text-4xl mb-2">{achievement.icon || "🏆"}</div>
+                      <h4 className="font-semibold text-gray-900 text-sm">
+                        {achievement.name}
+                      </h4>
+                      <p className="text-xs text-gray-600 mt-1">
+                        {achievement.description}
+                      </p>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {achievement.unlockedAt && (
+                      <div className="absolute top-2 right-2">
+                        <Award size={16} className="text-yellow-500" fill="currentColor" />
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-gray-500 col-span-full">Пока нет достижений. Решайте задачи и собирайте серии дней!</p>
+              )}
             </div>
           </CardContent>
         </Card>

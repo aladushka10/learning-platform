@@ -1,4 +1,4 @@
-import { Search, Bell, User } from "lucide-react"
+import { Search, Bell, User, Trophy } from "lucide-react"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Avatar, AvatarFallback } from "../ui/avatar"
@@ -21,6 +21,7 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
 
   const handleLogout = () => {
     dispatch(logout())
+    setTimeout(() => navigate("/"), 0)
   }
 
   const displayName = firstName || username?.split("@")[0] || "User"
@@ -38,7 +39,7 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white">π</span>
             </div>
-            <span className="text-gray-900 font-semibold">LearnLab</span>
+            <span className="text-gray-900 font-semibold">LearnPlatform</span>
           </button>
         </div>
 
@@ -60,6 +61,15 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
 
           {auth ? (
             <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => navigate("/achievements")}
+              >
+                <Trophy className="w-4 h-4 text-amber-500" />
+                <span className="text-gray-700">Достижения</span>
+              </Button>
               <Button
                 variant="ghost"
                 className="gap-2"

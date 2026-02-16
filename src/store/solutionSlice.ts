@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit"
+import { logout } from "./signInSlice"
 
 export interface Solution {
   id: string
@@ -62,6 +63,18 @@ export const solutionSlice = createSlice({
     clearError: (state) => {
       state.error = null
     },
+    clearSolutions: (state) => {
+      state.solutions = []
+      state.currentSolution = null
+      state.checkResults = {}
+    },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(logout, (state) => {
+      state.solutions = []
+      state.currentSolution = null
+      state.checkResults = {}
+    })
   },
 })
 
@@ -73,6 +86,7 @@ export const {
   setSubmitting,
   setError,
   clearError,
+  clearSolutions,
 } = solutionSlice.actions
 
 export default solutionSlice.reducer

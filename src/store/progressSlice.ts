@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit"
+import { logout } from "./signInSlice"
 
 export interface ProgressRecord {
   id: string
@@ -43,10 +44,23 @@ export const progressSlice = createSlice({
     setError: (state, action: PayloadAction<string | null>) => {
       state.error = action.payload
     },
+    clearProgress: (state) => {
+      state.records = []
+    },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(logout, (state) => {
+      state.records = []
+    })
   },
 })
 
-export const { setProgressRecords, updateProgress, setLoading, setError } =
-  progressSlice.actions
+export const {
+  setProgressRecords,
+  updateProgress,
+  setLoading,
+  setError,
+  clearProgress,
+} = progressSlice.actions
 
 export default progressSlice.reducer

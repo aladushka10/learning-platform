@@ -9,6 +9,44 @@ const swaggerSpec = require("./swagger")
 const app = express()
 const PORT = process.env.PORT || 4000
 
+function updateUserProgress(userId, taskId) {
+  db.upsertProgress({
+    userId,
+    taskId,
+    status: "completed",
+    updatedAt: Date.now(),
+  })
+}
+
+function getStreak(userId) {
+  const dates = db.getCorrectSolutionDates(userId)
+  if (dates.length === 0) return 0
+  const today = new Date().toISOString().slice(0, 10)
+  let streak = 0
+  let expected = today
+  for (const d of dates) {
+    if (d !== expected) break
+    streak++
+    const next = new Date(expected + "T12:00:00Z")
+    next.setUTCDate(next.getUTCDate() - 1)
+    expected = next.toISOString().slice(0, 10)
+  }
+  return streak
+}
+
+function checkAchievements(userId) {
+  const progress = db.getProgressByUser(userId)
+  const completedCount = progress.filter((p) => p.status === "completed").length
+  const streak = getStreak(userId)
+  const definitions = db.getAchievementsDefinitions()
+  for (const def of definitions) {
+    let pass = false
+    if (def.criteriaType === "tasks_completed" && completedCount >= def.criteriaValue) pass = true
+    if (def.criteriaType === "streak_days" && streak >= def.criteriaValue) pass = true
+    if (pass) db.unlockAchievement(userId, def.id)
+  }
+}
+
 app.use(cors())
 app.use(express.json())
 
@@ -168,7 +206,7 @@ app.delete("/categories/:id", (req, res) => {
 })
 
 app.get("/tasks/:id/categories", (req, res) =>
-  res.json(db.getTaskCategoriesByTask(req.params.id))
+  res.json(db.getTaskCategoriesByTask(req.params.id)),
 )
 app.post("/task-categories", (req, res) => {
   if (!req.body?.task_id || !req.body?.category_id)
@@ -188,7 +226,7 @@ app.delete("/task-categories/:id", (req, res) => {
 
 // Test cases
 app.get("/tasks/:id/testcases", (req, res) =>
-  res.json(db.getTestCases(req.params.id))
+  res.json(db.getTestCases(req.params.id)),
 )
 app.post("/tasks/:id/testcases", (req, res) => {
   if (!req.body) return res.status(400).json({ error: "invalid" })
@@ -217,7 +255,7 @@ app.delete("/testcases/:id", (req, res) => {
 
 // Solutions and check results
 app.get("/tasks/:id/solutions", (req, res) =>
-  res.json(db.getSolutionsByTask(req.params.id))
+  res.json(db.getSolutionsByTask(req.params.id)),
 )
 const normalizeAnswer = require("./utils/normalizeAnswer")
 
@@ -309,13 +347,17 @@ app.post("/tasks/:id/solutions", (req, res) => {
     db.createCheckResult(checkResultObj)
 
     // 4️⃣ прогресс
-    db.createProgress({
-      id: uuidv4(),
-      userId,
-      taskId,
-      status: isCorrect ? "completed" : "failed",
-      updatedAt: Date.now(),
-    })
+    // db.createProgress({
+    //   id: uuidv4(),
+    //   userId,
+    //   taskId,
+    //   status: isCorrect ? "completed" : "failed",
+    //   updatedAt: Date.now(),
+    // })
+    if (isCorrect) {
+      updateUserProgress(userId, taskId)
+      checkAchievements(userId)
+    }
 
     res.json({
       ok: true,
@@ -344,7 +386,7 @@ app.delete("/solutions/:id", (req, res) => {
 })
 
 app.get("/solutions/:id/check-results", (req, res) =>
-  res.json(db.getCheckResultsBySolution(req.params.id))
+  res.json(db.getCheckResultsBySolution(req.params.id)),
 )
 app.post("/solutions/:id/check-results", (req, res) => {
   if (!req.body) return res.status(400).json({ error: "invalid" })
@@ -375,19 +417,22 @@ app.delete("/check-results/:id", (req, res) => {
 
 // Progress
 app.get("/users/:id/progress", (req, res) =>
-  res.json(db.getProgressByUser(req.params.id))
+  res.json(db.getProgressByUser(req.params.id)),
 )
 app.post("/users/:id/progress", (req, res) => {
   if (!req.body?.taskId) return res.status(400).json({ error: "invalid" })
-  const p = {
+  const userId = req.params.id
+  const status = req.body.status || "in_progress"
+  const updatedAt = Date.now()
+  db.upsertProgress({
     id: uuidv4(),
-    userId: req.params.id,
+    userId,
     taskId: req.body.taskId,
-    status: req.body.status || "incomplete",
-    updatedAt: Date.now(),
-  }
-  db.createProgress(p)
-  res.status(201).json(p)
+    status,
+    updatedAt,
+  })
+  const record = db.getProgressByUserAndTask(userId, req.body.taskId)
+  res.status(201).json(record)
 })
 app.get("/progress/:id", (req, res) => {
   const p = db.getProgressById(req.params.id)
@@ -564,36 +609,45 @@ app.post("/auth/sign-up", (req, res) => {
 
 // ===== СТАТИСТИКА И ПРОГРЕСС =====
 
-// Получить статистику по прогрессу пользователя
+// Получить статистику по прогрессу пользователя (по всем курсам и задачам)
 app.get("/users/:userId/stats", (req, res) => {
   const { userId } = req.params
-  const progress = db.getProgressByUser(userId)
+  const courses = db.getCourses()
+  const allTasks = courses.flatMap((c) => db.getTasks(c.id))
+  const progressByTask = {}
+  db.getProgressByUser(userId).forEach((p) => {
+    progressByTask[p.taskId] = p
+  })
 
-  if (!progress) {
-    return res.json({
-      totalTasks: 0,
-      completedTasks: 0,
-      inProgressTasks: 0,
-      notStartedTasks: 0,
-      completionRate: 0,
-      tasks: [],
-    })
-  }
-
-  const completed = progress.filter((p) => p.status === "completed").length
-  const inProgress = progress.filter((p) => p.status === "in_progress").length
-  const notStarted = progress.filter((p) => p.status === "not_started").length
-  const total = progress.length
-
-  const taskDetails = progress.map((p) => {
-    const task = db.getTaskById(p.taskId)
+  const taskDetails = allTasks.map((task) => {
+    const prog = progressByTask[task.id]
+    let status = prog?.status || "not_started"
+    const solutions = db.getSolutionsByTask(task.id).filter((s) => s.user_id === userId)
+    if (solutions.length > 0) {
+      const hasCorrect = solutions.some((sol) => {
+        const results = db.getCheckResultsBySolution(sol.id)
+        return results.some((r) => r.status === "correct")
+      })
+      if (hasCorrect) status = "completed"
+      else if (status === "not_started") status = "in_progress"
+    }
+    const updatedAt = prog?.updatedAt ?? (solutions[0]?.created_at ?? null)
     return {
-      taskId: p.taskId,
-      taskTitle: task?.title || "Unknown",
-      status: p.status,
-      updatedAt: p.updatedAt,
+      taskId: task.id,
+      taskTitle: task.title || "Unknown",
+      status,
+      updatedAt,
     }
   })
+
+  const completed = taskDetails.filter((t) => t.status === "completed").length
+  const inProgress = taskDetails.filter((t) => t.status === "in_progress").length
+  const notStarted = taskDetails.filter((t) => t.status === "not_started").length
+  const total = allTasks.length
+
+  const streakDays = getStreak(userId)
+  const achievements = db.getUserAchievements(userId)
+  const recentAchievements = db.getRecentUserAchievements(userId, 5)
 
   res.json({
     totalTasks: total,
@@ -602,17 +656,24 @@ app.get("/users/:userId/stats", (req, res) => {
     notStartedTasks: notStarted,
     completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
     tasks: taskDetails,
+    streakDays,
+    achievements,
+    recentAchievements,
   })
 })
 
-// Получить статистику по курсу
+// Получить статистику по курсу для пользователя
 app.get("/courses/:courseId/stats/:userId", (req, res) => {
   const { courseId, userId } = req.params
   const tasks = db.getTasks(courseId)
-  const userProgress = db.getProgressByUser(userId)
+  const userProgressList = db.getProgressByUser(userId)
+  const progressByTask = {}
+  userProgressList.forEach((p) => {
+    progressByTask[p.taskId] = p
+  })
 
   const statsPerTask = tasks.map((task) => {
-    const progress = userProgress.find((p) => p.taskId === task.id)
+    const progress = progressByTask[task.id]
     const solutions = db
       .getSolutionsByTask(task.id)
       .filter((s) => s.user_id === userId)
@@ -624,12 +685,16 @@ app.get("/courses/:courseId/stats/:userId", (req, res) => {
         .map((sol) => db.getCheckResultsBySolution(sol.id))
         .flat()
     }
+    const hasCorrect = checkResults.some((r) => r.status === "correct")
+    let status = progress?.status || "not_started"
+    if (hasCorrect) status = "completed"
+    else if (attempts > 0 && status === "not_started") status = "in_progress"
 
     return {
       taskId: task.id,
       taskTitle: task.title,
-      status: progress?.status || "not_started",
-      attempts: attempts,
+      status,
+      attempts,
       lastAttempt: solutions.length > 0 ? solutions[0].created_at : null,
       checkStatus: checkResults.length > 0 ? checkResults[0].status : null,
       passedTests: checkResults.length > 0 ? checkResults[0].passed_tests : 0,
@@ -638,7 +703,7 @@ app.get("/courses/:courseId/stats/:userId", (req, res) => {
 
   const completed = statsPerTask.filter((s) => s.status === "completed").length
   const inProgress = statsPerTask.filter(
-    (s) => s.status === "in_progress"
+    (s) => s.status === "in_progress",
   ).length
   const withAttempts = statsPerTask.filter((s) => s.attempts > 0).length
 
@@ -655,21 +720,19 @@ app.get("/courses/:courseId/stats/:userId", (req, res) => {
   })
 })
 
-// Получить решения с результатами проверки (для просмотра истории)
+// Получить решения с результатами проверки (история по пользователю)
 app.get("/users/:userId/solutions", (req, res) => {
   const { userId } = req.params
-  const tasks = db.db
-    .prepare("SELECT DISTINCT task_id FROM solutions WHERE user_id = ?")
-    .all(userId)
+  const taskIds = db.getDistinctTaskIdsByUser(userId)
 
-  const solutionsByTask = tasks.map((t) => {
+  const solutionsByTask = taskIds.map((taskId) => {
     const solutions = db
-      .getSolutionsByTask(t.task_id)
+      .getSolutionsByTask(taskId)
       .filter((s) => s.user_id === userId)
-    const task = db.getTaskById(t.task_id)
+    const task = db.getTaskById(taskId)
 
     return {
-      taskId: t.task_id,
+      taskId,
       taskTitle: task?.title || "Unknown",
       solutionCount: solutions.length,
       solutions: solutions.map((sol) => {
@@ -678,7 +741,7 @@ app.get("/users/:userId/solutions", (req, res) => {
           solutionId: sol.id,
           code: sol.code,
           createdAt: sol.created_at,
-          checkResults: checkResults,
+          checkResults,
         }
       }),
     }

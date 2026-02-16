@@ -3,11 +3,18 @@ import { Card, CardContent, CardHeader } from "../ui/card"
 import { Progress } from "../ui/progress"
 import type { Task } from "../../App"
 
-interface ProgressPanelProps {
-  tasks: Task[]
+interface UserStats {
+  streakDays?: number
+  achievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number | null }[]
+  recentAchievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number }[]
 }
 
-export function ProgressPanel({ tasks }: ProgressPanelProps) {
+interface ProgressPanelProps {
+  tasks: Task[]
+  userStats?: UserStats | null
+}
+
+export function ProgressPanel({ tasks, userStats }: ProgressPanelProps) {
   const completedTasks = tasks.filter((t) => t.completed).length
   const totalTasks = tasks.length
   const progressPercentage =
@@ -17,6 +24,10 @@ export function ProgressPanel({ tasks }: ProgressPanelProps) {
   const csTasks = tasks.filter((t) => t.category === "Computer Science")
   const completedMath = mathTasks.filter((t) => t.completed).length
   const completedCS = csTasks.filter((t) => t.completed).length
+
+  const streakDays = userStats?.streakDays ?? 0
+  const achievementsUnlocked = userStats?.achievements?.filter((a) => a.unlockedAt != null).length ?? 0
+  const recentAchievements = userStats?.recentAchievements ?? []
 
   const stats = [
     {
@@ -29,14 +40,14 @@ export function ProgressPanel({ tasks }: ProgressPanelProps) {
     {
       icon: Flame,
       label: "Дней подряд",
-      value: "7",
+      value: String(streakDays),
       total: "дней",
       color: "text-orange-500",
     },
     {
       icon: Trophy,
       label: "Достижения",
-      value: "12",
+      value: String(achievementsUnlocked),
       total: "получено",
       color: "text-yellow-600",
     },
@@ -132,37 +143,23 @@ export function ProgressPanel({ tasks }: ProgressPanelProps) {
           <h3 className="text-gray-900">Недавние достижения</h3>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
-              <Trophy className="w-5 h-5 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-gray-900">Первые шаги</p>
-              <p className="text-gray-500">Выполните 3 задачи</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-              <Flame className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-gray-900">Воин недели</p>
-              <p className="text-gray-500">Серия из 7 дней</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-              <Target className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-gray-900">Мастер алгоритмов</p>
-              <p className="text-gray-500">
-                Выполните все задачи по алгоритмам
-              </p>
-            </div>
-          </div>
+          {recentAchievements.length > 0 ? (
+            recentAchievements.map((a) => (
+              <div key={a.id} className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-xl">
+                  {a.icon || "🏆"}
+                </div>
+                <div>
+                  <p className="text-gray-900">{a.name}</p>
+                  <p className="text-gray-500 text-sm">{a.description}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500 text-sm">
+              Решайте задачи и собирайте серии дней подряд, чтобы получать достижения.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

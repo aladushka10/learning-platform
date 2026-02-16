@@ -78,6 +78,12 @@ const TaskSolverPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setErrorState] = useState<string | null>(null)
   const { submitting } = useSelector((state: RootState) => state.solution)
+  const userId =
+    (useSelector((state: any) => state.signIn?.userId) as string) ||
+    (typeof localStorage !== "undefined"
+      ? localStorage.getItem("userId")
+      : null) ||
+    "demo-user"
 
   // Load task data
   useEffect(() => {
@@ -112,8 +118,8 @@ const TaskSolverPage = () => {
             if (topic) {
               const topicLower = String(topic).toLowerCase()
               const matched = lectData.find(
-                (l) =>
-                  l.id === topic || l.title.toLowerCase().includes(topicLower)
+                (l: { id: any; title: string }) =>
+                  l.id === topic || l.title.toLowerCase().includes(topicLower),
               )
               if (matched) {
                 selectedLecture = matched
@@ -147,7 +153,7 @@ const TaskSolverPage = () => {
     try {
       // Create solution (server also creates checkResult and progress)
       const resp = await createSolution(taskId!, {
-        user_id: "demo-user",
+        user_id: userId,
         task_id: taskId!,
         code: userAnswer,
         created_at: Date.now(),
@@ -168,7 +174,7 @@ const TaskSolverPage = () => {
       // Update progress
       try {
         const status = correct ? "completed" : "in_progress"
-        await createProgress("demo-user", taskId!, status)
+        await createProgress(userId, taskId!, status)
       } catch (e) {
         // Progress update is optional
       }
@@ -176,7 +182,7 @@ const TaskSolverPage = () => {
       // Store solution in Redux
       dispatch(addSolution(solution))
       dispatch(
-        setCheckResults({ solutionId: solution.id, results: [checkResult] })
+        setCheckResults({ solutionId: solution.id, results: [checkResult] }),
       )
 
       setSubmitted(true)
@@ -277,7 +283,10 @@ const TaskSolverPage = () => {
               <Textarea
                 placeholder="Введите ваше решение..."
                 value={userAnswer}
-                onChange={(e) => setUserAnswer(e.target.value)}
+                onChange={(e) => {
+                  setUserAnswer(e.target.value)
+                  setCheckStatus(null)
+                }}
                 disabled={submitted && checkStatus?.passed}
                 className="min-h-40 font-mono text-sm"
               />
@@ -359,8 +368,8 @@ const TaskSolverPage = () => {
                         task.meta.difficulty === "Easy"
                           ? "outline"
                           : task.meta.difficulty === "Medium"
-                          ? "outline"
-                          : "outline"
+                            ? "outline"
+                            : "outline"
                       }
                     >
                       {task.meta.difficulty}

@@ -84,7 +84,9 @@ const SignUp = () => {
             </button>
           </div>
           <h2 className="text-3xl font-bold">Create Account</h2>
-          <p className="text-blue-100 mt-2">Join LearnLab and start learning</p>
+          <p className="text-blue-100 mt-2">
+            Join LearnPlatform and start learning
+          </p>
         </CardHeader>
 
         <CardContent className="p-8">

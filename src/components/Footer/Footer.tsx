@@ -28,7 +28,7 @@ export function Footer() {
           </div>
 
           <p className={`${style.copyright}`}>
-            © 2025 LearnLab. Все права защищены.
+            © 2025 LearnPlatform. Все права защищены.
           </p>
         </div>
       </div>

@@ -22,7 +22,7 @@ function init() {
       description TEXT,
       category TEXT,
       createdAt INTEGER
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -33,7 +33,7 @@ function init() {
       content TEXT,
       ord INTEGER,
       FOREIGN KEY(courseId) REFERENCES courses(id)
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -45,7 +45,7 @@ function init() {
       meta TEXT,
       ord INTEGER,
       FOREIGN KEY(courseId) REFERENCES courses(id)
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -56,14 +56,14 @@ function init() {
       description TEXT,
       ord INTEGER,
       FOREIGN KEY(courseId) REFERENCES courses(id)
-    )`
+    )`,
   ).run()
 
   db.prepare(
     `CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -73,7 +73,7 @@ function init() {
       category_id TEXT NOT NULL,
       FOREIGN KEY(task_id) REFERENCES tasks(id),
       FOREIGN KEY(category_id) REFERENCES categories(id)
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -83,7 +83,7 @@ function init() {
       input TEXT,
       expected_output TEXT,
       FOREIGN KEY(task_id) REFERENCES tasks(id)
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -94,7 +94,7 @@ function init() {
       firstName TEXT,
       lastName TEXT,
       createdAt INTEGER
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -106,7 +106,7 @@ function init() {
       created_at INTEGER,
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(task_id) REFERENCES tasks(id)
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -118,7 +118,7 @@ function init() {
       passed_tests INTEGER,
       error_message TEXT,
       FOREIGN KEY(solution_id) REFERENCES solutions(id)
-    )`
+    )`,
   ).run()
 
   db.prepare(
@@ -130,7 +130,29 @@ function init() {
       updatedAt INTEGER,
       FOREIGN KEY(userId) REFERENCES users(id),
       FOREIGN KEY(taskId) REFERENCES tasks(id)
-    )`
+    )`,
+  ).run()
+
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS achievements (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      icon TEXT,
+      criteriaType TEXT,
+      criteriaValue INTEGER
+    )`,
+  ).run()
+
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS user_achievements (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      achievementId TEXT NOT NULL,
+      unlockedAt INTEGER,
+      FOREIGN KEY(userId) REFERENCES users(id),
+      FOREIGN KEY(achievementId) REFERENCES achievements(id)
+    )`,
   ).run()
 }
 
@@ -143,25 +165,25 @@ module.exports = {
   getCourses: () =>
     db
       .prepare(
-        "SELECT id, title, description, category, createdAt FROM courses ORDER BY createdAt DESC"
+        "SELECT id, title, description, category, createdAt FROM courses ORDER BY createdAt DESC",
       )
       .all(),
   getCourseById: (id) =>
     db
       .prepare(
-        "SELECT id, title, description, category, createdAt FROM courses WHERE id = ?"
+        "SELECT id, title, description, category, createdAt FROM courses WHERE id = ?",
       )
       .get(id),
   createCourse: (c) =>
     db
       .prepare(
-        "INSERT INTO courses (id, title, description, category, createdAt) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO courses (id, title, description, category, createdAt) VALUES (?, ?, ?, ?, ?)",
       )
       .run(c.id, c.title, c.description, c.category, c.createdAt),
   updateCourse: (id, data) =>
     db
       .prepare(
-        "UPDATE courses SET title = ?, description = ?, category = ? WHERE id = ?"
+        "UPDATE courses SET title = ?, description = ?, category = ? WHERE id = ?",
       )
       .run(data.title, data.description, data.category, id),
   deleteCourse: (id) => db.prepare("DELETE FROM courses WHERE id = ?").run(id),
@@ -170,13 +192,13 @@ module.exports = {
   getModules: (courseId) =>
     db
       .prepare(
-        "SELECT id, courseId, title, description, ord FROM modules WHERE courseId = ? ORDER BY ord ASC"
+        "SELECT id, courseId, title, description, ord FROM modules WHERE courseId = ? ORDER BY ord ASC",
       )
       .all(courseId),
   createModule: (m) =>
     db
       .prepare(
-        "INSERT INTO modules (id, courseId, title, description, ord) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO modules (id, courseId, title, description, ord) VALUES (?, ?, ?, ?, ?)",
       )
       .run(m.id, m.courseId, m.title, m.description, m.ord),
   getModuleById: (id) =>
@@ -184,7 +206,7 @@ module.exports = {
   updateModule: (id, data) =>
     db
       .prepare(
-        "UPDATE modules SET title = ?, description = ?, ord = ? WHERE id = ?"
+        "UPDATE modules SET title = ?, description = ?, ord = ? WHERE id = ?",
       )
       .run(data.title, data.description, data.ord, id),
   deleteModule: (id) => db.prepare("DELETE FROM modules WHERE id = ?").run(id),
@@ -193,25 +215,25 @@ module.exports = {
   getLectures: (courseId) =>
     db
       .prepare(
-        "SELECT id, courseId, title, content, ord FROM lectures WHERE courseId = ? ORDER BY ord ASC"
+        "SELECT id, courseId, title, content, ord FROM lectures WHERE courseId = ? ORDER BY ord ASC",
       )
       .all(courseId),
   getLectureById: (id) =>
     db
       .prepare(
-        "SELECT id, courseId, title, content, ord FROM lectures WHERE id = ?"
+        "SELECT id, courseId, title, content, ord FROM lectures WHERE id = ?",
       )
       .get(id),
   createLecture: (l) =>
     db
       .prepare(
-        "INSERT INTO lectures (id, courseId, title, content, ord) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO lectures (id, courseId, title, content, ord) VALUES (?, ?, ?, ?, ?)",
       )
       .run(l.id, l.courseId, l.title, l.content, l.ord),
   updateLecture: (id, data) =>
     db
       .prepare(
-        "UPDATE lectures SET title = ?, content = ?, ord = ? WHERE id = ?"
+        "UPDATE lectures SET title = ?, content = ?, ord = ? WHERE id = ?",
       )
       .run(data.title, data.content, data.ord, id),
   deleteLecture: (id) =>
@@ -221,20 +243,20 @@ module.exports = {
   getTasks: (courseId) =>
     db
       .prepare(
-        "SELECT id, courseId, title, description, meta, ord FROM tasks WHERE courseId = ? ORDER BY ord ASC"
+        "SELECT id, courseId, title, description, meta, ord FROM tasks WHERE courseId = ? ORDER BY ord ASC",
       )
       .all(courseId),
   getTaskById: (id) => db.prepare("SELECT * FROM tasks WHERE id = ?").get(id),
   createTask: (t) =>
     db
       .prepare(
-        "INSERT INTO tasks (id, courseId, title, description, meta, ord) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO tasks (id, courseId, title, description, meta, ord) VALUES (?, ?, ?, ?, ?, ?)",
       )
       .run(t.id, t.courseId, t.title, t.description, t.meta, t.ord),
   updateTask: (id, data) =>
     db
       .prepare(
-        "UPDATE tasks SET title = ?, description = ?, meta = ?, ord = ? WHERE id = ?"
+        "UPDATE tasks SET title = ?, description = ?, meta = ?, ord = ? WHERE id = ?",
       )
       .run(data.title, data.description, data.meta, data.ord, id),
   deleteTask: (id) => db.prepare("DELETE FROM tasks WHERE id = ?").run(id),
@@ -243,31 +265,31 @@ module.exports = {
   getUsers: () =>
     db
       .prepare(
-        "SELECT id, email, firstName, lastName, createdAt FROM users ORDER BY createdAt DESC"
+        "SELECT id, email, firstName, lastName, createdAt FROM users ORDER BY createdAt DESC",
       )
       .all(),
   getUserById: (id) =>
     db
       .prepare(
-        "SELECT id, email, passwordHash, firstName, lastName, createdAt FROM users WHERE id = ?"
+        "SELECT id, email, passwordHash, firstName, lastName, createdAt FROM users WHERE id = ?",
       )
       .get(id),
   getUserByEmail: (email) =>
     db
       .prepare(
-        "SELECT id, email, passwordHash, firstName, lastName, createdAt FROM users WHERE email = ?"
+        "SELECT id, email, passwordHash, firstName, lastName, createdAt FROM users WHERE email = ?",
       )
       .get(email),
   createUser: (u) =>
     db
       .prepare(
-        "INSERT INTO users (id, email, passwordHash, firstName, lastName, createdAt) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO users (id, email, passwordHash, firstName, lastName, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
       )
       .run(u.id, u.email, u.passwordHash, u.firstName, u.lastName, u.createdAt),
   updateUser: (id, data) =>
     db
       .prepare(
-        "UPDATE users SET email = ?, firstName = ?, lastName = ? WHERE id = ?"
+        "UPDATE users SET email = ?, firstName = ?, lastName = ? WHERE id = ?",
       )
       .run(data.email, data.firstName, data.lastName, id),
   deleteUser: (id) => db.prepare("DELETE FROM users WHERE id = ?").run(id),
@@ -292,7 +314,7 @@ module.exports = {
   createTaskCategory: (tc) =>
     db
       .prepare(
-        "INSERT INTO task_categories (id, task_id, category_id) VALUES (?, ?, ?)"
+        "INSERT INTO task_categories (id, task_id, category_id) VALUES (?, ?, ?)",
       )
       .run(tc.id, tc.task_id, tc.category_id),
   getTaskCategoriesByTask: (taskId) =>
@@ -308,7 +330,7 @@ module.exports = {
   updateTestCase: (id, data) =>
     db
       .prepare(
-        "UPDATE test_cases SET input = ?, expected_output = ? WHERE id = ?"
+        "UPDATE test_cases SET input = ?, expected_output = ? WHERE id = ?",
       )
       .run(data.input, data.expected_output, id),
   deleteTestCase: (id) =>
@@ -318,9 +340,16 @@ module.exports = {
   getSolutionsByTask: (taskId) =>
     db
       .prepare(
-        "SELECT * FROM solutions WHERE task_id = ? ORDER BY created_at DESC"
+        "SELECT * FROM solutions WHERE task_id = ? ORDER BY created_at DESC",
       )
       .all(taskId),
+  getDistinctTaskIdsByUser: (userId) =>
+    db
+      .prepare(
+        "SELECT DISTINCT task_id as task_id FROM solutions WHERE user_id = ?",
+      )
+      .all(userId)
+      .map((r) => r.task_id),
   getSolutionById: (id) =>
     db.prepare("SELECT * FROM solutions WHERE id = ?").get(id),
   updateSolution: (id, data) =>
@@ -331,7 +360,7 @@ module.exports = {
   getCheckResultsBySolution: (solutionId) =>
     db
       .prepare(
-        "SELECT * FROM check_results WHERE solution_id = ? ORDER BY ROWID DESC"
+        "SELECT * FROM check_results WHERE solution_id = ? ORDER BY ROWID DESC",
       )
       .all(solutionId),
   getCheckResultById: (id) =>
@@ -339,14 +368,14 @@ module.exports = {
   updateCheckResult: (id, data) =>
     db
       .prepare(
-        "UPDATE check_results SET status = ?, time_ms = ?, passed_tests = ?, error_message = ? WHERE id = ?"
+        "UPDATE check_results SET status = ?, time_ms = ?, passed_tests = ?, error_message = ? WHERE id = ?",
       )
       .run(
         data.status,
         data.time_ms,
         data.passed_tests,
         data.error_message,
-        id
+        id,
       ),
   deleteCheckResult: (id) =>
     db.prepare("DELETE FROM check_results WHERE id = ?").run(id),
@@ -354,14 +383,14 @@ module.exports = {
   createProgress: (p) =>
     db
       .prepare(
-        "INSERT INTO progress (id, userId, taskId, status, updatedAt) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO progress (id, userId, taskId, status, updatedAt) VALUES (?, ?, ?, ?, ?)",
       )
       .run(p.id, p.userId, p.taskId, p.status, p.updatedAt),
 
   createSolution: (s) =>
     db
       .prepare(
-        "INSERT INTO solutions (id, user_id, task_id, code, created_at) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO solutions (id, user_id, task_id, code, created_at) VALUES (?, ?, ?, ?, ?)",
       )
       .run(s.id, s.user_id, s.task_id, s.code, s.created_at),
 
@@ -370,7 +399,7 @@ module.exports = {
       .prepare(
         `INSERT INTO check_results
      (id, solution_id, status, time_ms, passed_tests, error_message)
-     VALUES (?, ?, ?, ?, ?, ?)`
+     VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .run(
         c.id,
@@ -378,23 +407,118 @@ module.exports = {
         c.status,
         c.time_ms,
         c.passed_tests,
-        c.error_message
+        c.error_message,
       ),
 
   getProgressByUser: (userId) =>
     db
       .prepare(
-        "SELECT * FROM progress WHERE userId = ? ORDER BY updatedAt DESC"
+        "SELECT * FROM progress WHERE userId = ? ORDER BY updatedAt DESC",
       )
       .all(userId),
   getProgressById: (id) =>
     db.prepare("SELECT * FROM progress WHERE id = ?").get(id),
+  getProgressByUserAndTask: (userId, taskId) =>
+    db
+      .prepare("SELECT * FROM progress WHERE userId = ? AND taskId = ?")
+      .get(userId, taskId),
   updateProgress: (id, data) =>
     db
       .prepare("UPDATE progress SET status = ?, updatedAt = ? WHERE id = ?")
       .run(data.status, data.updatedAt, id),
   deleteProgress: (id) =>
     db.prepare("DELETE FROM progress WHERE id = ?").run(id),
+
+  upsertProgress: (p) => {
+    const existing = db
+      .prepare("SELECT id FROM progress WHERE userId = ? AND taskId = ?")
+      .get(p.userId, p.taskId)
+    if (existing) {
+      db.prepare("UPDATE progress SET status = ?, updatedAt = ? WHERE id = ?").run(
+        p.status,
+        p.updatedAt,
+        existing.id,
+      )
+    } else {
+      db.prepare(
+        "INSERT INTO progress (id, userId, taskId, status, updatedAt) VALUES (?, ?, ?, ?, ?)",
+      ).run(
+        p.id || uuidv4(),
+        p.userId,
+        p.taskId,
+        p.status,
+        p.updatedAt,
+      )
+    }
+  },
+
+  countTasksByCourse: (courseId) =>
+    db.prepare("SELECT COUNT(*) as n FROM tasks WHERE courseId = ?").get(courseId)
+      .n,
+
+  countCorrectSolutions: (userId, courseId) =>
+    db
+      .prepare(
+        `SELECT COUNT(DISTINCT s.task_id) as n
+       FROM solutions s
+       JOIN check_results cr ON cr.solution_id = s.id
+       JOIN tasks t ON t.id = s.task_id
+       WHERE s.user_id = ? AND t.courseId = ? AND cr.status = 'correct'`,
+      )
+      .get(userId, courseId).n,
+
+  // Achievements
+  getAchievementsDefinitions: () =>
+    db.prepare("SELECT * FROM achievements ORDER BY criteriaValue ASC").all(),
+  getUserAchievements: (userId) =>
+    db
+      .prepare(
+        `SELECT a.id, a.name, a.description, a.icon, ua.unlockedAt
+         FROM achievements a
+         LEFT JOIN user_achievements ua ON ua.achievementId = a.id AND ua.userId = ?
+         ORDER BY ua.unlockedAt DESC`,
+      )
+      .all(userId),
+  unlockAchievement: (userId, achievementId) => {
+    const existing = db
+      .prepare(
+        "SELECT id FROM user_achievements WHERE userId = ? AND achievementId = ?",
+      )
+      .get(userId, achievementId)
+    if (existing) return
+    db.prepare(
+      "INSERT INTO user_achievements (id, userId, achievementId, unlockedAt) VALUES (?, ?, ?, ?)",
+    ).run(uuidv4(), userId, achievementId, Date.now())
+  },
+  getRecentUserAchievements: (userId, limit = 5) =>
+    db
+      .prepare(
+        `SELECT a.id, a.name, a.description, a.icon, ua.unlockedAt
+         FROM user_achievements ua
+         JOIN achievements a ON a.id = ua.achievementId
+         WHERE ua.userId = ?
+         ORDER BY ua.unlockedAt DESC LIMIT ?`,
+      )
+      .all(userId, limit),
+
+  // Возвращает уникальные даты (YYYY-MM-DD) дней с верным решением, от новых к старым
+  getCorrectSolutionDates: (userId) => {
+    const rows = db
+      .prepare(
+        `SELECT s.created_at as created_at
+         FROM solutions s
+         JOIN check_results cr ON cr.solution_id = s.id
+         WHERE s.user_id = ? AND cr.status = 'correct'
+         ORDER BY s.created_at DESC`,
+      )
+      .all(userId)
+    const dates = new Set()
+    rows.forEach((r) => {
+      const d = new Date(r.created_at)
+      dates.add(d.toISOString().slice(0, 10))
+    })
+    return Array.from(dates).sort().reverse()
+  },
 }
 
 // Seeding: idempotent — only seeds when course doesn't exist
@@ -450,163 +574,6 @@ function seedIfEmpty() {
     } catch (e) {}
   })
 
-  // lectures
-  //   const lectures = [
-  //     {
-  //       id: "lec-1",
-  //       courseId,
-  //       title: "1. Понятие предела функции",
-  //       content: `
-  // ### Понятие предела функции
-
-  // Понятие предела является одним из базовых понятий математического анализа и служит основой для изучения непрерывности, производных и интегралов. Интуитивно предел функции описывает поведение значений функции при приближении аргумента к некоторой фиксированной точке.
-
-  // Пусть функция \( f(x) \) определена в окрестности точки \( x_0 \), за исключением, возможно, самой точки \( x_0 \). Число \( L \) называется **пределом функции** \( f(x) \) при \( x \to x_0 \), если значения функции становятся сколь угодно близкими к \( L \) при достаточно близких к \( x_0 \) значениях аргумента:
-
-  // $$
-  // \lim_{x \to x_0} f(x) = L
-  // $$
-
-  // Формальное определение предела даётся с помощью \( \varepsilon \)–\( \delta \) определения: для любого \( \varepsilon > 0 \) существует такое \( \delta > 0 \), что при выполнении условия
-  // \( 0 < |x - x_0| < \delta \) выполняется неравенство
-  // \( |f(x) - L| < \varepsilon \).
-
-  // Рассматриваются также **односторонние пределы** — левосторонний и правосторонний, которые характеризуют поведение функции при приближении к точке только с одной стороны.
-
-  // К основным свойствам пределов относятся:
-  // - единственность предела;
-  // - линейность;
-  // - правила вычисления пределов суммы, произведения и частного функций.
-
-  // Эти свойства позволяют находить пределы сложных выражений, сводя задачу к более простым случаям.
-  // `,
-  //       ord: 1,
-  //     },
-  //     {
-  //       id: "lec-2",
-  //       courseId,
-  //       title: "2. Непрерывность функции",
-  //       content: `
-  // ### Непрерывность функции
-
-  // Понятие непрерывности функции тесно связано с понятием предела и описывает отсутствие скачков и разрывов в поведении функции. Интуитивно функция считается непрерывной, если её график можно начертить, не отрывая карандаша от бумаги.
-
-  // Функция \( f(x) \) называется **непрерывной в точке** \( x_0 \), если выполняются три условия:
-  // 1. функция определена в точке \( x_0 \);
-  // 2. существует предел \( \lim_{x \to x_0} f(x) \);
-  // 3. значение предела равно значению функции в точке:
-  // $$
-  // \lim_{x \to x_0} f(x) = f(x_0)
-  // $$
-
-  // Если функция непрерывна в каждой точке некоторого промежутка, то говорят, что она непрерывна на этом промежутке.
-
-  // Классами непрерывных функций являются многочлены, показательные, логарифмические и тригонометрические функции в областях их определения.
-
-  // Непрерывные функции обладают важными свойствами:
-  // - принимают все промежуточные значения;
-  // - достигают на замкнутом отрезке максимума и минимума.
-  // `,
-  //       ord: 2,
-  //     },
-  //     {
-  //       id: "lec-3",
-  //       courseId,
-  //       title: "3. Производная и её смысл",
-  //       content: `
-  // ### Производная функции и её смысл
-
-  // Производная является одной из ключевых характеристик функции и показывает, как быстро изменяется значение функции при изменении аргумента.
-
-  // Производная функции \( f(x) \) в точке \( x_0 \) определяется как предел:
-  // $$
-  // f'(x_0) = \lim_{\Delta x \to 0} \frac{f(x_0 + \Delta x) - f(x_0)}{\Delta x}
-  // $$
-
-  // **Геометрический смысл производной** заключается в том, что она равна угловому коэффициенту касательной к графику функции в данной точке.
-
-  // **Физический смысл производной** связан со скоростью изменения величины. Например, если функция описывает путь тела во времени, то её производная соответствует мгновенной скорости.
-
-  // Не каждая функция имеет производную. Для существования производной функция должна быть непрерывной в данной точке, однако непрерывность не гарантирует дифференцируемость.
-  // `,
-  //       ord: 3,
-  //     },
-  //     {
-  //       id: "lec-4",
-  //       courseId,
-  //       title: "4. Таблица производных",
-  //       content: `
-  // ### Таблица производных и правила дифференцирования
-
-  // Для упрощения вычислений в математическом анализе используется таблица производных элементарных функций. Она позволяет находить производные без применения определения через предел.
-
-  // К основным формулам относятся:
-  // - \( (x^n)' = n x^{n-1} \)
-  // - \( (\sin x)' = \cos x \)
-  // - \( (\cos x)' = -\sin x \)
-  // - \( (e^x)' = e^x \)
-
-  // Помимо таблицы используются **правила дифференцирования**:
-  // - правило суммы;
-  // - правило произведения;
-  // - правило частного;
-  // - правило цепочки.
-
-  // Использование этих правил позволяет находить производные сложных функций и является основой для исследования функций и решения прикладных задач.
-  // `,
-  //       ord: 4,
-  //     },
-  //     {
-  //       id: "lec-5",
-  //       courseId,
-  //       title: "5. Неопределённый интеграл",
-  //       content: `
-  // ### Неопределённый интеграл
-
-  // Неопределённый интеграл является операцией, обратной дифференцированию, и используется для нахождения функции по известной производной.
-
-  // Неопределённым интегралом функции \( f(x) \) называется совокупность всех её первообразных:
-  // $$
-  // \int f(x) \, dx = F(x) + C
-  // $$
-  // где \( F'(x) = f(x) \), а \( C \) — произвольная постоянная.
-
-  // Для вычисления интегралов применяется таблица основных интегралов и правила интегрирования:
-  // - линейность;
-  // - замена переменной;
-  // - интегрирование по частям.
-
-  // Неопределённые интегралы широко применяются при решении дифференциальных уравнений и прикладных задач.
-  // `,
-  //       ord: 5,
-  //     },
-  //     {
-  //       id: "lec-6",
-  //       courseId,
-  //       title: "6. Определённый интеграл",
-  //       content: `
-  // ### Определённый интеграл
-
-  // Определённый интеграл используется для вычисления численных характеристик и имеет наглядный геометрический смысл.
-
-  // Определённый интеграл функции \( f(x) \) на отрезке \([a, b]\) обозначается:
-  // $$
-  // \int_a^b f(x)\, dx
-  // $$
-
-  // Он определяется как предел интегральных сумм при стремлении длины разбиения к нулю.
-
-  // Важнейшим результатом является **формула Ньютона–Лейбница**:
-  // $$
-  // \int_a^b f(x)\,dx = F(b) - F(a)
-  // $$
-  // где \( F(x) \) — первообразная функции \( f(x) \).
-
-  // Определённые интегралы применяются для вычисления площадей, объёмов тел, работы силы и других физических величин.
-  // `,
-  //       ord: 6,
-  //     },
-  //   ]
   const lectures = [
     {
       id: "lec-1",
@@ -1100,6 +1067,28 @@ $$
         })
       } catch (e) {}
     }
+  } catch (e) {}
+
+  // Seed achievements (insert all, ignore if exists)
+  try {
+    const achievements = [
+      { id: "first_task", name: "Первые шаги", description: "Выполните 1 задачу", icon: "🎯", criteriaType: "tasks_completed", criteriaValue: 1 },
+      { id: "three_tasks", name: "В ритме", description: "Выполните 3 задачи", icon: "📚", criteriaType: "tasks_completed", criteriaValue: 3 },
+      { id: "five_tasks", name: "Пяторка", description: "Выполните 5 задач", icon: "⭐", criteriaType: "tasks_completed", criteriaValue: 5 },
+      { id: "ten_tasks", name: "Десятка", description: "Выполните 10 задач", icon: "💪", criteriaType: "tasks_completed", criteriaValue: 10 },
+      { id: "all_tasks", name: "Мастер курса", description: "Выполните все задачи курса", icon: "👑", criteriaType: "tasks_completed", criteriaValue: 15 },
+      { id: "three_streak", name: "Три дня подряд", description: "Решайте задачи 3 дня подряд", icon: "📅", criteriaType: "streak_days", criteriaValue: 3 },
+      { id: "week_streak", name: "Воин недели", description: "Серия из 7 дней подряд", icon: "🔥", criteriaType: "streak_days", criteriaValue: 7 },
+      { id: "two_weeks_streak", name: "Две недели", description: "Серия из 14 дней подряд", icon: "🌟", criteriaType: "streak_days", criteriaValue: 14 },
+    ]
+    const insert = db.prepare(
+      "INSERT OR IGNORE INTO achievements (id, name, description, icon, criteriaType, criteriaValue) VALUES (?, ?, ?, ?, ?, ?)",
+    )
+    achievements.forEach((a) => {
+      try {
+        insert.run(a.id, a.name, a.description, a.icon, a.criteriaType, a.criteriaValue)
+      } catch (e) {}
+    })
   } catch (e) {}
 }
 

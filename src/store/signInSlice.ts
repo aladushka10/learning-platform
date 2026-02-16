@@ -9,6 +9,7 @@ interface Credentials {
 interface SignInState {
   auth: boolean
   username: string | null
+  userId: string | null
   firstName?: string | null
   lastName?: string | null
   isLoading: boolean
@@ -20,6 +21,7 @@ interface SignInState {
 const initialState: SignInState = {
   auth: localStorage.getItem("auth") === "true",
   username: localStorage.getItem("username") || null,
+  userId: localStorage.getItem("userId") || null,
   firstName: localStorage.getItem("firstName") || null,
   lastName: localStorage.getItem("lastName") || null,
   isLoading: false,
@@ -90,6 +92,7 @@ const signInSlice = createSlice({
     logout(state) {
       state.auth = false
       state.username = null
+      state.userId = null
       state.error = null
       state.firstName = null
       state.lastName = null
@@ -100,6 +103,7 @@ const signInSlice = createSlice({
       localStorage.removeItem("refreshToken")
       localStorage.removeItem("firstName")
       localStorage.removeItem("lastName")
+      localStorage.removeItem("userId")
       localStorage.removeItem("auth")
       localStorage.removeItem("username")
     },
@@ -123,6 +127,7 @@ const signInSlice = createSlice({
         if (action.payload?.userDetails) {
           state.firstName = action.payload.userDetails.firstName || null
           state.lastName = action.payload.userDetails.lastName || null
+          state.userId = action.payload.userDetails.id || null
           if (action.payload.userDetails.firstName) {
             localStorage.setItem(
               "firstName",
@@ -134,6 +139,9 @@ const signInSlice = createSlice({
               "lastName",
               action.payload.userDetails.lastName
             )
+          }
+          if (action.payload.userDetails.id) {
+            localStorage.setItem("userId", action.payload.userDetails.id)
           }
         }
 
