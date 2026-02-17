@@ -35,6 +35,7 @@ import {
 } from "../../utils/api"
 import type { RootState } from "../../store"
 import style from "./TaskSolverPage.module.scss"
+import AchievementBanner from "../AchievementBanner/AchievementBanner"
 
 interface TaskData {
   id: string
@@ -74,6 +75,12 @@ const TaskSolverPage = () => {
   const [checkStatus, setCheckStatus] = useState<{
     passed: boolean
     message: string
+  } | null>(null)
+  const [achievementBanner, setAchievementBanner] = useState<{
+    id: string
+    name: string
+    description: string
+    icon?: string
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setErrorState] = useState<string | null>(null)
@@ -164,6 +171,19 @@ const TaskSolverPage = () => {
       const checkResult = resp.checkResult
       const correct = resp.correct === true
 
+      const newlyUnlocked = Array.isArray((resp as any)?.newAchievements)
+        ? (resp as any).newAchievements
+        : []
+      if (newlyUnlocked.length > 0) {
+        const a = newlyUnlocked[0]
+        setAchievementBanner({
+          id: a.id,
+          name: a.name,
+          description: a.description,
+          icon: a.icon,
+        })
+      }
+
       setCheckStatus({
         passed: correct,
         message: correct
@@ -235,6 +255,10 @@ const TaskSolverPage = () => {
 
   return (
     <div className={style.solverPage}>
+      <AchievementBanner
+        achievement={achievementBanner}
+        onClose={() => setAchievementBanner(null)}
+      />
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <button

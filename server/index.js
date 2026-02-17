@@ -19,32 +19,88 @@ function updateUserProgress(userId, taskId) {
 }
 
 function getStreak(userId) {
-  const dates = db.getCorrectSolutionDates(userId)
+  const dates = db.getCorrectSolutionDates(userId) // YYYY-MM-DD (UTC) but consistent in our code
   if (dates.length === 0) return 0
-  const today = new Date().toISOString().slice(0, 10)
+
+  // Локальная дата YYYY-MM-DD
+  const toLocalDay = (dt = new Date()) => {
+    const y = dt.getFullYear()
+    const m = String(dt.getMonth() + 1).padStart(2, "0")
+    const d = String(dt.getDate()).padStart(2, "0")
+    return `${y}-${m}-${d}`
+  }
+  const addDaysLocal = (dayStr, deltaDays) => {
+    const [y, m, d] = dayStr.split("-").map((n) => parseInt(n, 10))
+    const base = new Date(y, m - 1, d, 12, 0, 0, 0)
+    base.setDate(base.getDate() + deltaDays)
+    return toLocalDay(base)
+  }
+
+  const today = toLocalDay(new Date())
+  const yesterday = addDaysLocal(today, -1)
+
+  const lastDay = dates[0]
+
+  // «Заглушка» / понятное поведение:
+  // - если последняя активность сегодня или вчера — показываем текущую серию (она "живёт" до конца дня)
+  // - если последняя активность раньше — серия 0
+  if (lastDay !== today && lastDay !== yesterday) return 0
+
+  // считаем длину серии, заканчивающейся на lastDay
   let streak = 0
-  let expected = today
+  let expected = lastDay
   for (const d of dates) {
     if (d !== expected) break
     streak++
-    const next = new Date(expected + "T12:00:00Z")
-    next.setUTCDate(next.getUTCDate() - 1)
-    expected = next.toISOString().slice(0, 10)
+    expected = addDaysLocal(expected, -1)
   }
   return streak
 }
 
 function checkAchievements(userId) {
-  const progress = db.getProgressByUser(userId)
-  const completedCount = progress.filter((p) => p.status === "completed").length
+  const completedTaskIds = db.getCompletedTaskIdsByUser(userId)
+  const completedCount = completedTaskIds.length
+  const completedSet = new Set(completedTaskIds)
   const streak = getStreak(userId)
   const definitions = db.getAchievementsDefinitions()
-  for (const def of definitions) {
-    let pass = false
-    if (def.criteriaType === "tasks_completed" && completedCount >= def.criteriaValue) pass = true
-    if (def.criteriaType === "streak_days" && streak >= def.criteriaValue) pass = true
-    if (pass) db.unlockAchievement(userId, def.id)
+
+  // Миграция: раньше "three_tasks" выдавалось за 3 задачи.
+  // Теперь условие — 4 задачи, поэтому если у пользователя < 4,
+  // сбрасываем старую отметку получения, чтобы UI был консистентным.
+  if (completedCount < 4) {
+    db.revokeAchievement(userId, "three_tasks")
   }
+
+  const newlyUnlocked = []
+
+  for (const def of definitions) {
+    if (def.id === "three_tasks" && completedCount >= 4) {
+      const unlocked = db.unlockAchievement(userId, def.id)
+      if (unlocked) newlyUnlocked.push(unlocked)
+      continue
+    }
+
+    if (def.id === "streak_5" && streak >= 5) {
+      const unlocked = db.unlockAchievement(userId, def.id)
+      if (unlocked) newlyUnlocked.push(unlocked)
+      continue
+    }
+
+    if (def.id === "all_tasks_course") {
+      const courses = db.getCourses()
+      const hasCompletedAnyCourse = courses.some((c) => {
+        const tasks = db.getTasks(c.id)
+        if (!tasks || tasks.length === 0) return false
+        return tasks.every((t) => completedSet.has(t.id))
+      })
+      if (hasCompletedAnyCourse) {
+        const unlocked = db.unlockAchievement(userId, def.id)
+        if (unlocked) newlyUnlocked.push(unlocked)
+      }
+    }
+  }
+
+  return newlyUnlocked
 }
 
 app.use(cors())
@@ -308,6 +364,7 @@ const normalizeAnswer = require("./utils/normalizeAnswer")
 //   }
 // })
 app.post("/tasks/:id/solutions", (req, res) => {
+  console.log("POST /tasks/:id/solutions triggered")
   try {
     const taskId = req.params.id
     const { userId, code } = req.body
@@ -354,9 +411,10 @@ app.post("/tasks/:id/solutions", (req, res) => {
     //   status: isCorrect ? "completed" : "failed",
     //   updatedAt: Date.now(),
     // })
+    let newAchievements = []
     if (isCorrect) {
       updateUserProgress(userId, taskId)
-      checkAchievements(userId)
+      newAchievements = checkAchievements(userId)
     }
 
     res.json({
@@ -364,6 +422,8 @@ app.post("/tasks/:id/solutions", (req, res) => {
       correct: isCorrect,
       solution: solutionObj,
       checkResult: checkResultObj,
+
+      newAchievements,
     })
   } catch (e) {
     console.error(e)
@@ -622,7 +682,9 @@ app.get("/users/:userId/stats", (req, res) => {
   const taskDetails = allTasks.map((task) => {
     const prog = progressByTask[task.id]
     let status = prog?.status || "not_started"
-    const solutions = db.getSolutionsByTask(task.id).filter((s) => s.user_id === userId)
+    const solutions = db
+      .getSolutionsByTask(task.id)
+      .filter((s) => s.user_id === userId)
     if (solutions.length > 0) {
       const hasCorrect = solutions.some((sol) => {
         const results = db.getCheckResultsBySolution(sol.id)
@@ -631,7 +693,7 @@ app.get("/users/:userId/stats", (req, res) => {
       if (hasCorrect) status = "completed"
       else if (status === "not_started") status = "in_progress"
     }
-    const updatedAt = prog?.updatedAt ?? (solutions[0]?.created_at ?? null)
+    const updatedAt = prog?.updatedAt ?? solutions[0]?.created_at ?? null
     return {
       taskId: task.id,
       taskTitle: task.title || "Unknown",
@@ -641,13 +703,18 @@ app.get("/users/:userId/stats", (req, res) => {
   })
 
   const completed = taskDetails.filter((t) => t.status === "completed").length
-  const inProgress = taskDetails.filter((t) => t.status === "in_progress").length
-  const notStarted = taskDetails.filter((t) => t.status === "not_started").length
+  const inProgress = taskDetails.filter(
+    (t) => t.status === "in_progress",
+  ).length
+  const notStarted = taskDetails.filter(
+    (t) => t.status === "not_started",
+  ).length
   const total = allTasks.length
 
   const streakDays = getStreak(userId)
+  checkAchievements(userId)
+
   const achievements = db.getUserAchievements(userId)
-  const recentAchievements = db.getRecentUserAchievements(userId, 5)
 
   res.json({
     totalTasks: total,
@@ -658,7 +725,6 @@ app.get("/users/:userId/stats", (req, res) => {
     tasks: taskDetails,
     streakDays,
     achievements,
-    recentAchievements,
   })
 })
 

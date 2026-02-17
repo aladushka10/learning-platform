@@ -2,19 +2,56 @@ import { Trophy, Target, Flame, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { Progress } from "../ui/progress"
 import type { Task } from "../../App"
+import { useEffect, useState } from "react"
+import AchievementBanner from "../AchievementBanner/AchievementBanner"
 
 interface UserStats {
   streakDays?: number
-  achievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number | null }[]
-  recentAchievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number }[]
+  achievements?: {
+    id: string
+    name: string
+    description: string
+    icon: string
+    unlockedAt: number | null
+  }[]
 }
 
 interface ProgressPanelProps {
   tasks: Task[]
   userStats?: UserStats | null
+  recentAchievement?: {
+    id: string
+    name: string
+    description: string
+    icon?: string
+    unlockedAt?: number | null
+  } | null
+  onRecentAchievementClose?: () => void
 }
 
-export function ProgressPanel({ tasks, userStats }: ProgressPanelProps) {
+export function ProgressPanel({
+  tasks,
+  userStats,
+  recentAchievement,
+  onRecentAchievementClose,
+}: ProgressPanelProps) {
+  const [banner, setBanner] = useState<{
+    id: string
+    name: string
+    description: string
+    icon?: string
+  } | null>(null)
+
+  useEffect(() => {
+    if (recentAchievement) {
+      setBanner({
+        id: recentAchievement.id,
+        name: recentAchievement.name,
+        description: recentAchievement.description,
+        icon: recentAchievement.icon,
+      })
+    }
+  }, [recentAchievement?.id])
   const completedTasks = tasks.filter((t) => t.completed).length
   const totalTasks = tasks.length
   const progressPercentage =
@@ -26,8 +63,10 @@ export function ProgressPanel({ tasks, userStats }: ProgressPanelProps) {
   const completedCS = csTasks.filter((t) => t.completed).length
 
   const streakDays = userStats?.streakDays ?? 0
-  const achievementsUnlocked = userStats?.achievements?.filter((a) => a.unlockedAt != null).length ?? 0
-  const recentAchievements = userStats?.recentAchievements ?? []
+  const achievementsUnlocked =
+    userStats?.achievements?.filter((a) => a.unlockedAt != null).length ?? 0
+  const achievementsTotal =
+    (userStats?.achievements?.length ?? 0) > 0 ? userStats!.achievements!.length : 3
 
   const stats = [
     {
@@ -48,7 +87,7 @@ export function ProgressPanel({ tasks, userStats }: ProgressPanelProps) {
       icon: Trophy,
       label: "Достижения",
       value: String(achievementsUnlocked),
-      total: "получено",
+      total: achievementsTotal,
       color: "text-yellow-600",
     },
   ]
@@ -96,6 +135,13 @@ export function ProgressPanel({ tasks, userStats }: ProgressPanelProps) {
               </div>
             ))}
           </div>
+          <AchievementBanner
+            achievement={banner}
+            onClose={() => {
+              setBanner(null)
+              onRecentAchievementClose?.()
+            }}
+          />
         </CardContent>
       </Card>
 
@@ -140,25 +186,40 @@ export function ProgressPanel({ tasks, userStats }: ProgressPanelProps) {
 
       <Card>
         <CardHeader>
-          <h3 className="text-gray-900">Недавние достижения</h3>
+          <h3 className="text-gray-900">Достижения</h3>
         </CardHeader>
         <CardContent className="space-y-3">
-          {recentAchievements.length > 0 ? (
-            recentAchievements.map((a) => (
-              <div key={a.id} className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center text-xl">
-                  {a.icon || "🏆"}
+          {(userStats?.achievements ?? []).length === 0 ? (
+            <p className="text-sm text-gray-500">
+              Решайте задачи, чтобы открывать достижения.
+            </p>
+          ) : (
+            (userStats?.achievements ?? []).slice(0, 3).map((a) => (
+              <div
+                key={a.id}
+                className={`flex items-start gap-3 rounded-lg border p-3 ${
+                  a.unlockedAt
+                    ? "bg-amber-50 border-amber-200"
+                    : "bg-gray-50 border-gray-200 opacity-80"
+                }`}
+              >
+                <div className="text-2xl leading-none">
+                  {a.unlockedAt ? a.icon || "🏆" : "🔒"}
                 </div>
-                <div>
-                  <p className="text-gray-900">{a.name}</p>
-                  <p className="text-gray-500 text-sm">{a.description}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {a.name}
+                  </p>
+                  <p className="text-xs text-gray-600">{a.description}</p>
+                  {a.unlockedAt && (
+                    <p className="text-xs text-amber-700 mt-1">
+                      Получено{" "}
+                      {new Date(a.unlockedAt).toLocaleDateString("ru-RU")}
+                    </p>
+                  )}
                 </div>
               </div>
             ))
-          ) : (
-            <p className="text-gray-500 text-sm">
-              Решайте задачи и собирайте серии дней подряд, чтобы получать достижения.
-            </p>
           )}
         </CardContent>
       </Card>

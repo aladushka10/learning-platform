@@ -15,27 +15,17 @@ interface AchievementItem {
   unlockedAt: number | null
 }
 
-interface RecentAchievement {
-  id: string
-  name: string
-  description: string
-  icon: string
-  unlockedAt: number
-}
-
 export default function AchievementsPage() {
   const navigate = useNavigate()
   const { auth, userId } = useSelector((state: any) => state.signIn)
   const effectiveUserId = auth ? (userId || localStorage.getItem("userId")) : null
 
   const [achievements, setAchievements] = useState<AchievementItem[]>([])
-  const [recentAchievements, setRecentAchievements] = useState<RecentAchievement[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!effectiveUserId) {
       setAchievements([])
-      setRecentAchievements([])
       setLoading(false)
       return
     }
@@ -47,12 +37,10 @@ export default function AchievementsPage() {
         const data = await res.json()
         if (!cancelled) {
           setAchievements(data.achievements ?? [])
-          setRecentAchievements(data.recentAchievements ?? [])
         }
       } catch {
         if (!cancelled) {
           setAchievements([])
-          setRecentAchievements([])
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -130,47 +118,12 @@ export default function AchievementsPage() {
           </CardContent>
         </Card>
 
-        {/* Недавно полученные */}
-        {recentAchievements.length > 0 && (
-          <Card>
-            <CardHeader>
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <Award className="w-6 h-6 text-amber-500" />
-                Недавно полученные
-              </h3>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {recentAchievements.map((a) => (
-                  <div
-                    key={a.id}
-                    className="flex items-start gap-4 p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200"
-                  >
-                    <span className="text-4xl">{a.icon || "🏆"}</span>
-                    <div className="min-w-0">
-                      <h4 className="font-semibold text-gray-900">{a.name}</h4>
-                      <p className="text-sm text-gray-600">{a.description}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(a.unlockedAt).toLocaleDateString("ru-RU", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Все достижения */}
         <Card>
           <CardHeader>
             <h3 className="text-xl font-semibold flex items-center gap-2">
               <Trophy className="w-6 h-6 text-amber-500" />
-              Все достижения
+              Достижения
             </h3>
           </CardHeader>
           <CardContent>

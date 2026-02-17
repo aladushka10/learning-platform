@@ -158,6 +158,60 @@ function init() {
 
 init()
 
+function seedAchievements() {
+  // Seed achievements (3 шт.). Важно: обновляем значения, если запись уже есть.
+  try {
+    const achievements = [
+      {
+        id: "three_tasks",
+        name: "Первые успехи",
+        description: "Решите 4 задачи",
+        icon: "📚",
+        criteriaType: "tasks_completed",
+        criteriaValue: 4,
+      },
+      {
+        id: "streak_5",
+        name: "Серия 5 дней",
+        description: "Решайте задачи 5 дней подряд",
+        icon: "🔥",
+        criteriaType: "streak_days",
+        criteriaValue: 5,
+      },
+      {
+        id: "all_tasks_course",
+        name: "Покоритель курса",
+        description: "Выполните все задачи курса",
+        icon: "👑",
+        criteriaType: "course_all_tasks",
+        criteriaValue: 1,
+      },
+    ]
+    const upsert = db.prepare(
+      `INSERT INTO achievements (id, name, description, icon, criteriaType, criteriaValue)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         description = excluded.description,
+         icon = excluded.icon,
+         criteriaType = excluded.criteriaType,
+         criteriaValue = excluded.criteriaValue`,
+    )
+    achievements.forEach((a) => {
+      try {
+        upsert.run(
+          a.id,
+          a.name,
+          a.description,
+          a.icon,
+          a.criteriaType,
+          a.criteriaValue,
+        )
+      } catch (e) {}
+    })
+  } catch (e) {}
+}
+
 // Exported DB helpers
 module.exports = {
   db,
@@ -434,27 +488,20 @@ module.exports = {
       .prepare("SELECT id FROM progress WHERE userId = ? AND taskId = ?")
       .get(p.userId, p.taskId)
     if (existing) {
-      db.prepare("UPDATE progress SET status = ?, updatedAt = ? WHERE id = ?").run(
-        p.status,
-        p.updatedAt,
-        existing.id,
-      )
+      db.prepare(
+        "UPDATE progress SET status = ?, updatedAt = ? WHERE id = ?",
+      ).run(p.status, p.updatedAt, existing.id)
     } else {
       db.prepare(
         "INSERT INTO progress (id, userId, taskId, status, updatedAt) VALUES (?, ?, ?, ?, ?)",
-      ).run(
-        p.id || uuidv4(),
-        p.userId,
-        p.taskId,
-        p.status,
-        p.updatedAt,
-      )
+      ).run(p.id || uuidv4(), p.userId, p.taskId, p.status, p.updatedAt)
     }
   },
 
   countTasksByCourse: (courseId) =>
-    db.prepare("SELECT COUNT(*) as n FROM tasks WHERE courseId = ?").get(courseId)
-      .n,
+    db
+      .prepare("SELECT COUNT(*) as n FROM tasks WHERE courseId = ?")
+      .get(courseId).n,
 
   countCorrectSolutions: (userId, courseId) =>
     db
@@ -467,16 +514,35 @@ module.exports = {
       )
       .get(userId, courseId).n,
 
+  // Distinct completed tasks by correct check_result
+  getCompletedTaskIdsByUser: (userId) =>
+    db
+      .prepare(
+        `SELECT DISTINCT s.task_id as task_id
+         FROM solutions s
+         JOIN check_results cr ON cr.solution_id = s.id
+         WHERE s.user_id = ? AND cr.status = 'correct'`,
+      )
+      .all(userId)
+      .map((r) => r.task_id),
+
   // Achievements
+  // показываем/учитываем только эти 3 достижения
+  _ACHIEVEMENT_IDS: ["three_tasks", "streak_5", "all_tasks_course"],
   getAchievementsDefinitions: () =>
-    db.prepare("SELECT * FROM achievements ORDER BY criteriaValue ASC").all(),
+    db
+      .prepare(
+        "SELECT * FROM achievements WHERE id IN ('three_tasks','streak_5','all_tasks_course') ORDER BY CASE id WHEN 'three_tasks' THEN 1 WHEN 'streak_5' THEN 2 WHEN 'all_tasks_course' THEN 3 ELSE 99 END",
+      )
+      .all(),
   getUserAchievements: (userId) =>
     db
       .prepare(
         `SELECT a.id, a.name, a.description, a.icon, ua.unlockedAt
          FROM achievements a
          LEFT JOIN user_achievements ua ON ua.achievementId = a.id AND ua.userId = ?
-         ORDER BY ua.unlockedAt DESC`,
+         WHERE a.id IN ('three_tasks','streak_5','all_tasks_course')
+         ORDER BY CASE a.id WHEN 'three_tasks' THEN 1 WHEN 'streak_5' THEN 2 WHEN 'all_tasks_course' THEN 3 ELSE 99 END`,
       )
       .all(userId),
   unlockAchievement: (userId, achievementId) => {
@@ -485,10 +551,28 @@ module.exports = {
         "SELECT id FROM user_achievements WHERE userId = ? AND achievementId = ?",
       )
       .get(userId, achievementId)
-    if (existing) return
+
+    if (existing) return null
+
+    const achievement = db
+      .prepare("SELECT * FROM achievements WHERE id = ?")
+      .get(achievementId)
+
+    const unlockedAt = Date.now()
+
     db.prepare(
       "INSERT INTO user_achievements (id, userId, achievementId, unlockedAt) VALUES (?, ?, ?, ?)",
-    ).run(uuidv4(), userId, achievementId, Date.now())
+    ).run(uuidv4(), userId, achievementId, unlockedAt)
+
+    return {
+      ...achievement,
+      unlockedAt,
+    }
+  },
+  revokeAchievement: (userId, achievementId) => {
+    db.prepare(
+      "DELETE FROM user_achievements WHERE userId = ? AND achievementId = ?",
+    ).run(userId, achievementId)
   },
   getRecentUserAchievements: (userId, limit = 5) =>
     db
@@ -515,7 +599,10 @@ module.exports = {
     const dates = new Set()
     rows.forEach((r) => {
       const d = new Date(r.created_at)
-      dates.add(d.toISOString().slice(0, 10))
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, "0")
+      const day = String(d.getDate()).padStart(2, "0")
+      dates.add(`${y}-${m}-${day}`) // local day
     })
     return Array.from(dates).sort().reverse()
   },
@@ -1069,27 +1156,8 @@ $$
     }
   } catch (e) {}
 
-  // Seed achievements (insert all, ignore if exists)
-  try {
-    const achievements = [
-      { id: "first_task", name: "Первые шаги", description: "Выполните 1 задачу", icon: "🎯", criteriaType: "tasks_completed", criteriaValue: 1 },
-      { id: "three_tasks", name: "В ритме", description: "Выполните 3 задачи", icon: "📚", criteriaType: "tasks_completed", criteriaValue: 3 },
-      { id: "five_tasks", name: "Пяторка", description: "Выполните 5 задач", icon: "⭐", criteriaType: "tasks_completed", criteriaValue: 5 },
-      { id: "ten_tasks", name: "Десятка", description: "Выполните 10 задач", icon: "💪", criteriaType: "tasks_completed", criteriaValue: 10 },
-      { id: "all_tasks", name: "Мастер курса", description: "Выполните все задачи курса", icon: "👑", criteriaType: "tasks_completed", criteriaValue: 15 },
-      { id: "three_streak", name: "Три дня подряд", description: "Решайте задачи 3 дня подряд", icon: "📅", criteriaType: "streak_days", criteriaValue: 3 },
-      { id: "week_streak", name: "Воин недели", description: "Серия из 7 дней подряд", icon: "🔥", criteriaType: "streak_days", criteriaValue: 7 },
-      { id: "two_weeks_streak", name: "Две недели", description: "Серия из 14 дней подряд", icon: "🌟", criteriaType: "streak_days", criteriaValue: 14 },
-    ]
-    const insert = db.prepare(
-      "INSERT OR IGNORE INTO achievements (id, name, description, icon, criteriaType, criteriaValue) VALUES (?, ?, ?, ?, ?, ?)",
-    )
-    achievements.forEach((a) => {
-      try {
-        insert.run(a.id, a.name, a.description, a.icon, a.criteriaType, a.criteriaValue)
-      } catch (e) {}
-    })
-  } catch (e) {}
 }
 
+// Achievements должны быть всегда, даже если курс/задачи уже засидены
+seedAchievements()
 seedIfEmpty()

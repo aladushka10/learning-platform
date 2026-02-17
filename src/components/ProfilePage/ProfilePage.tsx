@@ -21,7 +21,6 @@ interface StatsResponse {
   totalTasks: number
   streakDays: number
   achievements: AchievementItem[]
-  recentAchievements: { id: string; name: string; description: string; icon: string; unlockedAt: number }[]
 }
 
 const ProfilePage = () => {
@@ -64,7 +63,6 @@ const ProfilePage = () => {
   const totalPoints = Math.min(3000, tasksCompleted * 150)
   const level = Math.floor(totalPoints / 300) + 1
   const achievements = stats?.achievements ?? []
-  const recentAchievements = stats?.recentAchievements ?? []
 
   const activityData = [
     { day: "Пн", solved: 2 },
@@ -230,39 +228,6 @@ const ProfilePage = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Недавние достижения */}
-        {recentAchievements.length > 0 && (
-          <Card>
-            <CardHeader>
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <Award size={24} className="text-yellow-500" />
-                Недавно полученные достижения
-              </h3>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {recentAchievements.map((a) => (
-                  <div
-                    key={a.id}
-                    className="flex items-center gap-4 p-4 rounded-lg bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200"
-                  >
-                    <div className="text-4xl">{a.icon || "🏆"}</div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{a.name}</h4>
-                      <p className="text-sm text-gray-600">{a.description}</p>
-                      {a.unlockedAt && (
-                        <p className="text-xs text-gray-500 mt-1">
-                          Получено {new Date(a.unlockedAt).toLocaleDateString("ru-RU")}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Achievements */}
         <Card>

@@ -6,12 +6,21 @@ import { Badge } from "../ui/badge"
 import { useState } from "react"
 import type { Task } from "../../App"
 import style from "../TaskView/TaskView.module.scss"
+import { createSolution } from "../../utils/api"
 
 interface TaskViewProps {
   task: Task
   onBack: () => void
   onComplete: (taskId: string) => void
   courseId?: string
+  userId?: string | null
+  onAchievementUnlocked?: (a: {
+    id: string
+    name: string
+    description: string
+    icon?: string
+    unlockedAt?: number | null
+  }) => void
 }
 
 const taskDetails: Record<
@@ -40,10 +49,21 @@ const taskDetails: Record<
   },
 }
 
-export function TaskView({ task, onBack, onComplete }: TaskViewProps) {
+export function TaskView({
+  task,
+  onBack,
+  onComplete,
+  userId,
+  onAchievementUnlocked,
+}: TaskViewProps) {
   const [solution, setSolution] = useState("")
   const [showHint, setShowHint] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [result, setResult] = useState<{
+    correct: boolean
+    message: string
+  } | null>(null)
 
   const details = taskDetails[task.id] || {
     statement: "Детали задачи скоро появятся...",
@@ -51,10 +71,59 @@ export function TaskView({ task, onBack, onComplete }: TaskViewProps) {
     example: "Примеров пока нет.",
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setSubmitted(true)
-    if (solution.trim().length > 10) {
-      onComplete(task.id)
+    setResult(null)
+
+    if (!userId) {
+      setResult({
+        correct: false,
+        message: "Войдите в аккаунт, чтобы решение сохранялось и шли достижения.",
+      })
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      const resp = await createSolution(task.id, {
+        user_id: userId,
+        task_id: task.id,
+        code: solution,
+        created_at: Date.now(),
+      })
+
+      const correct = resp?.correct === true
+      setResult({
+        correct,
+        message: correct
+          ? "Отлично! Ответ правильный — задача засчитана."
+          : "Ответ неверный. Попробуйте ещё раз.",
+      })
+
+      if (correct) {
+        onComplete(task.id)
+      }
+
+      const newlyUnlocked = Array.isArray(resp?.newAchievements)
+        ? resp.newAchievements
+        : []
+      if (newlyUnlocked.length > 0) {
+        const a = newlyUnlocked[0]
+        onAchievementUnlocked?.({
+          id: a.id,
+          name: a.name,
+          description: a.description,
+          icon: a.icon,
+          unlockedAt: a.unlockedAt,
+        })
+      }
+    } catch {
+      setResult({
+        correct: false,
+        message: "Не удалось отправить решение. Проверьте, что сервер запущен.",
+      })
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -120,7 +189,7 @@ export function TaskView({ task, onBack, onComplete }: TaskViewProps) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <h2 className="text-gray-900">Ваше решение</h2>
-            {submitted && solution.trim().length > 10 && (
+            {submitted && result?.correct && (
               <div className="flex items-center gap-2 text-green-600">
                 <CheckCircle className="w-5 h-5" />
                 <span>Отправлено</span>
@@ -136,13 +205,25 @@ export function TaskView({ task, onBack, onComplete }: TaskViewProps) {
             onChange={(e) => setSolution(e.target.value)}
           />
 
+          {result && (
+            <div
+              className={`p-3 rounded-lg border ${
+                result.correct
+                  ? "bg-green-50 border-green-200 text-green-700"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}
+            >
+              {result.message}
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <Button
               className="bg-blue-600 hover:bg-blue-700"
               onClick={handleSubmit}
-              disabled={solution.trim().length === 0}
+              disabled={solution.trim().length === 0 || submitting}
             >
-              Проверить ответ
+              {submitting ? "Проверка..." : "Проверить ответ"}
             </Button>
 
             <Button

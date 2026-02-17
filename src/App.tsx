@@ -57,10 +57,36 @@ function TasksPage() {
   const [userStats, setUserStats] = useState<{
     streakDays?: number
     achievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number | null }[]
-    recentAchievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number }[]
+  } | null>(null)
+  const [recentAchievement, setRecentAchievement] = useState<{
+    id: string
+    name: string
+    description: string
+    icon?: string
+    unlockedAt?: number | null
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const refreshUserStats = async () => {
+    if (!effectiveUserId) {
+      setUserStats(null)
+      return
+    }
+    try {
+      const progressRes = await fetch(
+        `http://localhost:4000/users/${effectiveUserId}/stats`,
+      )
+      if (!progressRes.ok) return
+      const stats = await progressRes.json()
+      setUserStats({
+        streakDays: stats.streakDays ?? 0,
+        achievements: stats.achievements ?? [],
+      })
+    } catch {
+      // optional
+    }
+  }
 
   useEffect(() => {
     // load courses
@@ -109,7 +135,6 @@ function TasksPage() {
               setUserStats({
                 streakDays: stats.streakDays ?? 0,
                 achievements: stats.achievements ?? [],
-                recentAchievements: stats.recentAchievements ?? [],
               })
             }
           } catch (e) {
@@ -186,6 +211,7 @@ function TasksPage() {
     if (selectedTask && selectedTask.id === taskId) {
       setSelectedTask({ ...selectedTask, completed: true })
     }
+    refreshUserStats()
   }
 
   return (
@@ -215,6 +241,8 @@ function TasksPage() {
                   onBack={handleBackToGrid}
                   onComplete={handleTaskComplete}
                   courseId={selectedCourseId || ""}
+                  userId={effectiveUserId}
+                  onAchievementUnlocked={(a) => setRecentAchievement(a)}
                 />
               ) : (
                 <div className="space-y-6">
@@ -255,7 +283,12 @@ function TasksPage() {
               )}
             </div>
 
-            <ProgressPanel tasks={tasks} userStats={userStats} />
+            <ProgressPanel
+              tasks={tasks}
+              userStats={userStats}
+              recentAchievement={recentAchievement}
+              onRecentAchievementClose={() => setRecentAchievement(null)}
+            />
           </div>
         </main>
       </div>
