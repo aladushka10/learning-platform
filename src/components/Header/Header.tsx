@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback } from "../ui/avatar"
 import style from "./Header.module.scss"
 import { Link, useNavigate } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
-import { logout } from "../../store/signInSlice"
+import { signOut } from "../../store/signInSlice"
 
 interface HeaderProps {
   searchQuery: string
@@ -16,12 +16,17 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { auth, username, firstName, lastName } = useSelector(
-    (state: any) => state.signIn
+    (state: any) => state.signIn,
   )
 
-  const handleLogout = () => {
-    dispatch(logout())
-    setTimeout(() => navigate("/"), 0)
+  const handleLogout = async () => {
+    try {
+      await (dispatch as any)(signOut()).unwrap()
+    } catch {
+      // ignore
+    } finally {
+      navigate("/sign-in", { replace: true })
+    }
   }
 
   const displayName = firstName || username?.split("@")[0] || "User"

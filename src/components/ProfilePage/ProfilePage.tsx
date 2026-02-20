@@ -5,7 +5,7 @@ import { ArrowLeft, Trophy, Calendar, BookOpen, Zap, Award } from "lucide-react"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader } from "../ui/card"
 
-const API_BASE = "http://localhost:4000"
+const API_BASE = "/api"
 
 interface AchievementItem {
   id: string
@@ -26,7 +26,7 @@ interface StatsResponse {
 const ProfilePage = () => {
   const navigate = useNavigate()
   const { username, userId, auth } = useSelector((state: any) => state.signIn)
-  const effectiveUserId = auth ? (userId || localStorage.getItem("userId")) : null
+  const effectiveUserId = auth ? userId : null
 
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [loading, setLoading] = useState(true)

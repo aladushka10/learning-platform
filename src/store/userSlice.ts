@@ -1,7 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 
-const API_BASE = "http://localhost:4000"
-
 interface User {
   id: string
   email: string
@@ -26,25 +24,13 @@ export const fetchUserProfile = createAsyncThunk(
   "user/fetchProfile",
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem("accessToken")
-      const email = localStorage.getItem("username")
-
-      if (!token || !email) {
-        return rejectWithValue("No auth info")
-      }
-
-      const response = await fetch(`${API_BASE}/auth/user`, {
+      const response = await fetch(`/api/auth/me`, {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        credentials: "include",
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        return rejectWithValue(
-          error.detail || error.message || "Failed to fetch user data"
-        )
+        return rejectWithValue("Not authenticated")
       }
 
       const data = await response.json()
@@ -73,10 +59,6 @@ const userSlice = createSlice({
       .addCase(fetchUserProfile.fulfilled, (state, action) => {
         state.loading = false
         state.data = action.payload
-        if (action.payload) {
-          localStorage.setItem("firstName", action.payload.firstName || "")
-          localStorage.setItem("lastName", action.payload.lastName || "")
-        }
       })
       .addCase(fetchUserProfile.rejected, (state, action) => {
         state.loading = false

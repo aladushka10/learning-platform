@@ -30,6 +30,7 @@ export const signUpUser = createAsyncThunk(
 
       const response = await fetch("/api/auth/sign-up", {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",

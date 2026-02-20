@@ -2,12 +2,66 @@ const express = require("express")
 const cors = require("cors")
 const { v4: uuidv4 } = require("uuid")
 const db = require("./db")
+const jwt = require("jsonwebtoken")
 
 const swaggerUi = require("swagger-ui-express")
 const swaggerSpec = require("./swagger")
 
 const app = express()
 const PORT = process.env.PORT || 4000
+
+// ===== Auth via JWT in HttpOnly cookie (no localStorage) =====
+const AUTH_COOKIE = "token"
+const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_change_me"
+const JWT_MAX_AGE_SEC = 7 * 24 * 60 * 60 // 7 days
+
+function parseCookies(cookieHeader = "") {
+  const out = {}
+  cookieHeader
+    .split(";")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .forEach((pair) => {
+      const idx = pair.indexOf("=")
+      if (idx === -1) return
+      const k = pair.slice(0, idx).trim()
+      const v = pair.slice(idx + 1).trim()
+      out[k] = decodeURIComponent(v)
+    })
+  return out
+}
+
+function getAuthUserId(req) {
+  const cookies = parseCookies(req.headers.cookie || "")
+  const token = cookies[AUTH_COOKIE]
+  if (!token) return null
+  try {
+    const payload = jwt.verify(token, JWT_SECRET)
+    const sub = payload?.sub
+    return typeof sub === "string" ? sub : null
+  } catch {
+    return null
+  }
+}
+
+function setAuthCookie(res, userId) {
+  const token = jwt.sign({ sub: userId }, JWT_SECRET, {
+    expiresIn: JWT_MAX_AGE_SEC,
+  })
+  res.setHeader(
+    "Set-Cookie",
+    `${AUTH_COOKIE}=${encodeURIComponent(
+      token,
+    )}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${JWT_MAX_AGE_SEC}`,
+  )
+}
+
+function clearAuthCookie(res) {
+  res.setHeader(
+    "Set-Cookie",
+    `${AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+  )
+}
 
 function updateUserProgress(userId, taskId) {
   db.upsertProgress({
@@ -593,18 +647,51 @@ app.post("/auth/sign-in", (req, res) => {
     return res.status(401).json({ error: "invalid_credentials" })
   }
 
+  setAuthCookie(res, user.id)
   res.json({
-    accessToken: uuidv4(),
-    refreshToken: uuidv4(),
     userDetails: {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
+      lastName: user.lastName,
     },
   })
 })
 
+app.post("/auth/sign-out", (req, res) => {
+  clearAuthCookie(res)
+  res.json({ ok: true })
+})
+
+app.get("/auth/me", (req, res) => {
+  const userId = getAuthUserId(req)
+  if (!userId) return res.status(401).json({ error: "unauthorized" })
+  const user = db.getUserById(userId)
+  if (!user) return res.status(401).json({ error: "unauthorized" })
+  res.json({
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    createdAt: user.createdAt,
+  })
+})
+
 app.get("/auth/user", (req, res) => {
+  // Backward compatible: if JWT cookie exists, return auth user.
+  const authUserId = getAuthUserId(req)
+  if (authUserId) {
+    const u = db.getUserById(authUserId)
+    if (!u) return res.status(401).json({ error: "unauthorized" })
+    return res.json({
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      createdAt: u.createdAt,
+    })
+  }
+
   const email = req.headers["x-user-email"]
   if (!email) {
     const username = req.query.username || "unknown"
@@ -656,13 +743,13 @@ app.post("/auth/sign-up", (req, res) => {
 
   db.createUser(user)
 
+  setAuthCookie(res, user.id)
   res.status(201).json({
-    accessToken: uuidv4(),
-    refreshToken: uuidv4(),
     userDetails: {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
+      lastName: user.lastName,
     },
   })
 })

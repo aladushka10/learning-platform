@@ -1,6 +1,6 @@
 // API endpoints and utilities for task management
 
-const API_BASE = "http://localhost:4000"
+const API_BASE = "/api"
 
 export interface TaskData {
   id: string
@@ -78,6 +78,7 @@ export async function createSolution(
   const res = await fetch(`${API_BASE}/tasks/${taskId}/solutions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({
       userId: solution.user_id,
       code: solution.code,
@@ -116,6 +117,7 @@ export async function createProgress(
   const res = await fetch(`${API_BASE}/users/${userId}/progress`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ taskId, status, updatedAt: Date.now() }),
   })
   if (!res.ok) throw new Error("Failed to create progress")
@@ -137,7 +139,9 @@ export async function updateProgress(
 }
 
 export async function fetchUserProgress(userId: string) {
-  const res = await fetch(`${API_BASE}/users/${userId}/stats`)
+  const res = await fetch(`${API_BASE}/users/${userId}/stats`, {
+    credentials: "include",
+  })
   if (!res.ok) throw new Error("Failed to fetch progress")
   return res.json()
 }

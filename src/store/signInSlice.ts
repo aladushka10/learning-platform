@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit"
 import { fetchUserProfile } from "./userSlice"
+import { signUpUser } from "./signUpSlice"
 
 interface Credentials {
   email: string
@@ -12,22 +13,20 @@ interface SignInState {
   userId: string | null
   firstName?: string | null
   lastName?: string | null
+  initialized: boolean
   isLoading: boolean
   error: string | null
-  accessToken: string | null
-  refreshToken: string | null
 }
 
 const initialState: SignInState = {
-  auth: localStorage.getItem("auth") === "true",
-  username: localStorage.getItem("username") || null,
-  userId: localStorage.getItem("userId") || null,
-  firstName: localStorage.getItem("firstName") || null,
-  lastName: localStorage.getItem("lastName") || null,
+  auth: false,
+  username: null,
+  userId: null,
+  firstName: null,
+  lastName: null,
+  initialized: false,
   isLoading: false,
   error: null,
-  accessToken: localStorage.getItem("accessToken") || null,
-  refreshToken: localStorage.getItem("refreshToken") || null,
 }
 
 export const signInUser = createAsyncThunk(
@@ -37,6 +36,7 @@ export const signInUser = createAsyncThunk(
       const res = await fetch("/api/auth/sign-in", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           email: credentials.email,
           password: credentials.password,
@@ -48,8 +48,6 @@ export const signInUser = createAsyncThunk(
           data?.detail || data?.message || "Sign-in failed"
         )
       }
-      localStorage.setItem("accessToken", data.accessToken)
-      localStorage.setItem("refreshToken", data.refreshToken)
       return { ...data, email: credentials.email }
     } catch (e: any) {
       return rejectWithValue(e.message || "Network error")
@@ -57,13 +55,14 @@ export const signInUser = createAsyncThunk(
   }
 )
 
-export const checkValidToken = createAsyncThunk(
-  "signIn/checkValidToken",
+export const hydrateAuth = createAsyncThunk(
+  "signIn/hydrateAuth",
   async (_, { rejectWithValue }) => {
     try {
-      const access = localStorage.getItem("accessToken")
-      const username = localStorage.getItem("username") || null
-      return { auth: !!access, username }
+      const res = await fetch("/api/auth/me", { credentials: "include" })
+      if (!res.ok) return { auth: false }
+      const user = await res.json()
+      return { auth: true, user }
     } catch (e: any) {
       return rejectWithValue(e.message || "error")
     }
@@ -85,11 +84,27 @@ export const loginAndFetchUser = createAsyncThunk(
   }
 )
 
+export const signOut = createAsyncThunk(
+  "signIn/signOut",
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await fetch("/api/auth/sign-out", {
+        method: "POST",
+        credentials: "include",
+      })
+      if (!res.ok) return rejectWithValue("Sign-out failed")
+      return { ok: true }
+    } catch (e: any) {
+      return rejectWithValue(e.message || "Network error")
+    }
+  },
+)
+
 const signInSlice = createSlice({
   name: "signIn",
   initialState,
   reducers: {
-    logout(state) {
+    logoutLocal(state) {
       state.auth = false
       state.username = null
       state.userId = null
@@ -97,15 +112,6 @@ const signInSlice = createSlice({
       state.firstName = null
       state.lastName = null
       state.isLoading = false
-      state.accessToken = null
-      state.refreshToken = null
-      localStorage.removeItem("accessToken")
-      localStorage.removeItem("refreshToken")
-      localStorage.removeItem("firstName")
-      localStorage.removeItem("lastName")
-      localStorage.removeItem("userId")
-      localStorage.removeItem("auth")
-      localStorage.removeItem("username")
     },
   },
   extraReducers: (builder) => {
@@ -117,56 +123,70 @@ const signInSlice = createSlice({
 
       .addCase(signInUser.fulfilled, (state, action: PayloadAction<any>) => {
         state.isLoading = false
+        state.initialized = true
         state.auth = true
         state.username = action.payload?.email || state.username
-        state.accessToken = action.payload.accessToken
-
-        localStorage.setItem("accessToken", action.payload.accessToken)
-        console.log("New token stored:", localStorage.getItem("accessToken"))
 
         if (action.payload?.userDetails) {
           state.firstName = action.payload.userDetails.firstName || null
           state.lastName = action.payload.userDetails.lastName || null
           state.userId = action.payload.userDetails.id || null
-          if (action.payload.userDetails.firstName) {
-            localStorage.setItem(
-              "firstName",
-              action.payload.userDetails.firstName
-            )
-          }
-          if (action.payload.userDetails.lastName) {
-            localStorage.setItem(
-              "lastName",
-              action.payload.userDetails.lastName
-            )
-          }
-          if (action.payload.userDetails.id) {
-            localStorage.setItem("userId", action.payload.userDetails.id)
-          }
         }
-
-        if (action.payload?.accessToken) {
-          localStorage.setItem("accessToken", action.payload.accessToken)
-        }
-        if (action.payload?.refreshToken) {
-          localStorage.setItem("refreshToken", action.payload.refreshToken)
-        }
-        localStorage.setItem("auth", "true")
-        localStorage.setItem("username", action.payload?.email || "")
       })
       .addCase(signInUser.rejected, (state, action) => {
         state.isLoading = false
+        state.initialized = true
         state.error = (action.payload as string) || "Sign-in failed"
       })
-      .addCase(
-        checkValidToken.fulfilled,
-        (state, action: PayloadAction<any>) => {
-          state.auth = action.payload?.auth || false
-          state.username = action.payload?.username || state.username
+      .addCase(hydrateAuth.pending, (state) => {
+        state.isLoading = true
+      })
+      .addCase(hydrateAuth.fulfilled, (state, action: PayloadAction<any>) => {
+        state.isLoading = false
+        state.initialized = true
+        state.auth = action.payload?.auth === true
+        if (action.payload?.auth && action.payload?.user) {
+          state.userId = action.payload.user.id || null
+          state.username = action.payload.user.email || null
+          state.firstName = action.payload.user.firstName || null
+          state.lastName = action.payload.user.lastName || null
+        } else {
+          state.userId = null
+          state.username = null
+          state.firstName = null
+          state.lastName = null
         }
-      )
+      })
+      .addCase(hydrateAuth.rejected, (state) => {
+        state.isLoading = false
+        state.initialized = true
+        state.auth = false
+        state.userId = null
+        state.username = null
+        state.firstName = null
+        state.lastName = null
+      })
+      .addCase(signOut.fulfilled, (state) => {
+        state.initialized = true
+        state.auth = false
+        state.userId = null
+        state.username = null
+        state.firstName = null
+        state.lastName = null
+      })
+      .addCase(signUpUser.fulfilled, (state, action: PayloadAction<any>) => {
+        // Sign-up also sets session cookie, so we can mark as logged in.
+        const details = action.payload?.userDetails
+        if (!details) return
+        state.initialized = true
+        state.auth = true
+        state.userId = details.id || null
+        state.username = details.email || null
+        state.firstName = details.firstName || null
+        state.lastName = details.lastName || null
+      })
   },
 })
 
-export const { logout } = signInSlice.actions
+export const { logoutLocal } = signInSlice.actions
 export default signInSlice.reducer

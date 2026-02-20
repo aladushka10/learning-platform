@@ -4,8 +4,9 @@ import {
   BrowserRouter as Router,
   Routes,
   Route,
-  useLocation,
+  Navigate,
 } from "react-router-dom"
+import { useDispatch } from "react-redux"
 import { Header } from "./components/Header/Header"
 import { Sidebar } from "./components/Sidebar/Sidebar"
 import { TaskCard } from "./components/TaskCard/TaskCard"
@@ -18,6 +19,7 @@ import ProfilePage from "./components/ProfilePage/ProfilePage"
 import AchievementsPage from "./components/AchievementsPage/AchievementsPage"
 import SignIn from "./Pages/SignIn/SignIn"
 import SignUp from "./Pages/SignUp/SignUp"
+import { hydrateAuth } from "./store/signInSlice"
 
 export interface Task {
   id: string
@@ -38,7 +40,21 @@ interface Course {
 
 // Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // In a real app, check auth here
+  const auth = useSelector((state: any) => state.signIn?.auth) as boolean
+  const initialized = useSelector(
+    (state: any) => state.signIn?.initialized,
+  ) as boolean
+
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p className="text-gray-600">Загрузка...</p>
+      </div>
+    )
+  }
+
+  if (!auth) return <Navigate to="/sign-in" replace />
+
   return <>{children}</>
 }
 
@@ -47,16 +63,23 @@ function TasksPage() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const auth = useSelector((state: any) => state.signIn?.auth)
-  const userIdFromStore = useSelector((state: any) => state.signIn?.userId as string | undefined)
-  const userId = auth ? (userIdFromStore || (typeof localStorage !== "undefined" ? localStorage.getItem("userId") : null)) : null
-  const effectiveUserId = auth && userId ? userId : null
+  const userIdFromStore = useSelector(
+    (state: any) => state.signIn?.userId as string | undefined,
+  )
+  const effectiveUserId = auth && userIdFromStore ? userIdFromStore : null
 
   const [courses, setCourses] = useState<Course[]>([])
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [userStats, setUserStats] = useState<{
     streakDays?: number
-    achievements?: { id: string; name: string; description: string; icon: string; unlockedAt: number | null }[]
+    achievements?: {
+      id: string
+      name: string
+      description: string
+      icon: string
+      unlockedAt: number | null
+    }[]
   } | null>(null)
   const [recentAchievement, setRecentAchievement] = useState<{
     id: string
@@ -74,9 +97,7 @@ function TasksPage() {
       return
     }
     try {
-      const progressRes = await fetch(
-        `http://localhost:4000/users/${effectiveUserId}/stats`,
-      )
+      const progressRes = await fetch(`/api/users/${effectiveUserId}/stats`)
       if (!progressRes.ok) return
       const stats = await progressRes.json()
       setUserStats({
@@ -93,7 +114,7 @@ function TasksPage() {
     const load = async () => {
       setLoading(true)
       try {
-        const res = await fetch("http://localhost:4000/courses")
+        const res = await fetch("/api/courses")
         if (!res.ok) throw new Error("failed to load courses")
         const data: Course[] = await res.json()
         setCourses(data)
@@ -116,9 +137,7 @@ function TasksPage() {
     const loadTasks = async () => {
       setLoading(true)
       try {
-        const res = await fetch(
-          `http://localhost:4000/courses/${selectedCourseId}/tasks`
-        )
+        const res = await fetch(`/api/courses/${selectedCourseId}/tasks`)
         if (!res.ok) throw new Error("failed to load tasks")
         const rawTasks = await res.json()
 
@@ -127,7 +146,7 @@ function TasksPage() {
         if (effectiveUserId) {
           try {
             const progressRes = await fetch(
-              `http://localhost:4000/users/${effectiveUserId}/stats`
+              `/api/users/${effectiveUserId}/stats`,
             )
             if (progressRes.ok) {
               const stats = await progressRes.json()
@@ -193,7 +212,7 @@ function TasksPage() {
     (task) =>
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.topic.toLowerCase().includes(searchQuery.toLowerCase())
+      task.topic.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const handleTaskSelect = (task: Task) => {
@@ -206,7 +225,7 @@ function TasksPage() {
 
   const handleTaskComplete = (taskId: string) => {
     setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, completed: true } : t))
+      prev.map((t) => (t.id === taskId ? { ...t, completed: true } : t)),
     )
     if (selectedTask && selectedTask.id === taskId) {
       setSelectedTask({ ...selectedTask, completed: true })
@@ -299,10 +318,23 @@ function TasksPage() {
 }
 
 export default function App() {
+  const dispatch = useDispatch()
+
+  useEffect(() => {
+    ;(dispatch as any)(hydrateAuth())
+  }, [dispatch])
+
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<TasksPage />} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <TasksPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/course/:courseId/task/:taskId"
           element={
@@ -311,11 +343,33 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/lecture/:lectureId" element={<LecturePage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/achievements" element={<AchievementsPage />} />
+        <Route
+          path="/lecture/:lectureId"
+          element={
+            <ProtectedRoute>
+              <LecturePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/achievements"
+          element={
+            <ProtectedRoute>
+              <AchievementsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/sign-in" element={<SignIn />} />
         <Route path="/sign-up" element={<SignUp />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   )

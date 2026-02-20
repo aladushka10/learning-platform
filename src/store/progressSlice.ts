@@ -1,5 +1,4 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-import { logout } from "./signInSlice"
 
 export interface ProgressRecord {
   id: string
@@ -49,9 +48,7 @@ export const progressSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addCase(logout, (state) => {
-      state.records = []
-    })
+    // no auth-coupled resets
   },
 })
 

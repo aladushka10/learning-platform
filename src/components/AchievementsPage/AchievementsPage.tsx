@@ -5,7 +5,7 @@ import { ArrowLeft, Trophy, Award } from "lucide-react"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { Button } from "../ui/button"
 
-const API_BASE = "http://localhost:4000"
+const API_BASE = "/api"
 
 interface AchievementItem {
   id: string
@@ -18,7 +18,7 @@ interface AchievementItem {
 export default function AchievementsPage() {
   const navigate = useNavigate()
   const { auth, userId } = useSelector((state: any) => state.signIn)
-  const effectiveUserId = auth ? (userId || localStorage.getItem("userId")) : null
+  const effectiveUserId = auth ? userId : null
 
   const [achievements, setAchievements] = useState<AchievementItem[]>([])
   const [loading, setLoading] = useState(true)

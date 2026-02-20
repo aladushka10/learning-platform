@@ -1,5 +1,4 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit"
-import { logout } from "./signInSlice"
 
 export interface Solution {
   id: string
@@ -70,11 +69,7 @@ export const solutionSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addCase(logout, (state) => {
-      state.solutions = []
-      state.currentSolution = null
-      state.checkResults = {}
-    })
+    // no auth-coupled resets
   },
 })
 

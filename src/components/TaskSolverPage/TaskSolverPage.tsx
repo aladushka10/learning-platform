@@ -85,12 +85,10 @@ const TaskSolverPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setErrorState] = useState<string | null>(null)
   const { submitting } = useSelector((state: RootState) => state.solution)
-  const userId =
-    (useSelector((state: any) => state.signIn?.userId) as string) ||
-    (typeof localStorage !== "undefined"
-      ? localStorage.getItem("userId")
-      : null) ||
-    "demo-user"
+  const userIdFromStore = useSelector((state: any) => state.signIn?.userId) as
+    | string
+    | null
+  const userId = userIdFromStore || "demo-user"
 
   // Load task data
   useEffect(() => {

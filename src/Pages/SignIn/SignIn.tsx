@@ -34,12 +34,12 @@ const SignIn = () => {
       }
 
       // Dispatch Redux action
-      dispatch(
+      await (dispatch as any)(
         signInUser({
           email,
           password,
-        })
-      )
+        }),
+      ).unwrap()
 
       // For demo: auto-login any valid email/password
       setError("")
@@ -146,7 +146,7 @@ const SignIn = () => {
           </form>
 
           <p className="text-xs text-gray-500 text-center mt-6">
-            Demo: Use any email and password to login
+            Demo: `demo@example.com` / `hashed_password_123`
           </p>
         </CardContent>
       </Card>
