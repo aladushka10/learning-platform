@@ -6,6 +6,20 @@ import { Button } from "../../components/ui/button"
 import { Card, CardContent, CardHeader } from "../../components/ui/card"
 import { Input } from "../../components/ui/input"
 import { signUpUser, clearError } from "../../store/signUpSlice"
+import { z } from "zod"
+
+const signUpSchema = z
+  .object({
+    email: z.string().trim().email("Please enter a valid email"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    passwordConfirm: z.string(),
+    firstName: z.string().trim().min(1, "Please fill in required fields"),
+    lastName: z.string().optional(),
+  })
+  .refine((d) => d.password === d.passwordConfirm, {
+    message: "Passwords do not match",
+    path: ["passwordConfirm"],
+  })
 
 const SignUp = () => {
   const navigate = useNavigate()
@@ -35,23 +49,9 @@ const SignUp = () => {
     e.preventDefault()
     setLocalError("")
 
-    if (!formData.email || !formData.password || !formData.firstName) {
-      setLocalError("Please fill in required fields")
-      return
-    }
-
-    if (!formData.email.includes("@")) {
-      setLocalError("Please enter a valid email")
-      return
-    }
-
-    if (formData.password.length < 6) {
-      setLocalError("Password must be at least 6 characters")
-      return
-    }
-
-    if (formData.password !== formData.passwordConfirm) {
-      setLocalError("Passwords do not match")
+    const parsed = signUpSchema.safeParse(formData)
+    if (!parsed.success) {
+      setLocalError(parsed.error.issues[0]?.message || "Invalid form")
       return
     }
 
@@ -61,7 +61,7 @@ const SignUp = () => {
         password: formData.password,
         firstName: formData.firstName,
         lastName: formData.lastName,
-      })
+      }),
     )
   }
 

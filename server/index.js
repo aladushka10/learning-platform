@@ -10,7 +10,6 @@ const swaggerSpec = require("./swagger")
 const app = express()
 const PORT = process.env.PORT || 4000
 
-// ===== Auth via JWT in HttpOnly cookie (no localStorage) =====
 const AUTH_COOKIE = "token"
 const JWT_SECRET = process.env.JWT_SECRET || "dev_jwt_secret_change_me"
 const JWT_MAX_AGE_SEC = 7 * 24 * 60 * 60 // 7 days

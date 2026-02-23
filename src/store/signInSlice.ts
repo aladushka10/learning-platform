@@ -104,6 +104,24 @@ const signInSlice = createSlice({
   name: "signIn",
   initialState,
   reducers: {
+    setAuthUser(
+      state,
+      action: PayloadAction<{
+        id: string
+        email: string
+        firstName?: string | null
+        lastName?: string | null
+      }>,
+    ) {
+      state.initialized = true
+      state.auth = true
+      state.userId = action.payload.id
+      state.username = action.payload.email
+      state.firstName = action.payload.firstName || null
+      state.lastName = action.payload.lastName || null
+      state.error = null
+      state.isLoading = false
+    },
     logoutLocal(state) {
       state.auth = false
       state.username = null
@@ -188,5 +206,5 @@ const signInSlice = createSlice({
   },
 })
 
-export const { logoutLocal } = signInSlice.actions
+export const { logoutLocal, setAuthUser } = signInSlice.actions
 export default signInSlice.reducer
