@@ -1,11 +1,11 @@
-import { ArrowLeft, Lightbulb, CheckCircle } from "lucide-react"
+import { IconArrowLeft, IconBulb, IconCircleCheck } from "@tabler/icons-react"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { Textarea } from "../ui/textarea"
 import { Badge } from "../ui/badge"
 import { useState } from "react"
 import type { Task } from "../../App"
-import style from "../TaskView/TaskView.module.scss"
+import style from "./TaskView.module.scss"
 import { createSolution } from "../../utils/api"
 
 interface TaskViewProps {
@@ -131,7 +131,7 @@ export function TaskView({
     <div className={`${style.taskView} space-y-6`}>
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={onBack}>
-          <ArrowLeft className="w-5 h-5" />
+          <IconArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex-1">
           <h1 className="text-gray-900">{task.title}</h1>
@@ -191,7 +191,7 @@ export function TaskView({
             <h2 className="text-gray-900">Ваше решение</h2>
             {submitted && result?.correct && (
               <div className="flex items-center gap-2 text-green-600">
-                <CheckCircle className="w-5 h-5" />
+                <IconCircleCheck className="w-5 h-5" />
                 <span>Отправлено</span>
               </div>
             )}
@@ -231,7 +231,7 @@ export function TaskView({
               className="gap-2"
               onClick={() => setShowHint(!showHint)}
             >
-              <Lightbulb className="w-4 h-4" />
+              <IconBulb className="w-4 h-4" />
               {showHint ? "Скрыть подсказку" : "Показать подсказку"}
             </Button>
           </div>
@@ -239,7 +239,7 @@ export function TaskView({
           {showHint && (
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-start gap-2">
-                <Lightbulb className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <IconBulb className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-gray-900 mb-1">Подсказка</p>
                   <p className="text-gray-700">{details.hint}</p>

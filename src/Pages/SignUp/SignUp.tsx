@@ -1,12 +1,12 @@
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
-import { ArrowLeft } from "lucide-react"
-import { Button } from "../../components/ui/button"
-import { Card, CardContent, CardHeader } from "../../components/ui/card"
-import { Input } from "../../components/ui/input"
+import { IconArrowLeft } from "@tabler/icons-react"
 import { signUpUser, clearError } from "../../store/signUpSlice"
 import { z } from "zod"
+import { SubmitButton } from "../../components/SubmitButton/SubmitButton"
+import { AppButton } from "../../components/AppButton/AppButton"
+import { MTextInput } from "../../components/MTextInput/MTextInput"
 
 const signUpSchema = z
   .object({
@@ -55,7 +55,7 @@ const SignUp = () => {
       return
     }
 
-    dispatch(
+    ;(dispatch as any)(
       signUpUser({
         email: formData.email,
         password: formData.password,
@@ -72,139 +72,167 @@ const SignUp = () => {
   }, [success, navigate])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-0 shadow-xl">
-        <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg">
-          <div className="flex items-center gap-3 mb-4">
-            <button
-              onClick={() => navigate("/")}
-              className="hover:opacity-75 transition-opacity"
-            >
-              <ArrowLeft size={20} />
-            </button>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6 py-12">
+      <div className="w-full max-w-xl">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
+          {/* Back */}
+          <button
+            onClick={() => navigate("/")}
+            className="mb-6 text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            <IconArrowLeft size={20} />
+          </button>
+
+          {/* Title */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold text-gray-900">
+              Create account
+            </h2>
+            <p className="text-gray-500 mt-2 text-sm">
+              Join the platform and start learning
+            </p>
           </div>
-          <h2 className="text-3xl font-bold">Create Account</h2>
-          <p className="text-blue-100 mt-2">
-            Join LearnPlatform and start learning
-          </p>
-        </CardHeader>
 
-        <CardContent className="p-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {(localError || error) && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                <p className="text-red-700 text-sm">{localError || error}</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  First Name *
-                </label>
-                <Input
-                  type="text"
-                  placeholder="John"
-                  name="firstName"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Last Name
-                </label>
-                <Input
-                  type="text"
-                  placeholder="Doe"
-                  name="lastName"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  className="w-full"
-                />
-              </div>
+          {(localError || error) && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-6">
+              <p className="text-red-600 text-sm">{localError || error}</p>
             </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email *
-              </label>
-              <Input
-                type="email"
-                placeholder="your@email.com"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full"
+          <form onSubmit={handleSubmit} className="space-y-3">
+            {/* Name grid */}
+            <div className="grid grid-cols-2 gap-6">
+              <MTextInput
+                label="First Name"
+                placeholder="John"
+                name="firstName"
+                value={formData.firstName}
+                onChange={(e) =>
+                  handleChange({
+                    ...e,
+                    target: {
+                      ...e.target,
+                      name: "firstName",
+                      value: e.currentTarget.value,
+                    },
+                  })
+                }
+                required
+                radius="lg"
+              />
+
+              <MTextInput
+                label="Last Name"
+                placeholder="Doe"
+                name="lastName"
+                value={formData.lastName}
+                onChange={(e) =>
+                  handleChange({
+                    ...e,
+                    target: {
+                      ...e.target,
+                      name: "lastName",
+                      value: e.currentTarget.value,
+                    },
+                  })
+                }
+                radius="lg"
               />
             </div>
 
+            <MTextInput
+              label="Email"
+              type="email"
+              placeholder="your@email.com"
+              name="email"
+              value={formData.email}
+              onChange={(e) =>
+                handleChange({
+                  ...e,
+                  target: {
+                    ...e.target,
+                    name: "email",
+                    value: e.currentTarget.value,
+                  },
+                })
+              }
+              required
+              radius="lg"
+            />
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password *
-              </label>
-              <Input
+              <MTextInput
+                label="Password"
                 type="password"
-                placeholder="password"
+                placeholder="At least 6 characters"
                 name="password"
                 value={formData.password}
-                onChange={handleChange}
-                className="w-full"
+                onChange={(e) =>
+                  handleChange({
+                    ...e,
+                    target: {
+                      ...e.target,
+                      name: "password",
+                      value: e.currentTarget.value,
+                    },
+                  })
+                }
+                required
+                radius="lg"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                At least 6 characters
-              </p>
+              <p className="text-xs text-gray-400 mt-2">Minimum 6 characters</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password *
-              </label>
-              <Input
-                type="password"
-                placeholder="password"
-                name="passwordConfirm"
-                value={formData.passwordConfirm}
-                onChange={handleChange}
-                className="w-full"
-              />
-            </div>
+            <MTextInput
+              label="Confirm Password"
+              type="password"
+              placeholder="Repeat password"
+              name="passwordConfirm"
+              value={formData.passwordConfirm}
+              onChange={(e) =>
+                handleChange({
+                  ...e,
+                  target: {
+                    ...e.target,
+                    name: "passwordConfirm",
+                    value: e.currentTarget.value,
+                  },
+                })
+              }
+              required
+              radius="lg"
+            />
 
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-10"
+            <SubmitButton
+              loading={loading}
+              fullWidth
+              radius="lg"
+              size="md"
+              mt="xl"
             >
               {loading ? "Creating account..." : "Create Account"}
-            </Button>
+            </SubmitButton>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">
-                  Already have an account?
-                </span>
-              </div>
+            <div className="text-center text-sm text-gray-500">
+              Already have an account?
             </div>
 
-            <Button
+            <AppButton
               type="button"
               variant="outline"
+              fullWidth
+              radius="lg"
               onClick={() => navigate("/sign-in")}
-              className="w-full"
             >
               Sign In
-            </Button>
+            </AppButton>
           </form>
 
-          <p className="text-xs text-gray-500 text-center mt-6">
+          <p className="text-xs text-gray-400 text-center mt-8">
             By signing up, you agree to our Terms of Service
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   )
 }

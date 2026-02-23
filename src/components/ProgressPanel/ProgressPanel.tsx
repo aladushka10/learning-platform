@@ -1,9 +1,15 @@
-import { Trophy, Target, Flame, TrendingUp } from "lucide-react"
+import {
+  IconTrophy,
+  IconTarget,
+  IconFlame,
+  IconTrendingUp,
+} from "@tabler/icons-react"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { Progress } from "../ui/progress"
 import type { Task } from "../../App"
 import { useEffect, useState } from "react"
 import AchievementBanner from "../AchievementBanner/AchievementBanner"
+import { renderAchievementIcon } from "../../utils/achievementIcons"
 
 interface UserStats {
   streakDays?: number
@@ -70,21 +76,21 @@ export function ProgressPanel({
 
   const stats = [
     {
-      icon: Target,
+      icon: IconTarget,
       label: "Задач выполнено",
       value: completedTasks,
       total: totalTasks,
       color: "text-blue-600",
     },
     {
-      icon: Flame,
+      icon: IconFlame,
       label: "Дней подряд",
       value: String(streakDays),
       total: "дней",
       color: "text-orange-500",
     },
     {
-      icon: Trophy,
+      icon: IconTrophy,
       label: "Достижения",
       value: String(achievementsUnlocked),
       total: achievementsTotal,
@@ -97,7 +103,7 @@ export function ProgressPanel({
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <IconTrendingUp className="w-5 h-5 text-blue-600" />
             <h2 className="text-gray-900">Ваш прогресс</h2>
           </div>
         </CardHeader>
@@ -204,7 +210,12 @@ export function ProgressPanel({
                 }`}
               >
                 <div className="text-2xl leading-none">
-                  {a.unlockedAt ? a.icon || "🏆" : "🔒"}
+                  {renderAchievementIcon(
+                    a.icon,
+                    a.unlockedAt != null,
+                    24,
+                    a.unlockedAt ? "text-amber-600" : "text-gray-500",
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-gray-900">

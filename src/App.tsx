@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useSelector } from "react-redux"
+import { useQueryClient } from "@tanstack/react-query"
 import {
   BrowserRouter as Router,
   Routes,
@@ -20,6 +21,7 @@ import AchievementsPage from "./components/AchievementsPage/AchievementsPage"
 import SignIn from "./Pages/SignIn/SignIn"
 import SignUp from "./Pages/SignUp/SignUp"
 import { hydrateAuth } from "./store/signInSlice"
+import { useUserProgress } from "./hooks/useUserProgress"
 
 export interface Task {
   id: string
@@ -71,16 +73,6 @@ function TasksPage() {
   const [courses, setCourses] = useState<Course[]>([])
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
-  const [userStats, setUserStats] = useState<{
-    streakDays?: number
-    achievements?: {
-      id: string
-      name: string
-      description: string
-      icon: string
-      unlockedAt: number | null
-    }[]
-  } | null>(null)
   const [recentAchievement, setRecentAchievement] = useState<{
     id: string
     name: string
@@ -90,24 +82,17 @@ function TasksPage() {
   } | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
 
-  const refreshUserStats = async () => {
-    if (!effectiveUserId) {
-      setUserStats(null)
-      return
-    }
-    try {
-      const progressRes = await fetch(`/api/users/${effectiveUserId}/stats`)
-      if (!progressRes.ok) return
-      const stats = await progressRes.json()
-      setUserStats({
-        streakDays: stats.streakDays ?? 0,
-        achievements: stats.achievements ?? [],
-      })
-    } catch {
-      // optional
-    }
-  }
+  // Только прогресс пользователя грузим через React Query
+  const { data: statsData } = useUserProgress(effectiveUserId)
+
+  const userStats = effectiveUserId
+    ? {
+        streakDays: statsData?.streakDays ?? 0,
+        achievements: statsData?.achievements ?? [],
+      }
+    : null
 
   useEffect(() => {
     // load courses
@@ -144,23 +129,7 @@ function TasksPage() {
         // Загружаем прогресс только для авторизованного пользователя
         let userProgress = null
         if (effectiveUserId) {
-          try {
-            const progressRes = await fetch(
-              `/api/users/${effectiveUserId}/stats`,
-            )
-            if (progressRes.ok) {
-              const stats = await progressRes.json()
-              userProgress = stats.tasks || []
-              setUserStats({
-                streakDays: stats.streakDays ?? 0,
-                achievements: stats.achievements ?? [],
-              })
-            }
-          } catch (e) {
-            // Progress loading is optional
-          }
-        } else {
-          setUserStats(null)
+          userProgress = statsData?.tasks || []
         }
 
         // map backend task shape to client Task
@@ -206,7 +175,7 @@ function TasksPage() {
     }
 
     loadTasks()
-  }, [selectedCourseId, courses, effectiveUserId])
+  }, [selectedCourseId, courses, effectiveUserId, statsData])
 
   const filteredTasks = tasks.filter(
     (task) =>
@@ -230,7 +199,11 @@ function TasksPage() {
     if (selectedTask && selectedTask.id === taskId) {
       setSelectedTask({ ...selectedTask, completed: true })
     }
-    refreshUserStats()
+    if (effectiveUserId) {
+      queryClient.invalidateQueries({
+        queryKey: ["user-progress", effectiveUserId],
+      })
+    }
   }
 
   return (

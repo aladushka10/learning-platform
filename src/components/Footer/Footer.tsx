@@ -1,11 +1,11 @@
-import { HelpCircle, Mail, FileText } from "lucide-react"
+import { IconHelpCircle, IconMail, IconFileText } from "@tabler/icons-react"
 import style from "./Footer.module.scss"
 
 export function Footer() {
   const links = [
-    { icon: HelpCircle, label: "Справка", href: "#" },
-    { icon: FileText, label: "Частые вопросы", href: "#" },
-    { icon: Mail, label: "Контакты", href: "#" },
+    { icon: IconHelpCircle, label: "Справка", href: "#" },
+    { icon: IconFileText, label: "Частые вопросы", href: "#" },
+    { icon: IconMail, label: "Контакты", href: "#" },
   ]
 
   return (

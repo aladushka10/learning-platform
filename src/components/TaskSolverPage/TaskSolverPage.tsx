@@ -2,13 +2,13 @@ import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import {
-  ArrowLeft,
-  Lightbulb,
-  CheckCircle,
-  XCircle,
-  Clock,
-  BookOpen,
-} from "lucide-react"
+  IconArrowLeft,
+  IconBulb,
+  IconCircleCheck,
+  IconCircleX,
+  IconClock,
+  IconBook,
+} from "@tabler/icons-react"
 import ReactMarkdown from "react-markdown"
 import rehypeKatex from "rehype-katex"
 import remarkMath from "remark-math"
@@ -263,7 +263,7 @@ const TaskSolverPage = () => {
           onClick={() => navigate("/")}
           className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
         >
-          <ArrowLeft size={20} />
+          <IconArrowLeft size={20} />
           Вернуться
         </button>
         <h1 className="text-3xl font-bold text-gray-900">{task.title}</h1>
@@ -322,9 +322,9 @@ const TaskSolverPage = () => {
                   }`}
                 >
                   {checkStatus.passed ? (
-                    <CheckCircle className="text-green-600" size={24} />
+                    <IconCircleCheck className="text-green-600" size={24} />
                   ) : (
-                    <XCircle className="text-red-600" size={24} />
+                    <IconCircleX className="text-red-600" size={24} />
                   )}
                   <p
                     className={
@@ -412,7 +412,7 @@ const TaskSolverPage = () => {
           <Card>
             <CardHeader>
               <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Lightbulb size={20} className="text-yellow-500" />
+                <IconBulb size={20} className="text-yellow-500" />
                 Подсказка
               </h3>
             </CardHeader>
@@ -446,7 +446,7 @@ const TaskSolverPage = () => {
             <Card>
               <CardHeader>
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <BookOpen size={20} className="text-purple-600" />
+                  <IconBook size={20} className="text-purple-600" />
                   Теория
                 </h3>
               </CardHeader>
@@ -467,7 +467,10 @@ const TaskSolverPage = () => {
                   variant="outline"
                   className="w-full"
                 >
-                  📖 {relatedLecture.title}
+                  <span className="inline-flex items-center gap-2">
+                    <IconBook size={16} />
+                    {relatedLecture.title}
+                  </span>
                 </Button>
               </CardContent>
             </Card>
@@ -478,7 +481,7 @@ const TaskSolverPage = () => {
             <Card>
               <CardHeader>
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Clock size={20} className="text-blue-600" />
+                  <IconClock size={20} className="text-blue-600" />
                   Результат
                 </h3>
               </CardHeader>

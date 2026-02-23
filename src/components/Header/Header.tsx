@@ -1,4 +1,4 @@
-import { Search, Bell, User, Trophy } from "lucide-react"
+import { IconSearch, IconTrophy } from "@tabler/icons-react"
 import { Input } from "../ui/input"
 import { Button } from "../ui/button"
 import { Avatar, AvatarFallback } from "../ui/avatar"
@@ -50,7 +50,7 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
 
         <div className="flex-1 max-w-xl mx-8">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               type="text"
               placeholder="Поиск задач, тем или концепций..."
@@ -72,7 +72,7 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 className="gap-1.5"
                 onClick={() => navigate("/achievements")}
               >
-                <Trophy className="w-4 h-4 text-amber-500" />
+                <IconTrophy className="w-4 h-4 text-amber-500" />
                 <span className="text-gray-700">Достижения</span>
               </Button>
               <Button

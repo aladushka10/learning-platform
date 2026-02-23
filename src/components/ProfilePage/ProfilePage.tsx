@@ -1,9 +1,19 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSelector } from "react-redux"
-import { ArrowLeft, Trophy, Calendar, BookOpen, Zap, Award } from "lucide-react"
+import {
+  IconArrowLeft,
+  IconTrophy,
+  IconCalendar,
+  IconBook,
+  IconBolt,
+  IconAward,
+  IconSchool,
+  IconFlame,
+} from "@tabler/icons-react"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader } from "../ui/card"
+import { renderAchievementIcon } from "../../utils/achievementIcons"
 
 const API_BASE = "/api"
 
@@ -105,7 +115,7 @@ const ProfilePage = () => {
             onClick={() => navigate("/")}
             className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
           >
-            <ArrowLeft size={20} />К задачам
+            <IconArrowLeft size={20} />К задачам
           </button>
           <h1 className="text-2xl font-bold text-gray-900">Профиль</h1>
           <div className="w-24"></div>
@@ -124,7 +134,9 @@ const ProfilePage = () => {
                 </h2>
                 <p className="text-blue-100 text-lg">Уровень {stats.level}</p>
               </div>
-              <div className="text-6xl">🎓</div>
+              <div className="text-6xl">
+                <IconSchool size={56} />
+              </div>
             </div>
 
             {/* Stats Row */}
@@ -139,7 +151,10 @@ const ProfilePage = () => {
               </div>
               <div className="bg-white/20 rounded-lg p-4 backdrop-blur">
                 <p className="text-blue-100 text-sm">Дневная серия</p>
-                <p className="text-3xl font-bold">{stats.streakDays} 🔥</p>
+                <p className="text-3xl font-bold inline-flex items-center gap-1">
+                  {stats.streakDays}
+                  <IconFlame size={26} />
+                </p>
               </div>
               <div className="bg-white/20 rounded-lg p-4 backdrop-blur">
                 <p className="text-blue-100 text-sm">Очки</p>
@@ -155,7 +170,7 @@ const ProfilePage = () => {
           <Card>
             <CardHeader>
               <h3 className="text-xl font-semibold flex items-center gap-2">
-                <BookOpen size={24} className="text-blue-600" />
+                <IconBook size={24} className="text-blue-600" />
                 Прогресс обучения
               </h3>
             </CardHeader>
@@ -200,7 +215,7 @@ const ProfilePage = () => {
           <Card>
             <CardHeader>
               <h3 className="text-xl font-semibold flex items-center gap-2">
-                <Calendar size={24} className="text-green-600" />
+                <IconCalendar size={24} className="text-green-600" />
                 Активность на неделе
               </h3>
             </CardHeader>
@@ -233,7 +248,7 @@ const ProfilePage = () => {
         <Card>
           <CardHeader>
             <h3 className="text-xl font-semibold flex items-center gap-2">
-              <Trophy size={24} className="text-yellow-500" />
+              <IconTrophy size={24} className="text-yellow-500" />
               Достижения
             </h3>
           </CardHeader>
@@ -250,7 +265,14 @@ const ProfilePage = () => {
                     }`}
                   >
                     <div className="text-center">
-                      <div className="text-4xl mb-2">{achievement.icon || "🏆"}</div>
+                      <div className="text-4xl mb-2 flex justify-center">
+                        {renderAchievementIcon(
+                          achievement.icon,
+                          achievement.unlockedAt != null,
+                          32,
+                          achievement.unlockedAt ? "text-amber-600" : "text-gray-500",
+                        )}
+                      </div>
                       <h4 className="font-semibold text-gray-900 text-sm">
                         {achievement.name}
                       </h4>
@@ -260,7 +282,7 @@ const ProfilePage = () => {
                     </div>
                     {achievement.unlockedAt && (
                       <div className="absolute top-2 right-2">
-                        <Award size={16} className="text-yellow-500" fill="currentColor" />
+                        <IconAward size={16} className="text-yellow-500" />
                       </div>
                     )}
                   </div>
@@ -276,7 +298,7 @@ const ProfilePage = () => {
         <Card>
           <CardHeader>
             <h3 className="text-xl font-semibold flex items-center gap-2">
-              <Zap size={24} className="text-orange-500" />
+              <IconBolt size={24} className="text-orange-500" />
               Статистика
             </h3>
           </CardHeader>

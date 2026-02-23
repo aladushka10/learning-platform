@@ -1,10 +1,11 @@
-import { CheckCircle2, Circle } from "lucide-react"
+import { IconCircleCheck, IconCircle } from "@tabler/icons-react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardFooter, CardHeader } from "../ui/card"
 import { Button } from "../ui/button"
 import { Badge } from "../ui/badge"
 import style from "./TaskCard.module.scss"
 import { Task } from "../../App"
+import { AppButton } from "../AppButton/AppButton"
 
 interface TaskCardProps {
   task: Task
@@ -37,7 +38,7 @@ export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
 
   return (
     <Card
-      className={`hover:shadow-md transition-shadow cursor-pointer group ${style.card}`}
+      className={`hover:shadow-md transition-shadow cursor-pointer justify-between group ${style.card}`}
     >
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
@@ -48,9 +49,9 @@ export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
             <p className="text-gray-500 mt-1">{task.topic}</p>
           </div>
           {task.completed ? (
-            <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+            <IconCircleCheck className="w-5 h-5 text-green-500 flex-shrink-0" />
           ) : (
-            <Circle className="w-5 h-5 text-gray-300 flex-shrink-0" />
+            <IconCircle className="w-5 h-5 text-gray-300 flex-shrink-0" />
           )}
         </div>
       </CardHeader>
@@ -72,12 +73,15 @@ export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
       </CardContent>
 
       <CardFooter>
-        <Button
-          className="w-full bg-blue-600 hover:bg-blue-700"
+        <AppButton
+          fullWidth
+          style={{
+            backgroundColor: "#2563eb",
+          }}
           onClick={handleSolve}
         >
           {task.completed ? "Повторить" : "Решить"}
-        </Button>
+        </AppButton>
       </CardFooter>
     </Card>
   )

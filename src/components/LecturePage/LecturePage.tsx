@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
-import { ArrowLeft, BookOpen } from "lucide-react"
+import { IconArrowLeft, IconBook } from "@tabler/icons-react"
 import { Button } from "../ui/button"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { fetchLectureById } from "../../utils/api"
@@ -91,11 +91,11 @@ const LecturePage = () => {
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
           >
-            <ArrowLeft size={20} />
+            <IconArrowLeft size={20} />
             Вернуться
           </button>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <BookOpen size={24} className="text-purple-600" />
+            <IconBook size={24} className="text-purple-600" />
             {lecture.title}
           </h1>
           <div className="w-20"></div>

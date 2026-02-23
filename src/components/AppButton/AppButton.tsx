@@ -1,11 +1,9 @@
-import { Button, type ButtonProps } from "@mantine/core"
-import type { MouseEventHandler } from "react"
+import { ButtonHTMLAttributes } from "react"
+import { ButtonProps, Button as MantineButton } from "@mantine/core"
 
-type AppButtonProps = ButtonProps & {
-  type?: "button" | "submit" | "reset"
-  onClick?: MouseEventHandler<HTMLButtonElement>
-}
+type CustomButtonProps = ButtonProps &
+  Omit<ButtonHTMLAttributes<HTMLButtonElement>, "color" | "style">
 
-export function AppButton(props: AppButtonProps) {
-  return <Button {...props} />
+export function AppButton(props: CustomButtonProps) {
+  return <MantineButton size="md" loaderProps={{ type: "dots" }} {...props} />
 }

@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSelector } from "react-redux"
-import { ArrowLeft, Trophy, Award } from "lucide-react"
+import { IconArrowLeft, IconTrophy, IconAward } from "@tabler/icons-react"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { Button } from "../ui/button"
+import { renderAchievementIcon } from "../../utils/achievementIcons"
 
 const API_BASE = "/api"
 
@@ -60,7 +61,7 @@ export default function AchievementsPage() {
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-8 text-center">
-            <Trophy className="w-16 h-16 mx-auto text-amber-500 mb-4" />
+            <IconTrophy className="w-16 h-16 mx-auto text-amber-500 mb-4" />
             <p className="text-gray-600 mb-4">
               Войдите в аккаунт, чтобы видеть свои достижения.
             </p>
@@ -87,7 +88,7 @@ export default function AchievementsPage() {
             onClick={() => navigate("/")}
             className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
           >
-            <ArrowLeft size={20} /> К задачам
+            <IconArrowLeft size={20} /> К задачам
           </button>
           <h1 className="text-2xl font-bold text-gray-900">Достижения</h1>
           <div className="w-24" />
@@ -101,7 +102,7 @@ export default function AchievementsPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-                  <Trophy className="w-8 h-8" />
+                  <IconTrophy className="w-8 h-8" />
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold">
@@ -122,7 +123,7 @@ export default function AchievementsPage() {
         <Card>
           <CardHeader>
             <h3 className="text-xl font-semibold flex items-center gap-2">
-              <Trophy className="w-6 h-6 text-amber-500" />
+              <IconTrophy className="w-6 h-6 text-amber-500" />
               Достижения
             </h3>
           </CardHeader>
@@ -144,7 +145,12 @@ export default function AchievementsPage() {
                   >
                     <div className="flex items-start gap-3">
                       <div className="text-3xl flex-shrink-0">
-                        {a.unlockedAt ? a.icon || "🏆" : "🔒"}
+                        {renderAchievementIcon(
+                          a.icon,
+                          a.unlockedAt != null,
+                          28,
+                          a.unlockedAt ? "text-amber-600" : "text-gray-500",
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="font-semibold text-gray-900 text-sm">
@@ -163,10 +169,9 @@ export default function AchievementsPage() {
                     </div>
                     {a.unlockedAt && (
                       <div className="absolute top-2 right-2">
-                        <Award
+                        <IconAward
                           size={18}
                           className="text-amber-500"
-                          fill="currentColor"
                         />
                       </div>
                     )}
