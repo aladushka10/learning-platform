@@ -1155,9 +1155,235 @@ $$
       } catch (e) {}
     }
   } catch (e) {}
+}
 
+function seedProgrammingCourse() {
+  const courses = module.exports.getCourses()
+  const courseId = "programming-js"
+  const now = Date.now()
+
+  const existing = courses.find((c) => c.id === courseId)
+  const courseTitle = "Программирование"
+  const courseDescription =
+    "Новый курс по программированию: базовый синтаксис, функции, условия, циклы и первые практические задания с кодом."
+  const courseCategory = "Computer Science"
+
+  // Важно: обновляем название/описание/категорию при каждом запуске
+  try {
+    db.prepare(
+      `INSERT INTO courses (id, title, description, category, createdAt)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         title = excluded.title,
+         description = excluded.description,
+         category = excluded.category`,
+    ).run(courseId, courseTitle, courseDescription, courseCategory, now)
+  } catch (e) {}
+
+  if (existing) {
+    const tasks = module.exports.getTasks(courseId)
+    if (tasks && tasks.length >= 6) return
+  }
+
+  const lectures = [
+    {
+      id: "prog-lec-1",
+      courseId,
+      title: "1. Переменные и типы данных",
+      content: `
+### Переменные и типы данных
+
+В JavaScript есть три способа объявить переменную: \`const\`, \`let\`, \`var\` (почти всегда избегаем \`var\`).
+
+- \`const\` — значение нельзя переназначить (но объект можно менять по полям)
+- \`let\` — можно переназначать
+
+Типы данных (упрощённо):
+- числа, строки, булевы значения
+- \`null\`, \`undefined\`
+- объекты, массивы, функции
+
+В этом курсе мы будем писать решения как функции: вход → выход.
+`,
+      ord: 1,
+    },
+    {
+      id: "prog-lec-2",
+      courseId,
+      title: "2. Условия и логика",
+      content: `
+### Условия и логика
+
+Основная конструкция:
+
+\`\`\`js
+if (условие) {
+  // ...
+} else {
+  // ...
+}
+\`\`\`
+
+Для сравнения:
+- строгое равенство \`===\`, строгое неравенство \`!==\`
+- меньше/больше: \`<\`, \`>\`, \`<=\`, \`>=\`
+
+Мы будем писать функции без ввода/вывода — только возвращаем результат.
+`,
+      ord: 2,
+    },
+    {
+      id: "prog-lec-3",
+      courseId,
+      title: "3. Циклы и массивы",
+      content: `
+### Циклы и массивы
+
+Чаще всего используются:
+- \`for\`
+- \`for...of\`
+
+Массив — это список:
+\`\`\`js
+const a = [1, 2, 3]
+\`\`\`
+
+На практике мы будем писать функции, которые получают массив и возвращают число/строку/массив.
+`,
+      ord: 3,
+    },
+  ]
+  lectures.forEach((l) => {
+    try {
+      module.exports.createLecture(l)
+    } catch (e) {}
+  })
+
+  const tasks = [
+    {
+      id: "prog-task-1",
+      courseId,
+      title: "Hello, name!",
+      description:
+        "Напишите функцию greet(name), которая возвращает строку: Hello, <name>!",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-1",
+        starterCode: "export function greet(name) {\n  // верните строку\n}\n",
+        tests: [
+          { name: "greet('Ann')", expected: "Hello, Ann!" },
+          { name: "greet('Bob')", expected: "Hello, Bob!" },
+        ],
+      }),
+      ord: 1,
+    },
+    {
+      id: "prog-task-2",
+      courseId,
+      title: "Сумма двух чисел",
+      description:
+        "Напишите функцию sum(a, b), которая возвращает сумму a + b.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-1",
+        starterCode: "export function sum(a, b) {\n  // TODO\n}\n",
+        tests: [
+          { name: "sum(1, 2)", expected: 3 },
+          { name: "sum(-5, 10)", expected: 5 },
+        ],
+      }),
+      ord: 2,
+    },
+    {
+      id: "prog-task-3",
+      courseId,
+      title: "Чётное или нечётное",
+      description:
+        "Напишите функцию isEven(n), которая возвращает true, если n чётное, иначе false.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-2",
+        starterCode: "export function isEven(n) {\n  // TODO\n}\n",
+        tests: [
+          { name: "isEven(2)", expected: true },
+          { name: "isEven(7)", expected: false },
+        ],
+      }),
+      ord: 3,
+    },
+    {
+      id: "prog-task-4",
+      courseId,
+      title: "Максимум из двух",
+      description:
+        "Напишите функцию max2(a, b), которая возвращает большее из двух чисел.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-2",
+        starterCode: "export function max2(a, b) {\n  // TODO\n}\n",
+        tests: [
+          { name: "max2(1, 2)", expected: 2 },
+          { name: "max2(10, -1)", expected: 10 },
+        ],
+      }),
+      ord: 4,
+    },
+    {
+      id: "prog-task-5",
+      courseId,
+      title: "Сумма массива",
+      description:
+        "Напишите функцию sumArray(arr), которая возвращает сумму всех элементов массива.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-3",
+        starterCode: "export function sumArray(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "sumArray([1,2,3])", expected: 6 },
+          { name: "sumArray([])", expected: 0 },
+        ],
+      }),
+      ord: 5,
+    },
+    {
+      id: "prog-task-6",
+      courseId,
+      title: "Количество положительных",
+      description:
+        "Напишите функцию countPositive(arr), которая считает, сколько чисел > 0 в массиве.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-3",
+        starterCode: "export function countPositive(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "countPositive([1,-2,3,0])", expected: 2 },
+          { name: "countPositive([-1,-2])", expected: 0 },
+        ],
+      }),
+      ord: 6,
+    },
+  ]
+
+  tasks.forEach((t) => {
+    try {
+      module.exports.createTask(t)
+    } catch (e) {}
+  })
 }
 
 // Achievements должны быть всегда, даже если курс/задачи уже засидены
 seedAchievements()
 seedIfEmpty()
+seedProgrammingCourse()

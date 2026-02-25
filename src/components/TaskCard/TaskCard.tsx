@@ -1,11 +1,12 @@
-import { IconCircleCheck, IconCircle } from "@tabler/icons-react"
+import {
+  IconCircleCheck,
+  IconCircle,
+  IconCode,
+  IconPencil,
+} from "@tabler/icons-react"
 import { useNavigate } from "react-router-dom"
-import { Card, CardContent, CardFooter, CardHeader } from "../ui/card"
-import { Button } from "../ui/button"
-import { Badge } from "../ui/badge"
-import style from "./TaskCard.module.scss"
+import { Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core"
 import { Task } from "../../App"
-import { AppButton } from "../AppButton/AppButton"
 
 interface TaskCardProps {
   task: Task
@@ -14,9 +15,9 @@ interface TaskCardProps {
 }
 
 const difficultyColors = {
-  Easy: "bg-green-100 text-green-700 border-green-200",
-  Medium: "bg-yellow-100 text-yellow-700 border-yellow-200",
-  Hard: "bg-red-100 text-red-700 border-red-200",
+  Easy: "rgb(61, 238, 123)",
+  Medium: "rgb(255, 195, 104)",
+  Hard: "rgb(255, 110, 110)",
 }
 
 const difficultyLabels = {
@@ -30,59 +31,85 @@ export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
 
   const handleSolve = () => {
     if (courseId) {
-      navigate(`/course/${courseId}/task/${task.id}`)
+      if (task.taskType === "code") {
+        navigate(`/course/${courseId}/code/${task.id}`)
+      } else {
+        navigate(`/course/${courseId}/task/${task.id}`)
+      }
     } else {
       onSelect(task)
     }
   }
 
   return (
-    <Card
-      className={`hover:shadow-md transition-shadow cursor-pointer justify-between group ${style.card}`}
+    <Paper
+      withBorder
+      radius="lg"
+      p="lg"
+      onClick={handleSolve}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        position: "relative",
+        cursor: "pointer",
+      }}
     >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1">
-            <h3 className="text-gray-900 group-hover:text-blue-600 transition-colors">
-              {task.title}
-            </h3>
-            <p className="text-gray-500 mt-1">{task.topic}</p>
-          </div>
-          {task.completed ? (
-            <IconCircleCheck className="w-5 h-5 text-green-500 flex-shrink-0" />
-          ) : (
-            <IconCircle className="w-5 h-5 text-gray-300 flex-shrink-0" />
-          )}
+      {task.completed ? (
+        <IconCircleCheck className="absolute top-4 right-4 w-5 h-5 text-green-500" />
+      ) : (
+        <IconCircle className="absolute top-4 right-4 w-5 h-5 text-gray-300" />
+      )}
+
+      <Stack gap="sm" style={{ flex: 1 }}>
+        <div className="pr-7 min-w-0">
+          <Title order={5}>{task.title}</Title>
+          <Text size="sm">{task.topic}</Text>
         </div>
-      </CardHeader>
 
-      <CardContent className="pb-3">
-        <p className="text-gray-600 line-clamp-2">{task.description}</p>
+        <Text size="sm" className="line-clamp-2">
+          {task.description}
+        </Text>
 
-        <div className="flex items-center gap-2 mt-3">
-          <Badge
-            variant="outline"
-            className={difficultyColors[task.difficulty]}
-          >
+        <Group gap="xs" mt={4} className="flex-wrap">
+          <Badge variant="outline" color={difficultyColors[task.difficulty]}>
             {difficultyLabels[task.difficulty]}
           </Badge>
-          <Badge variant="outline" className="text-gray-600">
+          <Badge
+            fw={500}
+            variant="light"
+            color="blue"
+            leftSection={
+              task.taskType === "code" ? (
+                <IconCode size={14} />
+              ) : (
+                <IconPencil size={14} />
+              )
+            }
+          >
+            {task.taskType === "code" ? "Код" : "Задача"}
+          </Badge>
+          <Badge fw={500} variant="light" color="gray">
             {task.category === "Mathematics" ? "Математика" : "Информатика"}
           </Badge>
-        </div>
-      </CardContent>
+          {task.taskType === "code" && task.language ? (
+            <Badge fw={500} variant="light" color="gray">
+              {task.language}
+            </Badge>
+          ) : null}
+        </Group>
+      </Stack>
 
-      <CardFooter>
-        <AppButton
-          fullWidth
-          style={{
-            backgroundColor: "#2563eb",
-          }}
-          onClick={handleSolve}
-        >
-          {task.completed ? "Повторить" : "Решить"}
-        </AppButton>
-      </CardFooter>
-    </Card>
+      <Button
+        fullWidth
+        mt="md"
+        style={{
+          backgroundColor: "#2563eb",
+        }}
+        onClick={handleSolve}
+      >
+        {task.completed ? "Повторить" : "Решить"}
+      </Button>
+    </Paper>
   )
 }

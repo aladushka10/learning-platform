@@ -6,6 +6,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useSearchParams,
 } from "react-router-dom"
 import { useDispatch } from "react-redux"
 import { Header } from "./components/Header/Header"
@@ -15,6 +16,7 @@ import { TaskView } from "./components/TaskView/TaskView"
 import { ProgressPanel } from "./components/ProgressPanel/ProgressPanel"
 import { Footer } from "./components/Footer/Footer"
 import TaskSolverPage from "./components/TaskSolverPage/TaskSolverPage"
+import CodeTaskPage from "./components/CodeTaskPage/CodeTaskPage"
 import LecturePage from "./components/LecturePage/LecturePage"
 import ProfilePage from "./components/ProfilePage/ProfilePage"
 import AchievementsPage from "./components/AchievementsPage/AchievementsPage"
@@ -22,6 +24,7 @@ import SignIn from "./Pages/SignIn/SignIn"
 import SignUp from "./Pages/SignUp/SignUp"
 import { hydrateAuth } from "./store/signInSlice"
 import { useUserProgress } from "./hooks/useUserProgress"
+import { Title } from "@mantine/core"
 
 export interface Task {
   id: string
@@ -31,6 +34,8 @@ export interface Task {
   category: "Mathematics" | "Computer Science"
   topic: string
   completed: boolean
+  taskType?: string
+  language?: string
 }
 
 interface Course {
@@ -64,6 +69,7 @@ function TasksPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [searchParams, setSearchParams] = useSearchParams()
   const auth = useSelector((state: any) => state.signIn?.auth)
   const userIdFromStore = useSelector(
     (state: any) => state.signIn?.userId as string | undefined,
@@ -103,7 +109,15 @@ function TasksPage() {
         if (!res.ok) throw new Error("failed to load courses")
         const data: Course[] = await res.json()
         setCourses(data)
-        if (data.length > 0) setSelectedCourseId(data[0].id)
+        if (data.length > 0) {
+          const fromQuery = searchParams.get("course")
+          const exists = fromQuery && data.some((c) => c.id === fromQuery)
+          const initial = exists ? (fromQuery as string) : data[0].id
+          setSelectedCourseId(initial)
+          const next = new URLSearchParams(searchParams)
+          next.set("course", initial)
+          setSearchParams(next, { replace: true })
+        }
       } catch (e: any) {
         setError(e.message || "error")
       } finally {
@@ -163,6 +177,8 @@ function TasksPage() {
                 : "Computer Science",
             topic: (meta as any).topic || (course && course.title) || "",
             completed: isCompleted,
+            taskType: (meta as any).type,
+            language: (meta as any).language,
           }
         })
 
@@ -240,7 +256,7 @@ function TasksPage() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h1 className="text-gray-900">Библиотека задач</h1>
+                      <Title order={2}>Библиотека задач</Title>
                       <p className="text-gray-600 mt-1">
                         Выберите курс и задачу для начала обучения
                       </p>
@@ -249,7 +265,13 @@ function TasksPage() {
                     <div className="flex items-center gap-3">
                       <select
                         value={selectedCourseId ?? ""}
-                        onChange={(e) => setSelectedCourseId(e.target.value)}
+                        onChange={(e) => {
+                          const value = e.currentTarget.value
+                          setSelectedCourseId(value)
+                          const next = new URLSearchParams(searchParams)
+                          next.set("course", value)
+                          setSearchParams(next, { replace: true })
+                        }}
                         className="rounded-md border px-3 py-1"
                       >
                         {courses.map((c) => (
@@ -261,7 +283,7 @@ function TasksPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
                     {filteredTasks.map((task) => (
                       <TaskCard
                         key={task.id}
@@ -313,6 +335,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <TaskSolverPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/course/:courseId/code/:taskId"
+          element={
+            <ProtectedRoute>
+              <CodeTaskPage />
             </ProtectedRoute>
           }
         />

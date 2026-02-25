@@ -20,13 +20,14 @@ const signUpSchema = z
     message: "Passwords do not match",
     path: ["passwordConfirm"],
   })
+type SignUpFormValues = z.infer<typeof signUpSchema>
 
 const SignUp = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const { loading, error, success } = useSelector((state: any) => state.signUp)
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<SignUpFormValues>({
     email: "",
     password: "",
     passwordConfirm: "",
@@ -36,9 +37,11 @@ const SignUp = () => {
 
   const [localError, setLocalError] = useState("")
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+  const handleFieldChange = <K extends keyof SignUpFormValues>(
+    field: K,
+    value: SignUpFormValues[K],
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
     setLocalError("")
     if (error) {
       dispatch(clearError())
@@ -107,16 +110,7 @@ const SignUp = () => {
                 placeholder="John"
                 name="firstName"
                 value={formData.firstName}
-                onChange={(e) =>
-                  handleChange({
-                    ...e,
-                    target: {
-                      ...e.target,
-                      name: "firstName",
-                      value: e.currentTarget.value,
-                    },
-                  })
-                }
+                onChange={(e) => handleFieldChange("firstName", e.currentTarget.value)}
                 required
                 radius="lg"
               />
@@ -126,16 +120,7 @@ const SignUp = () => {
                 placeholder="Doe"
                 name="lastName"
                 value={formData.lastName}
-                onChange={(e) =>
-                  handleChange({
-                    ...e,
-                    target: {
-                      ...e.target,
-                      name: "lastName",
-                      value: e.currentTarget.value,
-                    },
-                  })
-                }
+                onChange={(e) => handleFieldChange("lastName", e.currentTarget.value)}
                 radius="lg"
               />
             </div>
@@ -146,16 +131,7 @@ const SignUp = () => {
               placeholder="your@email.com"
               name="email"
               value={formData.email}
-              onChange={(e) =>
-                handleChange({
-                  ...e,
-                  target: {
-                    ...e.target,
-                    name: "email",
-                    value: e.currentTarget.value,
-                  },
-                })
-              }
+              onChange={(e) => handleFieldChange("email", e.currentTarget.value)}
               required
               radius="lg"
             />
@@ -167,16 +143,7 @@ const SignUp = () => {
                 placeholder="At least 6 characters"
                 name="password"
                 value={formData.password}
-                onChange={(e) =>
-                  handleChange({
-                    ...e,
-                    target: {
-                      ...e.target,
-                      name: "password",
-                      value: e.currentTarget.value,
-                    },
-                  })
-                }
+                onChange={(e) => handleFieldChange("password", e.currentTarget.value)}
                 required
                 radius="lg"
               />
@@ -190,14 +157,7 @@ const SignUp = () => {
               name="passwordConfirm"
               value={formData.passwordConfirm}
               onChange={(e) =>
-                handleChange({
-                  ...e,
-                  target: {
-                    ...e.target,
-                    name: "passwordConfirm",
-                    value: e.currentTarget.value,
-                  },
-                })
+                handleFieldChange("passwordConfirm", e.currentTarget.value)
               }
               required
               radius="lg"

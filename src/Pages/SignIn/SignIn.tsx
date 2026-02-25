@@ -9,21 +9,24 @@ import { z } from "zod"
 import { AppButton } from "../../components/AppButton/AppButton"
 import { MTextInput } from "../../components/MTextInput/MTextInput"
 import { SubmitButton } from "../../components/SubmitButton/SubmitButton"
-import { Loader } from "@mantine/core"
+import { Loader, Text, Title } from "@mantine/core"
 import { Icon } from "@radix-ui/react-select"
 
 const signInSchema = z.object({
   email: z.string().trim().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 })
+type SignInFormValues = z.infer<typeof signInSchema>
 
 const SignIn = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const { auth } = useSelector((state: any) => state.signIn)
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [formData, setFormData] = useState<SignInFormValues>({
+    email: "",
+    password: "",
+  })
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
@@ -33,7 +36,7 @@ const SignIn = () => {
     setLoading(true)
 
     try {
-      const parsed = signInSchema.safeParse({ email, password })
+      const parsed = signInSchema.safeParse(formData)
       if (!parsed.success) {
         setError(parsed.error.issues[0]?.message || "Invalid form")
         return
@@ -41,8 +44,8 @@ const SignIn = () => {
 
       await (dispatch as any)(
         signInUser({
-          email,
-          password,
+          email: parsed.data.email,
+          password: parsed.data.password,
         }),
       ).unwrap()
     } catch (err: any) {
@@ -63,18 +66,14 @@ const SignIn = () => {
       <div className="w-full max-w-lg">
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
           <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900">
-              Welcome back
-            </h2>
-            <p className="text-gray-500 mt-2 text-sm">
-              Sign in to continue learning
-            </p>
+            <Title order={2}>Welcome back</Title>
+            <Text>Sign in to continue learning</Text>
           </div>
 
           {/* Error */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-5">
-              <p className="text-red-600 text-sm">{error}</p>
+              <Text className="text-red-600 text-sm">{error}</Text>
             </div>
           )}
 
@@ -83,8 +82,11 @@ const SignIn = () => {
             <MTextInput
               label="Email"
               placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.currentTarget.value)}
+              value={formData.email}
+              onChange={(e) => {
+                const value = e.currentTarget.value
+                setFormData((prev) => ({ ...prev, email: value }))
+              }}
               required
               radius="lg"
               size="md"
@@ -94,8 +96,14 @@ const SignIn = () => {
               type="password"
               label="Password"
               placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.currentTarget.value)}
+              value={formData.password}
+              onChange={(e) => {
+                const value = e.currentTarget.value
+                setFormData((prev) => ({
+                  ...prev,
+                  password: value,
+                }))
+              }}
               required
               radius="lg"
               size="md"
@@ -111,8 +119,8 @@ const SignIn = () => {
               {loading ? "Signing in..." : "Sign In"}
             </SubmitButton>
 
-            <div className="text-center text-sm text-gray-500">
-              Don't have an account?
+            <div className="text-center">
+              <Text>Don't have an account?</Text>
             </div>
 
             <AppButton
@@ -126,9 +134,9 @@ const SignIn = () => {
             </AppButton>
           </form>
 
-          <p className="text-xs text-gray-400 text-center mt-8">
+          <Text className="text-center">
             Demo: demo@example.com / hashed_password_123
-          </p>
+          </Text>
         </div>
       </div>
     </div>

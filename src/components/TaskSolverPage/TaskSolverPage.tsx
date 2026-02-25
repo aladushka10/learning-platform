@@ -239,7 +239,7 @@ const TaskSolverPage = () => {
           <CardContent className="pt-6">
             <p className="text-red-600 mb-4">{error || "Task not found"}</p>
             <Button
-              onClick={() => navigate("/")}
+              onClick={() => navigate(`/?course=${courseId || ""}`)}
               variant="outline"
               className="w-full"
             >
@@ -260,7 +260,7 @@ const TaskSolverPage = () => {
       {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate(`/?course=${courseId || ""}`)}
           className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
         >
           <IconArrowLeft size={20} />

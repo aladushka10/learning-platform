@@ -13,18 +13,13 @@ export const mantineTheme = createTheme({
       defaultProps: {
         size: "sm",
       },
-      styles: {
+      styles: (theme) => ({
         root: {
           lineHeight: 1.5,
+          color: theme.colors.gray[6],
+          marginTop: theme.spacing.md,
         },
-      },
-    },
-    Title: {
-      styles: {
-        root: {
-          letterSpacing: "-0.01em",
-        },
-      },
+      }),
     },
   },
 })
