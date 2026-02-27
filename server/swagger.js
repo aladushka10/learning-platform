@@ -454,6 +454,34 @@ module.exports = {
         responses: { 200: { description: "OK" } },
       },
     },
+
+    "/code/run": {
+      post: {
+        summary: "Run code (local vm)",
+        description:
+          "Запуск JavaScript-кода и прогон тестов на сервере через node:vm. При успешных тестах может обновить прогресс и достижения (если пользователь авторизован через cookie).",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CodeRunInput" },
+            },
+          },
+        },
+        responses: {
+          200: {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/CodeRunResponse" },
+              },
+            },
+          },
+          400: { description: "Bad request" },
+          500: { description: "Internal server error" },
+        },
+      },
+    },
   },
   components: {
     schemas: {
@@ -697,6 +725,63 @@ module.exports = {
                 passedTests: { type: "integer" },
               },
             },
+          },
+        },
+      },
+
+      CodeRunTest: {
+        type: "object",
+        properties: {
+          expr: { type: "string", description: "JS выражение для выполнения" },
+          expected: { description: "Ожидаемое значение (любой JSON)" },
+        },
+        required: ["expr"],
+      },
+      CodeRunInput: {
+        type: "object",
+        properties: {
+          language: { type: "string", example: "javascript" },
+          code: { type: "string" },
+          taskId: { type: "string", nullable: true },
+          tests: {
+            type: "array",
+            items: { $ref: "#/components/schemas/CodeRunTest" },
+          },
+        },
+        required: ["language", "code", "tests"],
+      },
+      CodeRunResult: {
+        type: "object",
+        properties: {
+          expr: { type: "string" },
+          pass: { type: "boolean" },
+          expected: {},
+          actual: {},
+          error: { type: "string", nullable: true },
+        },
+        required: ["expr", "pass"],
+      },
+      CodeRunJudge: {
+        type: "object",
+        properties: {
+          provider: { type: "string", example: "local" },
+          ok: { type: "boolean" },
+          logs: { type: "array", items: { type: "string" } },
+          error: { type: "string", nullable: true },
+        },
+      },
+      CodeRunResponse: {
+        type: "object",
+        properties: {
+          ok: { type: "boolean" },
+          provider: { type: "string", example: "local" },
+          testsOk: { type: "boolean" },
+          progressUpdated: { type: "boolean" },
+          newAchievements: { type: "array", items: {} },
+          judge: { $ref: "#/components/schemas/CodeRunJudge" },
+          results: {
+            type: "array",
+            items: { $ref: "#/components/schemas/CodeRunResult" },
           },
         },
       },

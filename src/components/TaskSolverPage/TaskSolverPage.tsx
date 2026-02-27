@@ -36,6 +36,9 @@ import {
 import type { RootState } from "../../store"
 import style from "./TaskSolverPage.module.scss"
 import AchievementBanner from "../AchievementBanner/AchievementBanner"
+import { AppButton } from "../AppButton/AppButton"
+import { Title } from "@mantine/core"
+import { TaskBadges } from "../TaskBadges/TaskBadges"
 
 interface TaskData {
   id: string
@@ -43,6 +46,7 @@ interface TaskData {
   title: string
   description: string
   meta: {
+    language: string | undefined
     type: string
     answer: string
     explanation: string
@@ -276,10 +280,20 @@ const TaskSolverPage = () => {
         <div className="lg:col-span-2 space-y-6">
           {/* Task Statement Card */}
           <Card className="border-l-4 border-l-blue-600">
-            <CardHeader>
-              <h2 className="text-xl font-semibold text-gray-900">
+            <CardHeader className="relative mb-6">
+              <Title
+                order={2}
+                className="text-xl font-semibold text-gray-900 pr-44"
+              >
                 Условие задачи
-              </h2>
+              </Title>
+              <div className="absolute top-6 right-6">
+                <TaskBadges
+                  difficulty={task.meta?.difficulty}
+                  taskType={task.meta?.type}
+                  language={task.meta?.language}
+                />
+              </div>
             </CardHeader>
             <CardContent className="prose prose-sm max-w-none">
               <p className="text-gray-700 whitespace-pre-wrap">
@@ -418,13 +432,13 @@ const TaskSolverPage = () => {
             </CardHeader>
             <CardContent>
               {!showHint ? (
-                <Button
+                <AppButton
                   onClick={() => setShowHint(true)}
                   variant="outline"
                   className="w-full"
                 >
                   Показать подсказку
-                </Button>
+                </AppButton>
               ) : task.meta.explanation ? (
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                   <p className="text-sm text-gray-700">
@@ -441,7 +455,6 @@ const TaskSolverPage = () => {
             </CardContent>
           </Card>
 
-          {/* Theory Card */}
           {relatedLecture && (
             <Card>
               <CardHeader>
@@ -454,15 +467,8 @@ const TaskSolverPage = () => {
                 <p className="text-sm text-gray-600 mb-3">
                   Рекомендуемый материал для изучения:
                 </p>
-                {/* <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 max-h-96 overflow-y-auto prose prose-sm max-w-none">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkMath]}
-                    rehypePlugins={[rehypeKatex]}
-                  >
-                    {relatedLecture.content}
-                  </ReactMarkdown>
-                </div> */}
-                <Button
+
+                <AppButton
                   onClick={handleLectureClick}
                   variant="outline"
                   className="w-full"
@@ -471,12 +477,11 @@ const TaskSolverPage = () => {
                     <IconBook size={16} />
                     {relatedLecture.title}
                   </span>
-                </Button>
+                </AppButton>
               </CardContent>
             </Card>
           )}
 
-          {/* Progress Card */}
           {submitted && (
             <Card>
               <CardHeader>
