@@ -7,23 +7,12 @@ import {
 import { useNavigate } from "react-router-dom"
 import { Badge, Button, Group, Paper, Stack, Text, Title } from "@mantine/core"
 import { Task } from "../../App"
+import { TaskBadges } from "../TaskBadges/TaskBadges"
 
 interface TaskCardProps {
   task: Task
   onSelect: (task: Task) => void
   courseId?: string
-}
-
-const difficultyColors = {
-  Easy: "rgb(61, 238, 123)",
-  Medium: "rgb(255, 195, 104)",
-  Hard: "rgb(255, 110, 110)",
-}
-
-const difficultyLabels = {
-  Easy: "Легко",
-  Medium: "Средне",
-  Hard: "Сложно",
 }
 
 export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
@@ -71,33 +60,12 @@ export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
           {task.description}
         </Text>
 
-        <Group gap="xs" mt={4} className="flex-wrap">
-          <Badge variant="outline" color={difficultyColors[task.difficulty]}>
-            {difficultyLabels[task.difficulty]}
-          </Badge>
-          <Badge
-            fw={500}
-            variant="light"
-            color="blue"
-            leftSection={
-              task.taskType === "code" ? (
-                <IconCode size={14} />
-              ) : (
-                <IconPencil size={14} />
-              )
-            }
-          >
-            {task.taskType === "code" ? "Код" : "Задача"}
-          </Badge>
-          <Badge fw={500} variant="light" color="gray">
-            {task.category === "Mathematics" ? "Математика" : "Информатика"}
-          </Badge>
-          {task.taskType === "code" && task.language ? (
-            <Badge fw={500} variant="light" color="gray">
-              {task.language}
-            </Badge>
-          ) : null}
-        </Group>
+        <TaskBadges
+          difficulty={task.difficulty}
+          taskType={task.taskType}
+          category={task.category}
+          language={task.language}
+        />
       </Stack>
 
       <Button

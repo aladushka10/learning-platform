@@ -7,6 +7,13 @@ const jwt = require("jsonwebtoken")
 const swaggerUi = require("swagger-ui-express")
 const swaggerSpec = require("./swagger")
 
+function getRunJsInVmFresh() {
+  const p = require.resolve("./localRunner")
+  if (require.cache?.[p]) delete require.cache[p]
+  const mod = require("./localRunner")
+  return mod?.runJsInVm
+}
+
 const app = express()
 const PORT = process.env.PORT || 4000
 
@@ -72,7 +79,16 @@ function updateUserProgress(userId, taskId) {
 }
 
 function getStreak(userId) {
-  const dates = db.getCorrectSolutionDates(userId) // YYYY-MM-DD (UTC) but consistent in our code
+  const dates = Array.from(
+    new Set([
+      ...db.getCorrectSolutionDates(userId),
+      ...(db.getCompletedProgressDates
+        ? db.getCompletedProgressDates(userId)
+        : []),
+    ]),
+  )
+    .sort()
+    .reverse()
   if (dates.length === 0) return 0
 
   // Локальная дата YYYY-MM-DD
@@ -900,6 +916,81 @@ app.get("/users/:userId/solutions", (req, res) => {
   })
 
   res.json(solutionsByTask)
+})
+
+// Code runner
+function preprocessJsUserCode(code = "") {
+  return String(code)
+    .replace(/^\s*export\s+default\s+/gm, "")
+    .replace(/^\s*export\s+(?=(function|const|let|var|class)\b)/gm, "")
+}
+
+app.post("/code/run", async (req, res) => {
+  try {
+    const language = String(req.body?.language || "javascript").toLowerCase()
+    const code = String(req.body?.code || "")
+    const tests = Array.isArray(req.body?.tests) ? req.body.tests : []
+    const taskId = req.body?.taskId ? String(req.body.taskId) : null
+
+    if (language !== "javascript") {
+      return res.status(400).json({ error: "unsupported_language" })
+    }
+
+    const runJsInVm = getRunJsInVmFresh()
+    if (typeof runJsInVm !== "function") {
+      throw new Error("local_runner_unavailable")
+    }
+
+    const vmResp = runJsInVm({
+      code: preprocessJsUserCode(code),
+      tests: tests.map((t) => ({
+        expr: t.expr || t.name || "",
+        expected: t.expected,
+      })),
+      timeoutMs: Number(process.env.LOCAL_RUN_TIMEOUT_MS || "200"),
+    })
+
+    const results = vmResp.results
+    const judge = {
+      provider: "local",
+      ok: vmResp.ok,
+      logs: vmResp.logs,
+      error: vmResp.error || null,
+    }
+
+    const testResults = Array.isArray(results) ? results : []
+    const testsOk =
+      testResults.length > 0 && testResults.every((r) => r && r.pass === true)
+
+    let progressUpdated = false
+    let newAchievements = []
+    if (testsOk && taskId) {
+      const userId = getAuthUserId(req)
+      if (userId) {
+        updateUserProgress(userId, taskId)
+        progressUpdated = true
+        newAchievements = checkAchievements(userId)
+      }
+    }
+
+    res.json({
+      ok: true,
+      judge,
+      results,
+      provider: "local",
+      testsOk,
+      progressUpdated,
+      newAchievements,
+    })
+  } catch (e) {
+    console.error("code/run failed:", e)
+    res.status(500).json({
+      error: "code_run_failed",
+      detail: e?.message || String(e),
+      status: e?.status,
+      data: e?.data,
+    })
+  }
 })
 
 app.listen(PORT, "0.0.0.0", () => {

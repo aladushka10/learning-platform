@@ -514,9 +514,8 @@ module.exports = {
       )
       .get(userId, courseId).n,
 
-  // Distinct completed tasks by correct check_result
-  getCompletedTaskIdsByUser: (userId) =>
-    db
+  getCompletedTaskIdsByUser: (userId) => {
+    const byCorrect = db
       .prepare(
         `SELECT DISTINCT s.task_id as task_id
          FROM solutions s
@@ -524,10 +523,20 @@ module.exports = {
          WHERE s.user_id = ? AND cr.status = 'correct'`,
       )
       .all(userId)
-      .map((r) => r.task_id),
+      .map((r) => r.task_id)
 
-  // Achievements
-  // показываем/учитываем только эти 3 достижения
+    const byProgress = db
+      .prepare(
+        `SELECT DISTINCT p.taskId as task_id
+         FROM progress p
+         WHERE p.userId = ? AND p.status = 'completed'`,
+      )
+      .all(userId)
+      .map((r) => r.task_id)
+
+    return Array.from(new Set([...byCorrect, ...byProgress]))
+  },
+
   _ACHIEVEMENT_IDS: ["three_tasks", "streak_5", "all_tasks_course"],
   getAchievementsDefinitions: () =>
     db
@@ -606,15 +615,32 @@ module.exports = {
     })
     return Array.from(dates).sort().reverse()
   },
+
+  getCompletedProgressDates: (userId) => {
+    const rows = db
+      .prepare(
+        `SELECT p.updatedAt as updatedAt
+         FROM progress p
+         WHERE p.userId = ? AND p.status = 'completed'
+         ORDER BY p.updatedAt DESC`,
+      )
+      .all(userId)
+    const dates = new Set()
+    rows.forEach((r) => {
+      const d = new Date(r.updatedAt)
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, "0")
+      const day = String(d.getDate()).padStart(2, "0")
+      dates.add(`${y}-${m}-${day}`)
+    })
+    return Array.from(dates).sort().reverse()
+  },
 }
 
-// Seeding: idempotent — only seeds when course doesn't exist
 function seedIfEmpty() {
   const courses = module.exports.getCourses()
   const courseId = "higher-math"
   const now = Date.now()
-
-  // if course exists and tasks exist, assume seeded
   const existing = courses.find((c) => c.id === courseId)
   if (existing) {
     const tasks = module.exports.getTasks(courseId)
