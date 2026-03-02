@@ -26,6 +26,7 @@ import { AppButton } from "../AppButton/AppButton"
 import { TaskBadges } from "../TaskBadges/TaskBadges"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSelector } from "react-redux"
+import { SubmitButton } from "../SubmitButton/SubmitButton"
 
 type CodeTestCase = {
   name?: string
@@ -153,6 +154,11 @@ const CodeTaskPage = () => {
       .filter((t) => Boolean(t.expr))
   }, [task?.meta?.tests])
 
+  const hasResults = Array.isArray(results)
+  const total = hasResults ? results.length : 0
+  const passed = hasResults ? results.filter((r) => r?.pass === true).length : 0
+  const solved = hasResults && total > 0 && passed === total
+
   const handleRun = async () => {
     setRunError(null)
     setResults(null)
@@ -194,7 +200,6 @@ const CodeTaskPage = () => {
       const out = data?.results
       if (Array.isArray(out)) {
         setResults(out as RunResult[])
-        // Если тесты ок и пользователь авторизован — обновим прогресс/стрик в UI
         if (data?.testsOk === true && userId) {
           await queryClient.refetchQueries({
             queryKey: ["user-progress", userId],
@@ -260,14 +265,14 @@ const CodeTaskPage = () => {
       <Container fluid px="lg">
         <div className="mx-auto max-w-[1400px]">
           <Group justify="space-between" mb="md">
-            <Button
+            <AppButton
               variant="subtle"
               leftSection={<IconArrowLeft size={20} />}
               onClick={() => navigate(`/?course=${courseId || ""}`)}
               className="px-0 text-blue-600 hover:text-blue-700"
             >
               Вернуться
-            </Button>
+            </AppButton>
 
             <Title order={2} className="text-center">
               {task.title}
@@ -276,8 +281,8 @@ const CodeTaskPage = () => {
             <div className="w-24" />
           </Group>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            <div className="lg:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
+            <div className="lg:col-span-3 space-y-8">
               <Paper
                 withBorder
                 radius="lg"
@@ -356,9 +361,32 @@ const CodeTaskPage = () => {
                   ) : null}
                 </Stack>
               </Paper>
+
+              {(hasResults || runError) && (
+                <Paper withBorder radius="lg" p="xl">
+                  <Stack gap="sm">
+                    <Title order={3} className="text-xl font-semibold">
+                      Результат
+                    </Title>
+
+                    {hasResults ? (
+                      <Alert
+                        color={solved ? "green" : "red"}
+                        title={solved ? "Задача решена" : "Задача не решена"}
+                      >
+                        Пройдено тестов: {passed}/{total}
+                      </Alert>
+                    ) : runError ? (
+                      <Alert color="red" title="Ошибка">
+                        {runError}
+                      </Alert>
+                    ) : null}
+                  </Stack>
+                </Paper>
+              )}
             </div>
 
-            <div className="space-y-8">
+            <div className="lg:col-span-2  space-y-8">
               <Paper withBorder radius="lg" p="xl">
                 <Stack gap="md">
                   <h3 className="text-xl font-semibold text-gray-900">Тесты</h3>
@@ -389,7 +417,9 @@ const CodeTaskPage = () => {
                               <Code>{JSON.stringify(expected)}</Code>
                             </Table.Td>
                             <Table.Td>
-                              <Code>{hasRun ? JSON.stringify(actual) : "—"}</Code>
+                              <Code>
+                                {hasRun ? JSON.stringify(actual) : "—"}
+                              </Code>
                               {errText ? (
                                 <div className="text-xs text-red-600 mt-1">
                                   {String(errText)}

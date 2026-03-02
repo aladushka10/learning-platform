@@ -1189,7 +1189,7 @@ function seedProgrammingCourse() {
   const now = Date.now()
 
   const existing = courses.find((c) => c.id === courseId)
-  const courseTitle = "Программирование"
+  const courseTitle = "JavaScript: основы программирования"
   const courseDescription =
     "Новый курс по программированию: базовый синтаксис, функции, условия, циклы и первые практические задания с кодом."
   const courseCategory = "Computer Science"
@@ -1208,7 +1208,7 @@ function seedProgrammingCourse() {
 
   if (existing) {
     const tasks = module.exports.getTasks(courseId)
-    if (tasks && tasks.length >= 6) return
+    if (tasks && tasks.length >= 20) return
   }
 
   const lectures = [
@@ -1277,6 +1277,57 @@ const a = [1, 2, 3]
 На практике мы будем писать функции, которые получают массив и возвращают число/строку/массив.
 `,
       ord: 3,
+    },
+    {
+      id: "prog-lec-4",
+      courseId,
+      title: "4. Функции",
+      content: `
+### Функции
+
+Функция — это переиспользуемый блок кода:
+
+\`\`\`js
+export function sum(a, b) {
+  return a + b
+}
+\`\`\`
+
+Мы будем решать задачи, реализуя одну функцию и возвращая результат.
+`,
+      ord: 4,
+    },
+    {
+      id: "prog-lec-5",
+      courseId,
+      title: "5. Строки",
+      content: `
+### Строки
+
+Строки — это текст. Полезные операции:
+- \`length\`
+- \`toLowerCase()\`, \`toUpperCase()\`
+- \`split()\`, \`join()\`
+- \`slice()\`
+`,
+      ord: 5,
+    },
+    {
+      id: "prog-lec-6",
+      courseId,
+      title: "6. Объекты и структуры данных",
+      content: `
+### Объекты и структуры данных
+
+Объект хранит пары ключ-значение:
+
+\`\`\`js
+const user = { name: "Ann", age: 18 }
+\`\`\`
+
+Часто удобно возвращать объект как результат функции.
+`,
+      ord: 6,
     },
   ]
   lectures.forEach((l) => {
@@ -1399,6 +1450,279 @@ const a = [1, 2, 3]
         ],
       }),
       ord: 6,
+    },
+    {
+      id: "prog-task-7",
+      courseId,
+      title: "Остаток от деления",
+      description:
+        "Напишите функцию remainder(a, b), которая возвращает остаток от деления a на b (оператор %).",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-1",
+        starterCode: "export function remainder(a, b) {\n  // TODO\n}\n",
+        tests: [
+          { name: "remainder(10, 3)", expected: 1 },
+          { name: "remainder(20, 5)", expected: 0 },
+        ],
+      }),
+      ord: 7,
+    },
+    {
+      id: "prog-task-8",
+      courseId,
+      title: "Кламп (ограничение диапазоном)",
+      description:
+        "Напишите функцию clamp(n, min, max), которая ограничивает число n диапазоном [min, max].",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-2",
+        starterCode:
+          "export function clamp(n, min, max) {\n  // если n меньше min -> min\n  // если n больше max -> max\n  // иначе -> n\n}\n",
+        tests: [
+          { name: "clamp(5, 1, 10)", expected: 5 },
+          { name: "clamp(-2, 0, 10)", expected: 0 },
+          { name: "clamp(999, 0, 10)", expected: 10 },
+        ],
+      }),
+      ord: 8,
+    },
+    {
+      id: "prog-task-9",
+      courseId,
+      title: "Факториал",
+      description:
+        "Напишите функцию factorial(n), которая возвращает n! (0! = 1). Считайте, что n — целое число >= 0.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-4",
+        starterCode: "export function factorial(n) {\n  // TODO\n}\n",
+        tests: [
+          { name: "factorial(0)", expected: 1 },
+          { name: "factorial(1)", expected: 1 },
+          { name: "factorial(5)", expected: 120 },
+        ],
+      }),
+      ord: 9,
+    },
+    {
+      id: "prog-task-10",
+      courseId,
+      title: "Число Фибоначчи",
+      description:
+        "Напишите функцию fib(n), которая возвращает n-е число Фибоначчи (fib(0)=0, fib(1)=1).",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-4",
+        starterCode: "export function fib(n) {\n  // TODO\n}\n",
+        tests: [
+          { name: "fib(0)", expected: 0 },
+          { name: "fib(1)", expected: 1 },
+          { name: "fib(7)", expected: 13 },
+        ],
+      }),
+      ord: 10,
+    },
+    {
+      id: "prog-task-11",
+      courseId,
+      title: "Разворот строки",
+      description:
+        "Напишите функцию reverseString(s), которая возвращает строку s в обратном порядке.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-5",
+        starterCode: "export function reverseString(s) {\n  // TODO\n}\n",
+        tests: [
+          { name: "reverseString('abc')", expected: "cba" },
+          { name: "reverseString('')", expected: "" },
+        ],
+      }),
+      ord: 11,
+    },
+    {
+      id: "prog-task-12",
+      courseId,
+      title: "Палиндром",
+      description:
+        "Напишите функцию isPalindrome(s), которая возвращает true, если строка s читается одинаково слева направо и справа налево.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-5",
+        starterCode: "export function isPalindrome(s) {\n  // TODO\n}\n",
+        tests: [
+          { name: "isPalindrome('level')", expected: true },
+          { name: "isPalindrome('test')", expected: false },
+        ],
+      }),
+      ord: 12,
+    },
+    {
+      id: "prog-task-13",
+      courseId,
+      title: "Подсчёт гласных",
+      description:
+        "Напишите функцию countVowels(s), которая возвращает количество гласных (a, e, i, o, u) в строке. Регистр не важен.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-5",
+        starterCode: "export function countVowels(s) {\n  // TODO\n}\n",
+        tests: [
+          { name: "countVowels('Hello')", expected: 2 },
+          { name: "countVowels('xyz')", expected: 0 },
+        ],
+      }),
+      ord: 13,
+    },
+    {
+      id: "prog-task-14",
+      courseId,
+      title: "Максимум в массиве",
+      description:
+        "Напишите функцию maxInArray(arr), которая возвращает максимальный элемент массива. Если массив пустой — верните null.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-3",
+        starterCode: "export function maxInArray(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "maxInArray([1, 7, 3])", expected: 7 },
+          { name: "maxInArray([])", expected: null },
+        ],
+      }),
+      ord: 14,
+    },
+    {
+      id: "prog-task-15",
+      courseId,
+      title: "Уникальные элементы",
+      description:
+        "Напишите функцию unique(arr), которая возвращает новый массив без повторов, сохраняя порядок первого появления элементов.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-3",
+        starterCode: "export function unique(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "unique([1,1,2,2,3])", expected: [1, 2, 3] },
+          { name: "unique([])", expected: [] },
+        ],
+      }),
+      ord: 15,
+    },
+    {
+      id: "prog-task-16",
+      courseId,
+      title: "Плоский массив (на 1 уровень)",
+      description:
+        "Напишите функцию flatten1(arr), которая разворачивает массив на один уровень: [1,[2,3],[4]] -> [1,2,3,4].",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-3",
+        starterCode: "export function flatten1(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "flatten1([1,[2,3],[4]])", expected: [1, 2, 3, 4] },
+          { name: "flatten1([])", expected: [] },
+        ],
+      }),
+      ord: 16,
+    },
+    {
+      id: "prog-task-17",
+      courseId,
+      title: "Подсчёт частоты",
+      description:
+        "Напишите функцию freq(arr), которая возвращает объект частот: например ['a','b','a'] -> { a: 2, b: 1 }.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-6",
+        starterCode: "export function freq(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "freq(['a','b','a'])", expected: { a: 2, b: 1 } },
+          { name: "freq([])", expected: {} },
+        ],
+      }),
+      ord: 17,
+    },
+    {
+      id: "prog-task-18",
+      courseId,
+      title: "Группировка по чётности",
+      description:
+        "Напишите функцию groupByParity(arr), которая возвращает объект вида { even: [...], odd: [...] }.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-6",
+        starterCode: "export function groupByParity(arr) {\n  // TODO\n}\n",
+        tests: [
+          {
+            name: "groupByParity([1,2,3,4])",
+            expected: { even: [2, 4], odd: [1, 3] },
+          },
+          { name: "groupByParity([])", expected: { even: [], odd: [] } },
+        ],
+      }),
+      ord: 18,
+    },
+    {
+      id: "prog-task-19",
+      courseId,
+      title: "Разбиение на чанки",
+      description:
+        "Напишите функцию chunk(arr, size), которая разбивает массив на подмассивы длины size (последний может быть короче).",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-3",
+        starterCode: "export function chunk(arr, size) {\n  // TODO\n}\n",
+        tests: [
+          { name: "chunk([1,2,3,4,5], 2)", expected: [[1, 2], [3, 4], [5]] },
+          { name: "chunk([], 3)", expected: [] },
+        ],
+      }),
+      ord: 19,
+    },
+    {
+      id: "prog-task-20",
+      courseId,
+      title: "Title Case",
+      description:
+        "Напишите функцию toTitleCase(s), которая делает первую букву каждого слова заглавной. Считайте, что слова разделены одним пробелом.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-5",
+        starterCode: "export function toTitleCase(s) {\n  // TODO\n}\n",
+        tests: [
+          { name: "toTitleCase('hello world')", expected: "Hello World" },
+          { name: "toTitleCase('javaScript')", expected: "JavaScript" },
+        ],
+      }),
+      ord: 20,
     },
   ]
 
