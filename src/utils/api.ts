@@ -44,6 +44,28 @@ export interface ProgressRecord {
   updatedAt: number
 }
 
+export interface TaskStats {
+  userId: string
+  taskId: string
+  opens: number
+  attempts: number
+  successes: number
+  lastAttemptAt: number | null
+}
+
+export interface LectureQuiz {
+  id: string
+  lectureId: string
+  title: string
+  createdAt: number | null
+  questions: {
+    id: string
+    text: string
+    ord: number | null
+    options: { id: string; text: string; ord: number | null }[]
+  }[]
+}
+
 // Task APIs
 export async function fetchTask(courseId: string, taskId: string) {
   const res = await fetch(`${API_BASE}/courses/${courseId}/tasks`)
@@ -157,6 +179,40 @@ export async function trackTaskOpen(userId: string | null, taskId: string) {
   } catch {
     // best-effort, не ломаем UI
   }
+}
+
+export async function fetchTaskStats(taskId: string): Promise<TaskStats> {
+  const res = await fetch(`${API_BASE}/tasks/${taskId}/stats`, {
+    credentials: "include",
+  })
+  if (!res.ok) throw new Error("Failed to fetch task stats")
+  return res.json()
+}
+
+export async function fetchLectureQuiz(lectureId: string): Promise<LectureQuiz> {
+  const res = await fetch(`${API_BASE}/lectures/${lectureId}/quiz`, {
+    credentials: "include",
+  })
+  if (!res.ok) throw new Error("Failed to fetch lecture quiz")
+  return res.json()
+}
+
+export async function submitLectureQuiz(
+  lectureId: string,
+  answers: Record<string, string>,
+  userId?: string,
+): Promise<{ ok: boolean; score: number; total: number }> {
+  const res = await fetch(`${API_BASE}/lectures/${lectureId}/quiz/submit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      userId: userId || undefined,
+      answers,
+    }),
+  })
+  if (!res.ok) throw new Error("Failed to submit quiz")
+  return res.json()
 }
 
 // Validation helper

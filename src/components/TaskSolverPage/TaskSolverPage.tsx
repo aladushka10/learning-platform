@@ -34,6 +34,7 @@ import {
   isAnswerCorrect,
   fetchLectureById,
   trackTaskOpen,
+  fetchTaskStats,
 } from "../../utils/api"
 import type { RootState } from "../../store"
 import style from "./TaskSolverPage.module.scss"
@@ -91,6 +92,7 @@ const TaskSolverPage = () => {
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setErrorState] = useState<string | null>(null)
+  const [showQuizRecommendation, setShowQuizRecommendation] = useState(false)
   const { submitting } = useSelector((state: RootState) => state.solution)
   const userIdFromStore = useSelector((state: any) => state.signIn?.userId) as
     | string
@@ -211,6 +213,20 @@ const TaskSolverPage = () => {
       )
 
       setSubmitted(true)
+
+      // Refresh recommendation status after an attempt
+      try {
+        if (taskId) {
+          const stats = await fetchTaskStats(taskId)
+          const failures = (stats.attempts || 0) - (stats.successes || 0)
+          const shouldRecommend =
+            ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+            failures >= 2
+          setShowQuizRecommendation(shouldRecommend)
+        }
+      } catch {
+        // best-effort
+      }
     } catch (err: any) {
       const errorMsg = err.message || "Error submitting solution"
       setErrorState(errorMsg)
@@ -230,7 +246,19 @@ const TaskSolverPage = () => {
 
   useEffect(() => {
     if (!courseId || !taskId) return
-    trackTaskOpen(userIdFromStore, taskId!).catch(() => {})
+    ;(async () => {
+      await trackTaskOpen(userIdFromStore, taskId!)
+      try {
+        const stats = await fetchTaskStats(taskId!)
+        const failures = (stats.attempts || 0) - (stats.successes || 0)
+        const shouldRecommend =
+          ((stats.opens || 0) >= 6 && (stats.attempts || 0) === 0) ||
+          failures >= 2
+        setShowQuizRecommendation(shouldRecommend)
+      } catch {
+        // best-effort
+      }
+    })()
   }, [courseId, taskId, userIdFromStore])
 
   if (loading) {
@@ -459,17 +487,25 @@ const TaskSolverPage = () => {
             )}
           </TaskSidebarCard>
 
-          <TaskSidebarCard
-            title="Тест"
-            icon={<IconClipboardList size={18} className="text-indigo-600" />}
-            ctaLabel="Перейти к тесту"
-            ctaIcon={<IconClipboardList size={16} />}
-            onClick={() => navigate(`/course/${courseId}/quiz`)}
-          >
-            <p className="text-sm text-gray-600 mb-1">
-              Проверьте знания по теме
-            </p>
-          </TaskSidebarCard>
+          {showQuizRecommendation && relatedLecture ? (
+            <TaskSidebarCard
+              title="Рекомендуем"
+              icon={<IconClipboardList size={18} className="text-indigo-600" />}
+              ctaLabel="Пройти тест по лекции"
+              ctaIcon={<IconClipboardList size={16} />}
+              onClick={() =>
+                navigate(
+                  `/course/${courseId}/quiz?lectureId=${encodeURIComponent(
+                    relatedLecture.id,
+                  )}`,
+                )
+              }
+            >
+              <p className="text-sm text-gray-600">
+                Чтобы закрепить материал, пройдите короткий тест по этой лекции.
+              </p>
+            </TaskSidebarCard>
+          ) : null}
 
           {submitted && (
             <TaskSidebarCard

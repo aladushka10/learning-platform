@@ -23,7 +23,12 @@ import {
   Title,
 } from "@mantine/core"
 import Editor from "@monaco-editor/react"
-import { fetchLectures, fetchTask, trackTaskOpen } from "../../utils/api"
+import {
+  fetchLectures,
+  fetchTask,
+  fetchTaskStats,
+  trackTaskOpen,
+} from "../../utils/api"
 import { AppButton } from "../AppButton/AppButton"
 import { TaskBadges } from "../TaskBadges/TaskBadges"
 import { useQueryClient } from "@tanstack/react-query"
@@ -88,6 +93,7 @@ const CodeTaskPage = () => {
   const [runError, setRunError] = useState<string | null>(null)
   const [results, setResults] = useState<RunResult[] | null>(null)
   const [judgeStatus, setJudgeStatus] = useState<string | null>(null)
+  const [showQuizRecommendation, setShowQuizRecommendation] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -164,7 +170,19 @@ const CodeTaskPage = () => {
 
   useEffect(() => {
     if (!courseId || !taskId) return
-    trackTaskOpen(userId, taskId!).catch(() => {})
+    ;(async () => {
+      await trackTaskOpen(userId, taskId!)
+      try {
+        const stats = await fetchTaskStats(taskId!)
+        const failures = (stats.attempts || 0) - (stats.successes || 0)
+        const shouldRecommend =
+          ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+          failures >= 2
+        setShowQuizRecommendation(shouldRecommend)
+      } catch {
+        // best-effort
+      }
+    })()
   }, [courseId, taskId, userId])
 
   const handleRun = async () => {
@@ -235,6 +253,20 @@ const CodeTaskPage = () => {
       setRunError(e?.message || "Ошибка сети")
     } finally {
       setRunning(false)
+    }
+
+    // Refresh recommendation after an attempt
+    try {
+      if (userId && taskId) {
+        const stats = await fetchTaskStats(taskId)
+        const failures = (stats.attempts || 0) - (stats.successes || 0)
+        const shouldRecommend =
+          ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+          failures >= 2
+        setShowQuizRecommendation(shouldRecommend)
+      }
+    } catch {
+      // best-effort
     }
   }
 
@@ -455,7 +487,6 @@ const CodeTaskPage = () => {
                   </Table.Tbody>
                 </Table>
               </TaskSidebarCard>
-
               <TaskSidebarCard
                 title="Теория"
                 icon={<IconBook size={18} className="text-purple-600" />}
@@ -483,19 +514,28 @@ const CodeTaskPage = () => {
                 )}
               </TaskSidebarCard>
 
-              <TaskSidebarCard
-                title="Тест"
-                icon={
-                  <IconClipboardList size={18} className="text-indigo-600" />
-                }
-                ctaLabel="Перейти к тесту"
-                ctaIcon={<IconClipboardList size={18} />}
-                onClick={() => navigate(`/course/${courseId}/quiz`)}
-              >
-                <p className="text-gray-600 text-base">
-                  Проверьте знания по теме
-                </p>
-              </TaskSidebarCard>
+              {showQuizRecommendation && relatedLecture && (
+                <TaskSidebarCard
+                  title="Рекомендуем"
+                  icon={
+                    <IconClipboardList size={18} className="text-indigo-600" />
+                  }
+                  ctaLabel="Пройти тест по лекции"
+                  ctaIcon={<IconClipboardList size={18} />}
+                  onClick={() =>
+                    navigate(
+                      `/course/${courseId}/quiz?lectureId=${encodeURIComponent(
+                        relatedLecture.id,
+                      )}`,
+                    )
+                  }
+                >
+                  <p className="text-gray-600 text-base">
+                    Чтобы закрепить материал, пройдите короткий тест по этой
+                    лекции.
+                  </p>
+                </TaskSidebarCard>
+              )}
             </div>
           </div>
         </div>

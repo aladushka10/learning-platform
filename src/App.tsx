@@ -283,7 +283,7 @@ function TasksPage() {
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Skeleton height={28} width={260} radius="sm" />
+                      <Skeleton height={28} width={260} radius="sm" mb={20} />
                       <Skeleton mt={8} height={16} width={360} radius="sm" />
                     </div>
                     <Skeleton height={36} width={180} radius="md" />
