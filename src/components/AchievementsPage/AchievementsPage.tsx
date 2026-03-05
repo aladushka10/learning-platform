@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSelector } from "react-redux"
 import { IconArrowLeft, IconTrophy, IconAward } from "@tabler/icons-react"
+import { Loader } from "@mantine/core"
 import { Card, CardContent, CardHeader } from "../ui/card"
 import { Button } from "../ui/button"
 import { renderAchievementIcon } from "../../utils/achievementIcons"
@@ -75,7 +76,10 @@ export default function AchievementsPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50 flex items-center justify-center">
-        <p className="text-gray-600">Загрузка достижений...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Loader size="lg" />
+          <p className="text-gray-600">Загрузка достижений...</p>
+        </div>
       </div>
     )
   }

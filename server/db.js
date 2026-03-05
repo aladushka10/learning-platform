@@ -134,6 +134,20 @@ function init() {
   ).run()
 
   db.prepare(
+    `CREATE TABLE IF NOT EXISTS task_stats (
+      userId TEXT NOT NULL,
+      taskId TEXT NOT NULL,
+      opens INTEGER NOT NULL DEFAULT 0,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      successes INTEGER NOT NULL DEFAULT 0,
+      lastAttemptAt INTEGER,
+      PRIMARY KEY (userId, taskId),
+      FOREIGN KEY(userId) REFERENCES users(id),
+      FOREIGN KEY(taskId) REFERENCES tasks(id)
+    )`,
+  ).run()
+
+  db.prepare(
     `CREATE TABLE IF NOT EXISTS achievements (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -482,6 +496,34 @@ module.exports = {
       .run(data.status, data.updatedAt, id),
   deleteProgress: (id) =>
     db.prepare("DELETE FROM progress WHERE id = ?").run(id),
+
+  incrementTaskOpen: (userId, taskId) =>
+    db
+      .prepare(
+        `INSERT INTO task_stats (userId, taskId, opens, attempts, successes, lastAttemptAt)
+         VALUES (?, ?, 1, 0, 0, NULL)
+         ON CONFLICT(userId, taskId) DO UPDATE SET opens = task_stats.opens + 1`,
+      )
+      .run(userId, taskId),
+
+  incrementTaskAttempt: (userId, taskId, success, ts) =>
+    db
+      .prepare(
+        `INSERT INTO task_stats (userId, taskId, opens, attempts, successes, lastAttemptAt)
+         VALUES (?, ?, 0, 1, ?, ?)
+         ON CONFLICT(userId, taskId) DO UPDATE SET
+           attempts = task_stats.attempts + 1,
+           successes = task_stats.successes + ?,
+           lastAttemptAt = ?`,
+      )
+      .run(userId, taskId, success ? 1 : 0, ts, success ? 1 : 0, ts),
+
+  getTaskStatsForUserTask: (userId, taskId) =>
+    db
+      .prepare(
+        "SELECT userId, taskId, opens, attempts, successes, lastAttemptAt FROM task_stats WHERE userId = ? AND taskId = ?",
+      )
+      .get(userId, taskId),
 
   upsertProgress: (p) => {
     const existing = db

@@ -60,23 +60,28 @@ export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
           }}
         >
           {task.completed ? (
-            <IconCircleCheck className="absolute top-4 right-4 w-5 h-5 text-green-500" />
+            <IconCircleCheck className="absolute top-4 right-4 w-6 h-6 text-green-500" />
           ) : (
-            <IconCircle className="absolute top-4 right-4 w-5 h-5 text-gray-300" />
+            <IconCircle className="absolute top-4 right-4 w-6 h-6 text-gray-300" />
           )}
-          <div className="flex flex-col h-full">
+          <div className="flex flex-col h-full  justify-between">
             <div className="pr-7 min-w-0">
-              <Title order={5}>{task.title}</Title>
+              <Title mb={10} order={5}>
+                {task.title}
+              </Title>
+              {task.lectureTitle && (
+                <Text size="md" mt={4}>
+                  {task.lectureTitle}
+                </Text>
+              )}
             </div>
 
-            <div className="mt-auto">
-              <TaskBadges
-                difficulty={task.difficulty}
-                taskType={task.taskType}
-                category={task.category}
-                language={task.language}
-              />
-            </div>
+            <TaskBadges
+              difficulty={task.difficulty}
+              taskType={task.taskType}
+              category={task.category}
+              language={task.language}
+            />
           </div>
         </Paper>
 
@@ -96,7 +101,7 @@ export function TaskCard({ task, onSelect, courseId }: TaskCardProps) {
             <Text size="sm" fw={500} c="dimmed">
               Условие задачи:
             </Text>
-            <Text size="sm" className="line-clamp-5">
+            <Text size="sm" className="line-clamp-4">
               {task.description}
             </Text>
           </Stack>

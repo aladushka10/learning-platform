@@ -69,6 +69,24 @@ function clearAuthCookie(res) {
   )
 }
 
+function trackTaskOpen(userId, taskId) {
+  try {
+    if (!userId || !taskId) return
+    db.incrementTaskOpen(userId, taskId)
+  } catch (e) {
+    console.error("trackTaskOpen failed", e)
+  }
+}
+
+function trackTaskAttempt(userId, taskId, success) {
+  try {
+    if (!userId || !taskId) return
+    db.incrementTaskAttempt(userId, taskId, !!success, Date.now())
+  } catch (e) {
+    console.error("trackTaskAttempt failed", e)
+  }
+}
+
 function updateUserProgress(userId, taskId) {
   db.upsertProgress({
     userId,
@@ -436,7 +454,9 @@ app.post("/tasks/:id/solutions", (req, res) => {
   console.log("POST /tasks/:id/solutions triggered")
   try {
     const taskId = req.params.id
-    const { userId, code } = req.body
+    const { userId: bodyUserId, code } = req.body
+    const authUserId = getAuthUserId(req)
+    const userId = authUserId || bodyUserId
 
     const task = db.getTaskById(taskId)
     if (!task) {
@@ -484,6 +504,10 @@ app.post("/tasks/:id/solutions", (req, res) => {
     if (isCorrect) {
       updateUserProgress(userId, taskId)
       newAchievements = checkAchievements(userId)
+    }
+
+    if (userId) {
+      trackTaskAttempt(userId, taskId, isCorrect)
     }
 
     res.json({
@@ -562,6 +586,19 @@ app.post("/users/:id/progress", (req, res) => {
   })
   const record = db.getProgressByUserAndTask(userId, req.body.taskId)
   res.status(201).json(record)
+})
+
+app.post("/tasks/:id/open", (req, res) => {
+  const taskId = req.params.id
+  const authUserId = getAuthUserId(req)
+  const bodyUserId = req.body?.userId
+  const userId = authUserId || bodyUserId
+
+  if (userId) {
+    trackTaskOpen(userId, taskId)
+  }
+
+  res.json({ ok: true })
 })
 app.get("/progress/:id", (req, res) => {
   const p = db.getProgressById(req.params.id)

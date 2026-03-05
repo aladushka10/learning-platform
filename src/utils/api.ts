@@ -146,6 +146,19 @@ export async function fetchUserProgress(userId: string) {
   return res.json()
 }
 
+export async function trackTaskOpen(userId: string | null, taskId: string) {
+  try {
+    await fetch(`${API_BASE}/tasks/${taskId}/open`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ userId: userId || undefined }),
+    })
+  } catch {
+    // best-effort, не ломаем UI
+  }
+}
+
 // Validation helper
 export function isAnswerCorrect(
   userAnswer: string,
