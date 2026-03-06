@@ -5,6 +5,7 @@ import {
   IconBook,
   IconCode,
   IconPlayerPlay,
+  IconClipboardList,
 } from "@tabler/icons-react"
 import {
   Alert,
@@ -14,6 +15,7 @@ import {
   Code,
   Container,
   Group,
+  Loader,
   Paper,
   Stack,
   Table,
@@ -21,11 +23,18 @@ import {
   Title,
 } from "@mantine/core"
 import Editor from "@monaco-editor/react"
-import { fetchLectures, fetchTask } from "../../utils/api"
+import {
+  fetchLectures,
+  fetchTask,
+  fetchTaskStats,
+  trackTaskOpen,
+} from "../../utils/api"
 import { AppButton } from "../AppButton/AppButton"
 import { TaskBadges } from "../TaskBadges/TaskBadges"
 import { useQueryClient } from "@tanstack/react-query"
 import { useSelector } from "react-redux"
+import { SubmitButton } from "../SubmitButton/SubmitButton"
+import { TaskSidebarCard } from "../TaskSidebar/TaskSidebarCard"
 
 type CodeTestCase = {
   name?: string
@@ -84,6 +93,7 @@ const CodeTaskPage = () => {
   const [runError, setRunError] = useState<string | null>(null)
   const [results, setResults] = useState<RunResult[] | null>(null)
   const [judgeStatus, setJudgeStatus] = useState<string | null>(null)
+  const [showQuizRecommendation, setShowQuizRecommendation] = useState(false)
 
   useEffect(() => {
     const load = async () => {
@@ -153,6 +163,28 @@ const CodeTaskPage = () => {
       .filter((t) => Boolean(t.expr))
   }, [task?.meta?.tests])
 
+  const hasResults = Array.isArray(results)
+  const total = hasResults ? results.length : 0
+  const passed = hasResults ? results.filter((r) => r?.pass === true).length : 0
+  const solved = hasResults && total > 0 && passed === total
+
+  useEffect(() => {
+    if (!courseId || !taskId) return
+    ;(async () => {
+      await trackTaskOpen(userId, taskId!)
+      try {
+        const stats = await fetchTaskStats(taskId!)
+        const failures = (stats.attempts || 0) - (stats.successes || 0)
+        const shouldRecommend =
+          ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+          failures >= 2
+        setShowQuizRecommendation(shouldRecommend)
+      } catch {
+        // best-effort
+      }
+    })()
+  }, [courseId, taskId, userId])
+
   const handleRun = async () => {
     setRunError(null)
     setResults(null)
@@ -194,7 +226,6 @@ const CodeTaskPage = () => {
       const out = data?.results
       if (Array.isArray(out)) {
         setResults(out as RunResult[])
-        // Если тесты ок и пользователь авторизован — обновим прогресс/стрик в UI
         if (data?.testsOk === true && userId) {
           await queryClient.refetchQueries({
             queryKey: ["user-progress", userId],
@@ -223,12 +254,29 @@ const CodeTaskPage = () => {
     } finally {
       setRunning(false)
     }
+
+    // Refresh recommendation after an attempt
+    try {
+      if (userId && taskId) {
+        const stats = await fetchTaskStats(taskId)
+        const failures = (stats.attempts || 0) - (stats.successes || 0)
+        const shouldRecommend =
+          ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+          failures >= 2
+        setShowQuizRecommendation(shouldRecommend)
+      }
+    } catch {
+      // best-effort
+    }
   }
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Text c="dimmed">Загрузка задания...</Text>
+        <div className="flex flex-col items-center gap-3">
+          <Loader size="lg" />
+          <Text c="dimmed">Загрузка задания...</Text>
+        </div>
       </div>
     )
   }
@@ -260,14 +308,14 @@ const CodeTaskPage = () => {
       <Container fluid px="lg">
         <div className="mx-auto max-w-[1400px]">
           <Group justify="space-between" mb="md">
-            <Button
+            <AppButton
               variant="subtle"
               leftSection={<IconArrowLeft size={20} />}
               onClick={() => navigate(`/?course=${courseId || ""}`)}
               className="px-0 text-blue-600 hover:text-blue-700"
             >
               Вернуться
-            </Button>
+            </AppButton>
 
             <Title order={2} className="text-center">
               {task.title}
@@ -276,8 +324,8 @@ const CodeTaskPage = () => {
             <div className="w-24" />
           </Group>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            <div className="lg:col-span-2 space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
+            <div className="lg:col-span-3 space-y-8">
               <Paper
                 withBorder
                 radius="lg"
@@ -356,103 +404,138 @@ const CodeTaskPage = () => {
                   ) : null}
                 </Stack>
               </Paper>
+
+              {(hasResults || runError) && (
+                <Paper withBorder radius="lg" p="xl">
+                  <Stack gap="sm">
+                    <Title order={3} className="text-xl font-semibold">
+                      Результат
+                    </Title>
+
+                    {hasResults ? (
+                      <Alert
+                        color={solved ? "green" : "red"}
+                        title={solved ? "Задача решена" : "Задача не решена"}
+                      >
+                        Пройдено тестов: {passed}/{total}
+                      </Alert>
+                    ) : runError ? (
+                      <Alert color="red" title="Ошибка">
+                        {runError}
+                      </Alert>
+                    ) : null}
+                  </Stack>
+                </Paper>
+              )}
             </div>
 
-            <div className="space-y-8">
-              <Paper withBorder radius="lg" p="xl">
-                <Stack gap="md">
-                  <h3 className="text-xl font-semibold text-gray-900">Тесты</h3>
+            <div className="lg:col-span-2  space-y-8">
+              <TaskSidebarCard
+                title="Тесты"
+                icon={<IconCode size={18} className="text-indigo-600" />}
+              >
+                <Table withTableBorder withColumnBorders highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Case</Table.Th>
+                      <Table.Th>Expected</Table.Th>
+                      <Table.Th>Actual</Table.Th>
+                      <Table.Th>Status</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {(results || tests).map((t: any, idx: number) => {
+                      const expr = t.expr
+                      const expected = t.expected
+                      const hasRun = typeof t.pass === "boolean"
+                      const pass = t.pass
+                      const actual = t.actual
+                      const errText = t.error
+                      return (
+                        <Table.Tr key={`${expr}-${idx}`}>
+                          <Table.Td>
+                            <Code>{expr}</Code>
+                          </Table.Td>
+                          <Table.Td>
+                            <Code>{JSON.stringify(expected)}</Code>
+                          </Table.Td>
+                          <Table.Td>
+                            <Code>{hasRun ? JSON.stringify(actual) : "—"}</Code>
+                            {errText ? (
+                              <div className="text-xs text-red-600 mt-1">
+                                {String(errText)}
+                              </div>
+                            ) : null}
+                          </Table.Td>
+                          <Table.Td>
+                            {hasRun ? (
+                              <Badge
+                                variant="light"
+                                color={pass ? "green" : "red"}
+                              >
+                                {pass ? "OK" : "FAIL"}
+                              </Badge>
+                            ) : (
+                              <Badge variant="light" color="gray">
+                                ожидает
+                              </Badge>
+                            )}
+                          </Table.Td>
+                        </Table.Tr>
+                      )
+                    })}
+                  </Table.Tbody>
+                </Table>
+              </TaskSidebarCard>
+              <TaskSidebarCard
+                title="Теория"
+                icon={<IconBook size={18} className="text-purple-600" />}
+                ctaLabel="Открыть лекцию"
+                ctaIcon={<IconBook size={18} />}
+                onClick={() => {
+                  if (!relatedLecture) return
+                  navigate(`/lecture/${relatedLecture.id}`, {
+                    state: { lecture: relatedLecture },
+                  })
+                }}
+                ctaDisabled={!relatedLecture}
+              >
+                {relatedLecture ? (
+                  <p className="text-gray-600 text-base">
+                    Рекомендуемая лекция:{" "}
+                    <span className="font-medium text-gray-900">
+                      {relatedLecture.title}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-gray-600 text-base">
+                    Для этой задачи пока не привязана лекция.
+                  </p>
+                )}
+              </TaskSidebarCard>
 
-                  <Table withTableBorder withColumnBorders highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Case</Table.Th>
-                        <Table.Th>Expected</Table.Th>
-                        <Table.Th>Actual</Table.Th>
-                        <Table.Th>Status</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {(results || tests).map((t: any, idx: number) => {
-                        const expr = t.expr
-                        const expected = t.expected
-                        const hasRun = typeof t.pass === "boolean"
-                        const pass = t.pass
-                        const actual = t.actual
-                        const errText = t.error
-                        return (
-                          <Table.Tr key={`${expr}-${idx}`}>
-                            <Table.Td>
-                              <Code>{expr}</Code>
-                            </Table.Td>
-                            <Table.Td>
-                              <Code>{JSON.stringify(expected)}</Code>
-                            </Table.Td>
-                            <Table.Td>
-                              <Code>{hasRun ? JSON.stringify(actual) : "—"}</Code>
-                              {errText ? (
-                                <div className="text-xs text-red-600 mt-1">
-                                  {String(errText)}
-                                </div>
-                              ) : null}
-                            </Table.Td>
-                            <Table.Td>
-                              {hasRun ? (
-                                <Badge
-                                  variant="light"
-                                  color={pass ? "green" : "red"}
-                                >
-                                  {pass ? "OK" : "FAIL"}
-                                </Badge>
-                              ) : (
-                                <Badge variant="light" color="gray">
-                                  ожидает
-                                </Badge>
-                              )}
-                            </Table.Td>
-                          </Table.Tr>
-                        )
-                      })}
-                    </Table.Tbody>
-                  </Table>
-                </Stack>
-              </Paper>
-
-              <Paper withBorder radius="lg" p="xl">
-                <Stack gap="md">
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    Теория
-                  </h3>
-
-                  {relatedLecture ? (
-                    <p className="text-gray-600 text-base">
-                      Рекомендуемая лекция:{" "}
-                      <span className="font-medium text-gray-900">
-                        {relatedLecture.title}
-                      </span>
-                    </p>
-                  ) : (
-                    <p className="text-gray-600 text-base">
-                      Для этой задачи пока не привязана лекция.
-                    </p>
-                  )}
-
-                  <AppButton
-                    variant="outline"
-                    leftSection={<IconBook size={18} />}
-                    disabled={!relatedLecture}
-                    onClick={() => {
-                      if (!relatedLecture) return
-                      navigate(`/lecture/${relatedLecture.id}`, {
-                        state: { lecture: relatedLecture },
-                      })
-                    }}
-                    className="h-12"
-                  >
-                    Открыть лекцию
-                  </AppButton>
-                </Stack>
-              </Paper>
+              {showQuizRecommendation && relatedLecture && (
+                <TaskSidebarCard
+                  title="Рекомендуем"
+                  icon={
+                    <IconClipboardList size={18} className="text-indigo-600" />
+                  }
+                  ctaLabel="Пройти тест по лекции"
+                  ctaIcon={<IconClipboardList size={18} />}
+                  onClick={() =>
+                    navigate(
+                      `/course/${courseId}/quiz?lectureId=${encodeURIComponent(
+                        relatedLecture.id,
+                      )}`,
+                    )
+                  }
+                >
+                  <p className="text-gray-600 text-base">
+                    Чтобы закрепить материал, пройдите короткий тест по этой
+                    лекции.
+                  </p>
+                </TaskSidebarCard>
+              )}
             </div>
           </div>
         </div>

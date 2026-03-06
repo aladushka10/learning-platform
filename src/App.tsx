@@ -20,11 +20,12 @@ import CodeTaskPage from "./components/CodeTaskPage/CodeTaskPage"
 import LecturePage from "./components/LecturePage/LecturePage"
 import ProfilePage from "./components/ProfilePage/ProfilePage"
 import AchievementsPage from "./components/AchievementsPage/AchievementsPage"
+import QuizPage from "./components/QuizPage/QuizPage"
 import SignIn from "./Pages/SignIn/SignIn"
 import SignUp from "./Pages/SignUp/SignUp"
 import { hydrateAuth } from "./store/signInSlice"
 import { useUserProgress } from "./hooks/useUserProgress"
-import { Title } from "@mantine/core"
+import { Loader, Skeleton, Title } from "@mantine/core"
 
 export interface Task {
   id: string
@@ -36,6 +37,7 @@ export interface Task {
   completed: boolean
   taskType?: string
   language?: string
+  lectureTitle?: string | null
 }
 
 interface Course {
@@ -43,6 +45,26 @@ interface Course {
   title: string
   description?: string
   category?: string
+}
+
+const formatLectureTitle = (title: string) =>
+  title.replace(/^\d+\.\s*/, "").trim()
+
+const resolveLectureTitle = (
+  topic: string,
+  lectureTitleByTopic: Record<string, string>,
+) => {
+  if (!topic) return null
+  if (lectureTitleByTopic[topic]) return lectureTitleByTopic[topic]
+
+  const topicNum = topic.match(/(\d+)$/)?.[1]
+  if (!topicNum) return null
+
+  const fallbackLectureId = Object.keys(lectureTitleByTopic).find(
+    (lectureId) => lectureId.match(/(\d+)$/)?.[1] === topicNum,
+  )
+
+  return fallbackLectureId ? lectureTitleByTopic[fallbackLectureId] : null
 }
 
 // Protected route component
@@ -55,7 +77,10 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (!initialized) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-600">Загрузка...</p>
+        <div className="flex flex-col items-center gap-3">
+          <Loader size="lg" />
+          <p className="text-gray-600">Загрузка...</p>
+        </div>
       </div>
     )
   }
@@ -136,9 +161,19 @@ function TasksPage() {
     const loadTasks = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`/api/courses/${selectedCourseId}/tasks`)
-        if (!res.ok) throw new Error("failed to load tasks")
-        const rawTasks = await res.json()
+        const [tasksRes, lecturesRes] = await Promise.all([
+          fetch(`/api/courses/${selectedCourseId}/tasks`),
+          fetch(`/api/courses/${selectedCourseId}/lectures`),
+        ])
+        if (!tasksRes.ok) throw new Error("failed to load tasks")
+        const rawTasks = await tasksRes.json()
+        const lectures: { id: string; title: string }[] = lecturesRes.ok
+          ? await lecturesRes.json()
+          : []
+        const lectureTitleByTopic: Record<string, string> = {}
+        lectures.forEach((l: any) => {
+          lectureTitleByTopic[l.id] = formatLectureTitle(l.title || l.id)
+        })
 
         // Загружаем прогресс только для авторизованного пользователя
         let userProgress = null
@@ -157,6 +192,7 @@ function TasksPage() {
           } catch (e) {
             meta = {}
           }
+          const topic = (meta as any).topic || (course && course.title) || ""
 
           // Check if task is completed in user progress
           const taskProgress = userProgress?.find((p: any) => p.taskId === t.id)
@@ -175,10 +211,13 @@ function TasksPage() {
               course.category.toLowerCase().includes("math")
                 ? "Mathematics"
                 : "Computer Science",
-            topic: (meta as any).topic || (course && course.title) || "",
+            topic,
             completed: isCompleted,
             taskType: (meta as any).type,
             language: (meta as any).language,
+            lectureTitle: topic
+              ? resolveLectureTitle(topic, lectureTitleByTopic)
+              : null,
           }
         })
 
@@ -240,60 +279,159 @@ function TasksPage() {
         >
           <div className="flex gap-6 p-6 max-w-7xl mx-auto">
             <div className="flex-1">
-              {loading && <p>Загрузка...</p>}
-              {error && <p className="text-red-600">{error}</p>}
-
-              {selectedTask ? (
-                <TaskView
-                  task={selectedTask}
-                  onBack={handleBackToGrid}
-                  onComplete={handleTaskComplete}
-                  courseId={selectedCourseId || ""}
-                  userId={effectiveUserId}
-                  onAchievementUnlocked={(a) => setRecentAchievement(a)}
-                />
-              ) : (
+              {loading && !selectedTask ? (
                 <div className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <Title order={2}>Библиотека задач</Title>
-                      <p className="text-gray-600 mt-1">
-                        Выберите курс и задачу для начала обучения
-                      </p>
+                      <Skeleton height={28} width={260} radius="sm" mb={20} />
+                      <Skeleton mt={8} height={16} width={360} radius="sm" />
                     </div>
-
-                    <div className="flex items-center gap-3">
-                      <select
-                        value={selectedCourseId ?? ""}
-                        onChange={(e) => {
-                          const value = e.currentTarget.value
-                          setSelectedCourseId(value)
-                          const next = new URLSearchParams(searchParams)
-                          next.set("course", value)
-                          setSearchParams(next, { replace: true })
-                        }}
-                        className="rounded-md border px-3 py-1"
-                      >
-                        {courses.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <Skeleton height={36} width={180} radius="md" />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
-                    {filteredTasks.map((task) => (
-                      <TaskCard
-                        key={task.id}
-                        task={task}
-                        onSelect={handleTaskSelect}
-                        courseId={selectedCourseId || ""}
-                      />
+                    {Array.from({ length: 6 }).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className="relative w-full h-[240px]"
+                        style={{ perspective: "1000px" }}
+                      >
+                        <div
+                          className="relative w-full h-full"
+                          style={{ transformStyle: "preserve-3d" }}
+                        >
+                          <div
+                            className="absolute w-full h-full rounded-xl border border-gray-200 bg-white p-4 flex flex-col"
+                            style={{ backfaceVisibility: "hidden" }}
+                          >
+                            <div className="absolute top-4 right-4">
+                              <Skeleton height={24} width={24} circle />
+                            </div>
+                            <div className="flex flex-col h-full justify-between pt-4">
+                              <div className="pr-7 min-w-0">
+                                <Skeleton
+                                  height={20}
+                                  width="80%"
+                                  radius="sm"
+                                  mb={15}
+                                />
+                                <Skeleton height={18} width="90%" radius="sm" />
+                              </div>
+
+                              <div className="mt-4 flex justify-end w-full">
+                                <div className="flex flex-wrap justify-end gap-3">
+                                  {Array.from({ length: 4 }).map(
+                                    (_, badgeIdx) => (
+                                      <Skeleton
+                                        key={badgeIdx}
+                                        height={22}
+                                        width={
+                                          badgeIdx === 0
+                                            ? 80
+                                            : badgeIdx === 1
+                                              ? 100
+                                              : badgeIdx === 2
+                                                ? 120
+                                                : 80
+                                        }
+                                        radius="xl"
+                                      />
+                                    ),
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div
+                            className="absolute w-full h-full rounded-xl border border-gray-200 bg-white p-4 flex flex-col"
+                            style={{
+                              backfaceVisibility: "hidden",
+                              transform: "rotateY(180deg)",
+                            }}
+                          >
+                            <div className="flex-1 flex flex-col">
+                              <Skeleton
+                                height={16}
+                                width="40%"
+                                radius="sm"
+                                mb={8}
+                              />
+                              <div className="space-y-2">
+                                <Skeleton
+                                  height={14}
+                                  width="100%"
+                                  radius="sm"
+                                />
+                                <Skeleton height={14} width="95%" radius="sm" />
+                                <Skeleton height={14} width="90%" radius="sm" />
+                                <Skeleton height={14} width="85%" radius="sm" />
+                              </div>
+                            </div>
+                            <Skeleton height={36} width="100%" radius="md" />
+                          </div>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
+              ) : (
+                <>
+                  {error && <p className="text-red-600">{error}</p>}
+
+                  {selectedTask ? (
+                    <TaskView
+                      task={selectedTask}
+                      onBack={handleBackToGrid}
+                      onComplete={handleTaskComplete}
+                      courseId={selectedCourseId || ""}
+                      userId={effectiveUserId}
+                      onAchievementUnlocked={(a) => setRecentAchievement(a)}
+                    />
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Title order={2}>Библиотека задач</Title>
+                          <p className="text-gray-600 mt-1">
+                            Выберите курс и задачу для начала обучения
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <select
+                            value={selectedCourseId ?? ""}
+                            onChange={(e) => {
+                              const value = e.currentTarget.value
+                              setSelectedCourseId(value)
+                              const next = new URLSearchParams(searchParams)
+                              next.set("course", value)
+                              setSearchParams(next, { replace: true })
+                            }}
+                            className="rounded-md border px-3 py-1"
+                          >
+                            {courses.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+                        {filteredTasks.map((task) => (
+                          <TaskCard
+                            key={task.id}
+                            task={task}
+                            onSelect={handleTaskSelect}
+                            courseId={selectedCourseId || ""}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
@@ -343,6 +481,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <CodeTaskPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/course/:courseId/quiz"
+          element={
+            <ProtectedRoute>
+              <QuizPage />
             </ProtectedRoute>
           }
         />

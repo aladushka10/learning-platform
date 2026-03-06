@@ -8,6 +8,7 @@ import {
   IconCircleX,
   IconClock,
   IconBook,
+  IconClipboardList,
 } from "@tabler/icons-react"
 import ReactMarkdown from "react-markdown"
 import rehypeKatex from "rehype-katex"
@@ -32,13 +33,16 @@ import {
   createProgress,
   isAnswerCorrect,
   fetchLectureById,
+  trackTaskOpen,
+  fetchTaskStats,
 } from "../../utils/api"
 import type { RootState } from "../../store"
 import style from "./TaskSolverPage.module.scss"
 import AchievementBanner from "../AchievementBanner/AchievementBanner"
 import { AppButton } from "../AppButton/AppButton"
-import { Title } from "@mantine/core"
+import { Loader, Title } from "@mantine/core"
 import { TaskBadges } from "../TaskBadges/TaskBadges"
+import { TaskSidebarCard } from "../TaskSidebar/TaskSidebarCard"
 
 interface TaskData {
   id: string
@@ -88,6 +92,7 @@ const TaskSolverPage = () => {
   } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setErrorState] = useState<string | null>(null)
+  const [showQuizRecommendation, setShowQuizRecommendation] = useState(false)
   const { submitting } = useSelector((state: RootState) => state.solution)
   const userIdFromStore = useSelector((state: any) => state.signIn?.userId) as
     | string
@@ -208,6 +213,20 @@ const TaskSolverPage = () => {
       )
 
       setSubmitted(true)
+
+      // Refresh recommendation status after an attempt
+      try {
+        if (taskId) {
+          const stats = await fetchTaskStats(taskId)
+          const failures = (stats.attempts || 0) - (stats.successes || 0)
+          const shouldRecommend =
+            ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+            failures >= 2
+          setShowQuizRecommendation(shouldRecommend)
+        }
+      } catch {
+        // best-effort
+      }
     } catch (err: any) {
       const errorMsg = err.message || "Error submitting solution"
       setErrorState(errorMsg)
@@ -225,11 +244,28 @@ const TaskSolverPage = () => {
     }
   }
 
+  useEffect(() => {
+    if (!courseId || !taskId) return
+    ;(async () => {
+      await trackTaskOpen(userIdFromStore, taskId!)
+      try {
+        const stats = await fetchTaskStats(taskId!)
+        const failures = (stats.attempts || 0) - (stats.successes || 0)
+        const shouldRecommend =
+          ((stats.opens || 0) >= 6 && (stats.attempts || 0) === 0) ||
+          failures >= 2
+        setShowQuizRecommendation(shouldRecommend)
+      } catch {
+        // best-effort
+      }
+    })()
+  }, [courseId, taskId, userIdFromStore])
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <div className="flex flex-col items-center gap-3">
+          <Loader size="lg" />
           <p className="text-gray-600">Загрузка задачи...</p>
         </div>
       </div>
@@ -319,6 +355,7 @@ const TaskSolverPage = () => {
               <Textarea
                 placeholder="Введите ваше решение..."
                 value={userAnswer}
+                rows={20}
                 onChange={(e) => {
                   setUserAnswer(e.target.value)
                   setCheckStatus(null)
@@ -381,14 +418,8 @@ const TaskSolverPage = () => {
 
         {/* Right Sidebar */}
         <div className="space-y-6">
-          {/* Task Info Card */}
-          <Card>
-            <CardHeader>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Информация
-              </h3>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <TaskSidebarCard title="Информация">
+            <div className="space-y-3">
               {task.meta.topic && (
                 <div>
                   <p className="text-sm text-gray-600">Тема</p>
@@ -399,17 +430,7 @@ const TaskSolverPage = () => {
                 <div>
                   <p className="text-sm text-gray-600">Сложность</p>
                   <div className="mt-1">
-                    <Badge
-                      variant={
-                        task.meta.difficulty === "Easy"
-                          ? "outline"
-                          : task.meta.difficulty === "Medium"
-                            ? "outline"
-                            : "outline"
-                      }
-                    >
-                      {task.meta.difficulty}
-                    </Badge>
+                    <Badge variant="outline">{task.meta.difficulty}</Badge>
                   </div>
                 </div>
               )}
@@ -419,92 +440,91 @@ const TaskSolverPage = () => {
                   {task.meta.type || "Текстовая задача"}
                 </p>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Hint Card */}
-          <Card>
-            <CardHeader>
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <IconBulb size={20} className="text-yellow-500" />
-                Подсказка
-              </h3>
-            </CardHeader>
-            <CardContent>
-              {!showHint ? (
-                <AppButton
-                  onClick={() => setShowHint(true)}
-                  variant="outline"
-                  className="w-full"
-                >
-                  Показать подсказку
-                </AppButton>
-              ) : task.meta.explanation ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                  <p className="text-sm text-gray-700">
-                    {task.meta.explanation}
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                  <p className="text-sm text-gray-600">
-                    Подсказка недоступна. Изучите теорию для решения задачи.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            </div>
+          </TaskSidebarCard>
 
           {relatedLecture && (
-            <Card>
-              <CardHeader>
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <IconBook size={20} className="text-purple-600" />
-                  Теория
-                </h3>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-gray-600 mb-3">
+            <TaskSidebarCard
+              title="Теория"
+              icon={<IconBook size={20} className="text-purple-600" />}
+              ctaLabel="Открыть лекцию"
+              ctaIcon={<IconBook size={16} />}
+              onClick={handleLectureClick}
+            >
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
                   Рекомендуемый материал для изучения:
                 </p>
-
-                <AppButton
-                  onClick={handleLectureClick}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <IconBook size={16} />
-                    {relatedLecture.title}
-                  </span>
-                </AppButton>
-              </CardContent>
-            </Card>
+                <p className="text-sm font-medium text-gray-900">
+                  {relatedLecture.title}
+                </p>
+              </div>
+            </TaskSidebarCard>
           )}
 
+          <TaskSidebarCard
+            title="Подсказка"
+            icon={<IconBulb size={20} className="text-yellow-500" />}
+          >
+            {!showHint ? (
+              <AppButton
+                onClick={() => setShowHint(true)}
+                variant="outline"
+                className="w-full"
+              >
+                Показать подсказку
+              </AppButton>
+            ) : task.meta.explanation ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-gray-700">{task.meta.explanation}</p>
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <p className="text-sm text-gray-600">
+                  Подсказка недоступна. Изучите теорию для решения задачи.
+                </p>
+              </div>
+            )}
+          </TaskSidebarCard>
+
+          {showQuizRecommendation && relatedLecture ? (
+            <TaskSidebarCard
+              title="Рекомендуем"
+              icon={<IconClipboardList size={18} className="text-indigo-600" />}
+              ctaLabel="Пройти тест по лекции"
+              ctaIcon={<IconClipboardList size={16} />}
+              onClick={() =>
+                navigate(
+                  `/course/${courseId}/quiz?lectureId=${encodeURIComponent(
+                    relatedLecture.id,
+                  )}`,
+                )
+              }
+            >
+              <p className="text-sm text-gray-600">
+                Чтобы закрепить материал, пройдите короткий тест по этой лекции.
+              </p>
+            </TaskSidebarCard>
+          ) : null}
+
           {submitted && (
-            <Card>
-              <CardHeader>
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <IconClock size={20} className="text-blue-600" />
-                  Результат
-                </h3>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Статус:</span>
-                  <span
-                    className={
-                      checkStatus?.passed
-                        ? "text-green-600 font-bold"
-                        : "text-red-600 font-bold"
-                    }
-                  >
-                    {checkStatus?.passed ? "Решено" : "Не решено"}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+            <TaskSidebarCard
+              title="Результат"
+              icon={<IconClock size={20} className="text-blue-600" />}
+            >
+              <div className="flex justify-between">
+                <span className="text-gray-600">Статус:</span>
+                <span
+                  className={
+                    checkStatus?.passed
+                      ? "text-green-600 font-bold"
+                      : "text-red-600 font-bold"
+                  }
+                >
+                  {checkStatus?.passed ? "Решено" : "Не решено"}
+                </span>
+              </div>
+            </TaskSidebarCard>
           )}
         </div>
       </div>

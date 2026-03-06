@@ -27,15 +27,26 @@ export const TaskBadges = ({
   language,
 }: Props) => {
   return (
-    <Group gap="xs" className="flex-wrap">
+    <Group justify="flex-end" gap="md" className="flex-wrap">
       {difficulty && (
-        <Badge variant="outline" color={difficultyColors[difficulty]}>
+        <Badge size="lg" variant="outline" color={difficultyColors[difficulty]}>
           {difficultyLabels[difficulty]}
         </Badge>
       )}
 
+      {taskType === "code" && language && (
+        <Badge size="lg" fw={500} variant="light" color="gray">
+          {language}
+        </Badge>
+      )}
+      {category && (
+        <Badge size="lg" fw={500} variant="light" color="gray">
+          {category === "Mathematics" ? "Математика" : "Информатика"}
+        </Badge>
+      )}
       {taskType && (
         <Badge
+          size="lg"
           fw={500}
           variant="light"
           color="blue"
@@ -48,18 +59,6 @@ export const TaskBadges = ({
           }
         >
           {taskType === "code" ? "Код" : "Задача"}
-        </Badge>
-      )}
-
-      {category && (
-        <Badge fw={500} variant="light" color="gray">
-          {category === "Mathematics" ? "Математика" : "Информатика"}
-        </Badge>
-      )}
-
-      {taskType === "code" && language && (
-        <Badge fw={500} variant="light" color="gray">
-          {language}
         </Badge>
       )}
     </Group>

@@ -143,7 +143,7 @@ export function TaskView({
               {task.category === "Mathematics" ? "Математика" : "Информатика"}
             </Badge>
             <Badge variant="outline" className="text-gray-600">
-              {task.topic}
+              {task.lectureTitle || task.topic}
             </Badge>
             <Badge
               variant="outline"

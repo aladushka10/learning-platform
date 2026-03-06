@@ -69,6 +69,24 @@ function clearAuthCookie(res) {
   )
 }
 
+function trackTaskOpen(userId, taskId) {
+  try {
+    if (!userId || !taskId) return
+    db.incrementTaskOpen(userId, taskId)
+  } catch (e) {
+    console.error("trackTaskOpen failed", e)
+  }
+}
+
+function trackTaskAttempt(userId, taskId, success) {
+  try {
+    if (!userId || !taskId) return
+    db.incrementTaskAttempt(userId, taskId, !!success, Date.now())
+  } catch (e) {
+    console.error("trackTaskAttempt failed", e)
+  }
+}
+
 function updateUserProgress(userId, taskId) {
   db.upsertProgress({
     userId,
@@ -213,11 +231,94 @@ app.delete("/tasks/:id", (req, res) => {
   res.status(204).end()
 })
 
+// Task stats (opens/attempts/successes) for recommendations
+app.get("/tasks/:id/stats", (req, res) => {
+  const taskId = req.params.id
+  const authUserId = getAuthUserId(req)
+  const userId = authUserId || req.query?.userId
+  if (!userId) return res.status(401).json({ error: "unauthorized" })
+
+  const s = db.getTaskStatsForUserTask(String(userId), taskId)
+  res.json({
+    userId: String(userId),
+    taskId,
+    opens: s?.opens ?? 0,
+    attempts: s?.attempts ?? 0,
+    successes: s?.successes ?? 0,
+    lastAttemptAt: s?.lastAttemptAt ?? null,
+  })
+})
+
 // Lectures CRUD
 app.get("/lectures/:id", (req, res) => {
   const l = db.getLectureById(req.params.id)
   if (!l) return res.status(404).json({ error: "not_found" })
   res.json(l)
+})
+
+// Lecture quiz
+app.get("/lectures/:id/quiz", (req, res) => {
+  const lectureId = req.params.id
+  const quiz = db.getLectureQuizByLectureId(lectureId)
+  if (!quiz) return res.status(404).json({ error: "not_found" })
+
+  // Do not reveal correct answers to the client
+  res.json({
+    id: quiz.id,
+    lectureId: quiz.lectureId,
+    title: quiz.title,
+    createdAt: quiz.createdAt,
+    questions: (quiz.questions || []).map((q) => ({
+      id: q.id,
+      text: q.text,
+      ord: q.ord,
+      options: (q.options || []).map((o) => ({
+        id: o.id,
+        text: o.text,
+        ord: o.ord,
+      })),
+    })),
+  })
+})
+
+app.post("/lectures/:id/quiz/submit", (req, res) => {
+  const lectureId = req.params.id
+  const quiz = db.getLectureQuizByLectureId(lectureId)
+  if (!quiz) return res.status(404).json({ error: "not_found" })
+
+  const authUserId = getAuthUserId(req)
+  const bodyUserId = req.body?.userId
+  const userId = authUserId || bodyUserId
+
+  const answers = req.body?.answers && typeof req.body.answers === "object" ? req.body.answers : {}
+  const questions = Array.isArray(quiz.questions) ? quiz.questions : []
+  const total = questions.length
+
+  let score = 0
+  questions.forEach((q) => {
+    const selectedOptionId = answers[q.id]
+    const opts = Array.isArray(q.options) ? q.options : []
+    const selected = opts.find((o) => o.id === selectedOptionId)
+    if (selected && selected.isCorrect === true) score++
+  })
+
+  if (userId) {
+    try {
+      db.createLectureQuizAttempt({
+        id: uuidv4(),
+        userId: String(userId),
+        lectureId,
+        quizId: quiz.id,
+        score,
+        total,
+        createdAt: Date.now(),
+      })
+    } catch (e) {
+      // best-effort
+    }
+  }
+
+  res.json({ ok: true, score, total })
 })
 
 app.put("/lectures/:id", (req, res) => {
@@ -436,7 +537,9 @@ app.post("/tasks/:id/solutions", (req, res) => {
   console.log("POST /tasks/:id/solutions triggered")
   try {
     const taskId = req.params.id
-    const { userId, code } = req.body
+    const { userId: bodyUserId, code } = req.body
+    const authUserId = getAuthUserId(req)
+    const userId = authUserId || bodyUserId
 
     const task = db.getTaskById(taskId)
     if (!task) {
@@ -484,6 +587,10 @@ app.post("/tasks/:id/solutions", (req, res) => {
     if (isCorrect) {
       updateUserProgress(userId, taskId)
       newAchievements = checkAchievements(userId)
+    }
+
+    if (userId) {
+      trackTaskAttempt(userId, taskId, isCorrect)
     }
 
     res.json({
@@ -562,6 +669,19 @@ app.post("/users/:id/progress", (req, res) => {
   })
   const record = db.getProgressByUserAndTask(userId, req.body.taskId)
   res.status(201).json(record)
+})
+
+app.post("/tasks/:id/open", (req, res) => {
+  const taskId = req.params.id
+  const authUserId = getAuthUserId(req)
+  const bodyUserId = req.body?.userId
+  const userId = authUserId || bodyUserId
+
+  if (userId) {
+    trackTaskOpen(userId, taskId)
+  }
+
+  res.json({ ok: true })
 })
 app.get("/progress/:id", (req, res) => {
   const p = db.getProgressById(req.params.id)
@@ -962,10 +1082,16 @@ app.post("/code/run", async (req, res) => {
     const testsOk =
       testResults.length > 0 && testResults.every((r) => r && r.pass === true)
 
+    const userId = getAuthUserId(req)
+
+    // track attempt for recommendations/statistics
+    if (userId && taskId) {
+      trackTaskAttempt(userId, taskId, testsOk)
+    }
+
     let progressUpdated = false
     let newAchievements = []
     if (testsOk && taskId) {
-      const userId = getAuthUserId(req)
       if (userId) {
         updateUserProgress(userId, taskId)
         progressUpdated = true

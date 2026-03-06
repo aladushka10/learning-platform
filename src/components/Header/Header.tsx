@@ -1,11 +1,10 @@
 import { IconSearch, IconTrophy } from "@tabler/icons-react"
-import { Input } from "../ui/input"
-import { Button } from "../ui/button"
-import { Avatar, AvatarFallback } from "../ui/avatar"
-import style from "./Header.module.scss"
-import { Link, useNavigate } from "react-router-dom"
+import { Avatar, Button, Group, Text, TextInput, Title } from "@mantine/core"
+import { useNavigate } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import { signOut } from "../../store/signInSlice"
+import { MTextInput } from "../MTextInput/MTextInput"
+import { AppButton } from "../AppButton/AppButton"
 
 interface HeaderProps {
   searchQuery: string
@@ -32,82 +31,89 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const displayName = firstName || username?.split("@")[0] || "User"
 
   return (
-    <header
-      className={`${style.header} sticky top-0 z-50 bg-white border-b border-gray-200`}
-    >
-      <div className="flex items-center justify-between h-16 px-6">
+    <header className="sticky top-0 z-50 border-b border-white/15 bg-gradient-to-br from-[#2563eb] to-blue-400 ">
+      <div className="flex items-center justify-between min-h-16 px-6">
         <div className="flex items-center gap-8">
-          <button
-            onClick={() => navigate("/")}
-            className="flex items-center gap-3 hover:opacity-75 transition-opacity"
-          >
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <span className="text-white">π</span>
-            </div>
-            <span className="text-gray-900 font-semibold">LearnPlatform</span>
-          </button>
+          <Title order={4} fw={600} className="text-white/95">
+            LearnPlatform
+          </Title>
         </div>
 
-        <div className="flex-1 max-w-xl mx-8">
-          <div className="relative">
-            <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Поиск задач, тем или концепций..."
-              className="pl-10 bg-gray-50 border-gray-200"
-              value={searchQuery}
-              onChange={(e) => onSearchChange(e.target.value)}
-            />
-          </div>
+        <div className="hidden flex-1 max-w-xl md:block">
+          <MTextInput
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.currentTarget.value)}
+            placeholder="Поиск задач, тем или концепций..."
+            leftSection={<IconSearch size={16} className="text-slate-500" />}
+            classNames={{
+              input:
+                "bg-white/95 border-white/40 text-slate-800 placeholder:text-slate-500",
+            }}
+          />
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="h-8 w-px bg-gray-200" />
-
+        <Group gap="xs" className="w-144 h-12  px-2 py-2">
           {auth ? (
             <div className="flex items-center gap-2">
-              <Button
-                variant="ghost"
+              <AppButton
+                variant="subtle"
                 size="sm"
-                className="gap-1.5"
+                leftSection={
+                  <IconTrophy size={16} className="text-amber-300" />
+                }
+                className="text-white hover:bg-white/15"
                 onClick={() => navigate("/achievements")}
               >
-                <IconTrophy className="w-4 h-4 text-amber-500" />
-                <span className="text-gray-700">Достижения</span>
-              </Button>
-              <Button
-                variant="ghost"
-                className="gap-2"
+                <span className="text-white text-base">Достижения</span>
+              </AppButton>
+
+              <AppButton
+                variant="subtle"
+                size="sm"
+                className="text-white/95 hover:bg-white/15"
                 onClick={() => navigate("/profile")}
-              >
-                <Avatar className="w-8 h-8">
-                  <AvatarFallback className="bg-blue-100 text-blue-600">
+                leftSection={
+                  <Avatar size={24} radius="xl" color="white">
                     {displayName.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-gray-700">{displayName}</span>
-              </Button>
-              <Button variant="outline" onClick={handleLogout}>
-                Sign Out
-              </Button>
+                  </Avatar>
+                }
+              >
+                <span className="text-white text-base">{displayName}</span>
+              </AppButton>
+
+              <AppButton
+                variant="outline"
+                color="white"
+                size="sm"
+                className="bg-white/15 text-white hover:bg-white/25"
+                onClick={handleLogout}
+              >
+                <span className="text-white text-base"> Sign Out</span>
+              </AppButton>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <button
+            <>
+              <AppButton
+                variant="outline"
+                color="white"
+                size="sm"
+                className="text-white/95 hover:bg-white/15"
                 onClick={() => navigate("/sign-in")}
-                className="text-gray-700 hover:text-gray-900"
               >
-                Sign In
-              </button>
-              <button
+                <span className="text-white"> Sign In</span>
+              </AppButton>
+              <AppButton
+                variant="outline"
+                color="white"
+                size="sm"
+                className="bg-white/95 text-white border-white/20 hover:bg-white/25"
                 onClick={() => navigate("/sign-up")}
-                className="text-blue-600 hover:text-blue-700"
               >
-                Sign Up
-              </button>
-            </div>
+                <span className="text-white"> Sign Up</span>
+              </AppButton>
+            </>
           )}
-        </div>
+        </Group>
       </div>
     </header>
   )

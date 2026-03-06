@@ -134,6 +134,67 @@ function init() {
   ).run()
 
   db.prepare(
+    `CREATE TABLE IF NOT EXISTS task_stats (
+      userId TEXT NOT NULL,
+      taskId TEXT NOT NULL,
+      opens INTEGER NOT NULL DEFAULT 0,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      successes INTEGER NOT NULL DEFAULT 0,
+      lastAttemptAt INTEGER,
+      PRIMARY KEY (userId, taskId),
+      FOREIGN KEY(userId) REFERENCES users(id),
+      FOREIGN KEY(taskId) REFERENCES tasks(id)
+    )`,
+  ).run()
+
+  // ===== Lecture quizzes (multiple-choice) =====
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS lecture_quizzes (
+      id TEXT PRIMARY KEY,
+      lectureId TEXT NOT NULL UNIQUE,
+      title TEXT NOT NULL,
+      createdAt INTEGER,
+      FOREIGN KEY(lectureId) REFERENCES lectures(id)
+    )`,
+  ).run()
+
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS quiz_questions (
+      id TEXT PRIMARY KEY,
+      quizId TEXT NOT NULL,
+      text TEXT NOT NULL,
+      ord INTEGER,
+      FOREIGN KEY(quizId) REFERENCES lecture_quizzes(id)
+    )`,
+  ).run()
+
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS quiz_options (
+      id TEXT PRIMARY KEY,
+      questionId TEXT NOT NULL,
+      text TEXT NOT NULL,
+      isCorrect INTEGER NOT NULL DEFAULT 0,
+      ord INTEGER,
+      FOREIGN KEY(questionId) REFERENCES quiz_questions(id)
+    )`,
+  ).run()
+
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS lecture_quiz_attempts (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      lectureId TEXT NOT NULL,
+      quizId TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      total INTEGER NOT NULL,
+      createdAt INTEGER,
+      FOREIGN KEY(userId) REFERENCES users(id),
+      FOREIGN KEY(lectureId) REFERENCES lectures(id),
+      FOREIGN KEY(quizId) REFERENCES lecture_quizzes(id)
+    )`,
+  ).run()
+
+  db.prepare(
     `CREATE TABLE IF NOT EXISTS achievements (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -292,6 +353,110 @@ module.exports = {
       .run(data.title, data.content, data.ord, id),
   deleteLecture: (id) =>
     db.prepare("DELETE FROM lectures WHERE id = ?").run(id),
+
+  // lecture quizzes
+  upsertLectureQuiz: (lectureId, title) => {
+    const id = uuidv4()
+    const createdAt = Date.now()
+    db.prepare(
+      `INSERT INTO lecture_quizzes (id, lectureId, title, createdAt)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(lectureId) DO UPDATE SET
+         title = excluded.title`,
+    ).run(id, lectureId, title, createdAt)
+    const row = db
+      .prepare("SELECT id, lectureId, title, createdAt FROM lecture_quizzes WHERE lectureId = ?")
+      .get(lectureId)
+    return row
+  },
+
+  deleteQuizByLecture: (lectureId) => {
+    const quiz = db
+      .prepare("SELECT id FROM lecture_quizzes WHERE lectureId = ?")
+      .get(lectureId)
+    if (!quiz) return
+    const qIds = db
+      .prepare("SELECT id FROM quiz_questions WHERE quizId = ?")
+      .all(quiz.id)
+      .map((r) => r.id)
+    if (qIds.length > 0) {
+      const placeholders = qIds.map(() => "?").join(",")
+      db.prepare(`DELETE FROM quiz_options WHERE questionId IN (${placeholders})`).run(
+        ...qIds,
+      )
+    }
+    db.prepare("DELETE FROM quiz_questions WHERE quizId = ?").run(quiz.id)
+    db.prepare("DELETE FROM lecture_quizzes WHERE id = ?").run(quiz.id)
+  },
+
+  createQuizQuestion: (q) =>
+    db
+      .prepare(
+        "INSERT INTO quiz_questions (id, quizId, text, ord) VALUES (?, ?, ?, ?)",
+      )
+      .run(q.id, q.quizId, q.text, q.ord ?? null),
+
+  createQuizOption: (o) =>
+    db
+      .prepare(
+        "INSERT INTO quiz_options (id, questionId, text, isCorrect, ord) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run(o.id, o.questionId, o.text, o.isCorrect ? 1 : 0, o.ord ?? null),
+
+  getLectureQuizByLectureId: (lectureId) => {
+    const quiz = db
+      .prepare(
+        "SELECT id, lectureId, title, createdAt FROM lecture_quizzes WHERE lectureId = ?",
+      )
+      .get(lectureId)
+    if (!quiz) return null
+
+    const questions = db
+      .prepare(
+        "SELECT id, quizId, text, ord FROM quiz_questions WHERE quizId = ? ORDER BY ord ASC",
+      )
+      .all(quiz.id)
+
+    const questionIds = questions.map((q) => q.id)
+    const optionsByQuestion = {}
+    if (questionIds.length > 0) {
+      const placeholders = questionIds.map(() => "?").join(",")
+      const opts = db
+        .prepare(
+          `SELECT id, questionId, text, isCorrect, ord
+           FROM quiz_options
+           WHERE questionId IN (${placeholders})
+           ORDER BY ord ASC`,
+        )
+        .all(...questionIds)
+      opts.forEach((o) => {
+        if (!optionsByQuestion[o.questionId]) optionsByQuestion[o.questionId] = []
+        optionsByQuestion[o.questionId].push(o)
+      })
+    }
+
+    return {
+      ...quiz,
+      questions: questions.map((q) => ({
+        id: q.id,
+        text: q.text,
+        ord: q.ord,
+        options: (optionsByQuestion[q.id] || []).map((o) => ({
+          id: o.id,
+          text: o.text,
+          ord: o.ord,
+          isCorrect: o.isCorrect === 1,
+        })),
+      })),
+    }
+  },
+
+  createLectureQuizAttempt: (a) =>
+    db
+      .prepare(
+        "INSERT INTO lecture_quiz_attempts (id, userId, lectureId, quizId, score, total, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      )
+      .run(a.id, a.userId, a.lectureId, a.quizId, a.score, a.total, a.createdAt),
 
   // tasks
   getTasks: (courseId) =>
@@ -482,6 +647,34 @@ module.exports = {
       .run(data.status, data.updatedAt, id),
   deleteProgress: (id) =>
     db.prepare("DELETE FROM progress WHERE id = ?").run(id),
+
+  incrementTaskOpen: (userId, taskId) =>
+    db
+      .prepare(
+        `INSERT INTO task_stats (userId, taskId, opens, attempts, successes, lastAttemptAt)
+         VALUES (?, ?, 1, 0, 0, NULL)
+         ON CONFLICT(userId, taskId) DO UPDATE SET opens = task_stats.opens + 1`,
+      )
+      .run(userId, taskId),
+
+  incrementTaskAttempt: (userId, taskId, success, ts) =>
+    db
+      .prepare(
+        `INSERT INTO task_stats (userId, taskId, opens, attempts, successes, lastAttemptAt)
+         VALUES (?, ?, 0, 1, ?, ?)
+         ON CONFLICT(userId, taskId) DO UPDATE SET
+           attempts = task_stats.attempts + 1,
+           successes = task_stats.successes + ?,
+           lastAttemptAt = ?`,
+      )
+      .run(userId, taskId, success ? 1 : 0, ts, success ? 1 : 0, ts),
+
+  getTaskStatsForUserTask: (userId, taskId) =>
+    db
+      .prepare(
+        "SELECT userId, taskId, opens, attempts, successes, lastAttemptAt FROM task_stats WHERE userId = ? AND taskId = ?",
+      )
+      .get(userId, taskId),
 
   upsertProgress: (p) => {
     const existing = db
@@ -1189,7 +1382,7 @@ function seedProgrammingCourse() {
   const now = Date.now()
 
   const existing = courses.find((c) => c.id === courseId)
-  const courseTitle = "Программирование"
+  const courseTitle = "JavaScript: основы программирования"
   const courseDescription =
     "Новый курс по программированию: базовый синтаксис, функции, условия, циклы и первые практические задания с кодом."
   const courseCategory = "Computer Science"
@@ -1208,7 +1401,7 @@ function seedProgrammingCourse() {
 
   if (existing) {
     const tasks = module.exports.getTasks(courseId)
-    if (tasks && tasks.length >= 6) return
+    if (tasks && tasks.length >= 20) return
   }
 
   const lectures = [
@@ -1277,6 +1470,57 @@ const a = [1, 2, 3]
 На практике мы будем писать функции, которые получают массив и возвращают число/строку/массив.
 `,
       ord: 3,
+    },
+    {
+      id: "prog-lec-4",
+      courseId,
+      title: "4. Функции",
+      content: `
+### Функции
+
+Функция — это переиспользуемый блок кода:
+
+\`\`\`js
+export function sum(a, b) {
+  return a + b
+}
+\`\`\`
+
+Мы будем решать задачи, реализуя одну функцию и возвращая результат.
+`,
+      ord: 4,
+    },
+    {
+      id: "prog-lec-5",
+      courseId,
+      title: "5. Строки",
+      content: `
+### Строки
+
+Строки — это текст. Полезные операции:
+- \`length\`
+- \`toLowerCase()\`, \`toUpperCase()\`
+- \`split()\`, \`join()\`
+- \`slice()\`
+`,
+      ord: 5,
+    },
+    {
+      id: "prog-lec-6",
+      courseId,
+      title: "6. Объекты и структуры данных",
+      content: `
+### Объекты и структуры данных
+
+Объект хранит пары ключ-значение:
+
+\`\`\`js
+const user = { name: "Ann", age: 18 }
+\`\`\`
+
+Часто удобно возвращать объект как результат функции.
+`,
+      ord: 6,
     },
   ]
   lectures.forEach((l) => {
@@ -1400,6 +1644,279 @@ const a = [1, 2, 3]
       }),
       ord: 6,
     },
+    {
+      id: "prog-task-7",
+      courseId,
+      title: "Остаток от деления",
+      description:
+        "Напишите функцию remainder(a, b), которая возвращает остаток от деления a на b (оператор %).",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-1",
+        starterCode: "export function remainder(a, b) {\n  // TODO\n}\n",
+        tests: [
+          { name: "remainder(10, 3)", expected: 1 },
+          { name: "remainder(20, 5)", expected: 0 },
+        ],
+      }),
+      ord: 7,
+    },
+    {
+      id: "prog-task-8",
+      courseId,
+      title: "Кламп (ограничение диапазоном)",
+      description:
+        "Напишите функцию clamp(n, min, max), которая ограничивает число n диапазоном [min, max].",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-2",
+        starterCode:
+          "export function clamp(n, min, max) {\n  // если n меньше min -> min\n  // если n больше max -> max\n  // иначе -> n\n}\n",
+        tests: [
+          { name: "clamp(5, 1, 10)", expected: 5 },
+          { name: "clamp(-2, 0, 10)", expected: 0 },
+          { name: "clamp(999, 0, 10)", expected: 10 },
+        ],
+      }),
+      ord: 8,
+    },
+    {
+      id: "prog-task-9",
+      courseId,
+      title: "Факториал",
+      description:
+        "Напишите функцию factorial(n), которая возвращает n! (0! = 1). Считайте, что n — целое число >= 0.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-4",
+        starterCode: "export function factorial(n) {\n  // TODO\n}\n",
+        tests: [
+          { name: "factorial(0)", expected: 1 },
+          { name: "factorial(1)", expected: 1 },
+          { name: "factorial(5)", expected: 120 },
+        ],
+      }),
+      ord: 9,
+    },
+    {
+      id: "prog-task-10",
+      courseId,
+      title: "Число Фибоначчи",
+      description:
+        "Напишите функцию fib(n), которая возвращает n-е число Фибоначчи (fib(0)=0, fib(1)=1).",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-4",
+        starterCode: "export function fib(n) {\n  // TODO\n}\n",
+        tests: [
+          { name: "fib(0)", expected: 0 },
+          { name: "fib(1)", expected: 1 },
+          { name: "fib(7)", expected: 13 },
+        ],
+      }),
+      ord: 10,
+    },
+    {
+      id: "prog-task-11",
+      courseId,
+      title: "Разворот строки",
+      description:
+        "Напишите функцию reverseString(s), которая возвращает строку s в обратном порядке.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-5",
+        starterCode: "export function reverseString(s) {\n  // TODO\n}\n",
+        tests: [
+          { name: "reverseString('abc')", expected: "cba" },
+          { name: "reverseString('')", expected: "" },
+        ],
+      }),
+      ord: 11,
+    },
+    {
+      id: "prog-task-12",
+      courseId,
+      title: "Палиндром",
+      description:
+        "Напишите функцию isPalindrome(s), которая возвращает true, если строка s читается одинаково слева направо и справа налево.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-5",
+        starterCode: "export function isPalindrome(s) {\n  // TODO\n}\n",
+        tests: [
+          { name: "isPalindrome('level')", expected: true },
+          { name: "isPalindrome('test')", expected: false },
+        ],
+      }),
+      ord: 12,
+    },
+    {
+      id: "prog-task-13",
+      courseId,
+      title: "Подсчёт гласных",
+      description:
+        "Напишите функцию countVowels(s), которая возвращает количество гласных (a, e, i, o, u) в строке. Регистр не важен.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-5",
+        starterCode: "export function countVowels(s) {\n  // TODO\n}\n",
+        tests: [
+          { name: "countVowels('Hello')", expected: 2 },
+          { name: "countVowels('xyz')", expected: 0 },
+        ],
+      }),
+      ord: 13,
+    },
+    {
+      id: "prog-task-14",
+      courseId,
+      title: "Максимум в массиве",
+      description:
+        "Напишите функцию maxInArray(arr), которая возвращает максимальный элемент массива. Если массив пустой — верните null.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Easy",
+        topic: "prog-lec-3",
+        starterCode: "export function maxInArray(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "maxInArray([1, 7, 3])", expected: 7 },
+          { name: "maxInArray([])", expected: null },
+        ],
+      }),
+      ord: 14,
+    },
+    {
+      id: "prog-task-15",
+      courseId,
+      title: "Уникальные элементы",
+      description:
+        "Напишите функцию unique(arr), которая возвращает новый массив без повторов, сохраняя порядок первого появления элементов.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-3",
+        starterCode: "export function unique(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "unique([1,1,2,2,3])", expected: [1, 2, 3] },
+          { name: "unique([])", expected: [] },
+        ],
+      }),
+      ord: 15,
+    },
+    {
+      id: "prog-task-16",
+      courseId,
+      title: "Плоский массив (на 1 уровень)",
+      description:
+        "Напишите функцию flatten1(arr), которая разворачивает массив на один уровень: [1,[2,3],[4]] -> [1,2,3,4].",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-3",
+        starterCode: "export function flatten1(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "flatten1([1,[2,3],[4]])", expected: [1, 2, 3, 4] },
+          { name: "flatten1([])", expected: [] },
+        ],
+      }),
+      ord: 16,
+    },
+    {
+      id: "prog-task-17",
+      courseId,
+      title: "Подсчёт частоты",
+      description:
+        "Напишите функцию freq(arr), которая возвращает объект частот: например ['a','b','a'] -> { a: 2, b: 1 }.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-6",
+        starterCode: "export function freq(arr) {\n  // TODO\n}\n",
+        tests: [
+          { name: "freq(['a','b','a'])", expected: { a: 2, b: 1 } },
+          { name: "freq([])", expected: {} },
+        ],
+      }),
+      ord: 17,
+    },
+    {
+      id: "prog-task-18",
+      courseId,
+      title: "Группировка по чётности",
+      description:
+        "Напишите функцию groupByParity(arr), которая возвращает объект вида { even: [...], odd: [...] }.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-6",
+        starterCode: "export function groupByParity(arr) {\n  // TODO\n}\n",
+        tests: [
+          {
+            name: "groupByParity([1,2,3,4])",
+            expected: { even: [2, 4], odd: [1, 3] },
+          },
+          { name: "groupByParity([])", expected: { even: [], odd: [] } },
+        ],
+      }),
+      ord: 18,
+    },
+    {
+      id: "prog-task-19",
+      courseId,
+      title: "Разбиение на чанки",
+      description:
+        "Напишите функцию chunk(arr, size), которая разбивает массив на подмассивы длины size (последний может быть короче).",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Hard",
+        topic: "prog-lec-3",
+        starterCode: "export function chunk(arr, size) {\n  // TODO\n}\n",
+        tests: [
+          { name: "chunk([1,2,3,4,5], 2)", expected: [[1, 2], [3, 4], [5]] },
+          { name: "chunk([], 3)", expected: [] },
+        ],
+      }),
+      ord: 19,
+    },
+    {
+      id: "prog-task-20",
+      courseId,
+      title: "Title Case",
+      description:
+        "Напишите функцию toTitleCase(s), которая делает первую букву каждого слова заглавной. Считайте, что слова разделены одним пробелом.",
+      meta: JSON.stringify({
+        type: "code",
+        language: "javascript",
+        difficulty: "Medium",
+        topic: "prog-lec-5",
+        starterCode: "export function toTitleCase(s) {\n  // TODO\n}\n",
+        tests: [
+          { name: "toTitleCase('hello world')", expected: "Hello World" },
+          { name: "toTitleCase('javaScript')", expected: "JavaScript" },
+        ],
+      }),
+      ord: 20,
+    },
   ]
 
   tasks.forEach((t) => {
@@ -1409,7 +1926,823 @@ const a = [1, 2, 3]
   })
 }
 
+function resolveLectureQuizTopic(courseCategory, lectureTitle) {
+  const t = String(lectureTitle || "").toLowerCase()
+  if (courseCategory === "Mathematics") {
+    if (t.includes("предел")) return "math_limits"
+    if (t.includes("непрерыв")) return "math_continuity"
+    if (t.includes("производ")) return "math_derivatives"
+    if (t.includes("интеграл")) return "math_integrals"
+    if (t.includes("дифф")) return "math_diff_eq"
+    return "math_general"
+  }
+
+  // Computer Science / programming
+  if (t.includes("переменн") || t.includes("тип")) return "cs_variables"
+  if (t.includes("услов") || t.includes("логик")) return "cs_conditions"
+  if (t.includes("цикл") || t.includes("массив")) return "cs_loops_arrays"
+  if (t.includes("функц")) return "cs_functions"
+  if (t.includes("строк")) return "cs_strings"
+  if (t.includes("объект") || t.includes("структур")) return "cs_objects"
+  return "cs_general"
+}
+
+function getQuizBank(topicKey) {
+  /** @type {{text:string, options:string[], correctIndex:number}[]} */
+  const banks = {
+    math_limits: [
+      {
+        text: "Что означает запись lim_{x→x0} f(x) = L?",
+        options: [
+          "f(x0) = L",
+          "f(x) определена только в x0",
+          "f(x) стремится к L при x, стремящемся к x0",
+          "f(x) всегда равна L",
+          "Предел существует только слева",
+        ],
+        correctIndex: 2,
+      },
+      {
+        text: "Как называется формальное определение предела через ε и δ?",
+        options: [
+          "Индуктивное",
+          "Тригонометрическое",
+          "Эпсилон-дельта определение",
+          "Определение Коши-Буняковского",
+          "Определение Лагранжа",
+        ],
+        correctIndex: 2,
+      },
+      {
+        text: "Предел функции в точке единственен?",
+        options: ["Нет", "Да", "Только для полиномов", "Только справа", "Только слева"],
+        correctIndex: 1,
+      },
+      {
+        text: "Если lim f(x)=A и lim g(x)=B, то lim (f+g) равен:",
+        options: ["A·B", "A/B", "A+B", "A−B", "B−A"],
+        correctIndex: 2,
+      },
+      {
+        text: "Односторонний предел — это предел:",
+        options: [
+          "При x→∞",
+          "Только при x→0",
+          "При приближении к точке с одной стороны",
+          "Только для непрерывных функций",
+          "Только для рациональных функций",
+        ],
+        correctIndex: 2,
+      },
+      {
+        text: "Если предел не зависит от пути приближения, то он:",
+        options: [
+          "Не существует",
+          "Существует (при условии существования односторонних)",
+          "Всегда равен 0",
+          "Всегда равен 1",
+          "Зависит от производной",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Предел произведения двух функций равен:",
+        options: ["A+B", "A−B", "A·B", "A/B", "B/A"],
+        correctIndex: 2,
+      },
+      {
+        text: "Если f(x)=c (константа), то lim f(x) равен:",
+        options: ["0", "1", "c", "∞", "Не существует"],
+        correctIndex: 2,
+      },
+      {
+        text: "Предел частного f(x)/g(x) равен A/B при условии:",
+        options: ["A=0", "B=0", "B≠0", "A=B", "g(x) линейна"],
+        correctIndex: 2,
+      },
+      {
+        text: "Что из ниже перечисленного является свойством пределов?",
+        options: [
+          "Предел всегда равен значению функции",
+          "Предел всегда бесконечен",
+          "Линейность (предел суммы равен сумме пределов)",
+          "Предел существует только у непрерывных",
+          "Предел существует только у дифференцируемых",
+        ],
+        correctIndex: 2,
+      },
+    ],
+    math_continuity: [
+      {
+        text: "Функция непрерывна в точке x0, если:",
+        options: [
+          "Существует производная в x0",
+          "f(x0) не определена",
+          "lim_{x→x0} f(x) = f(x0)",
+          "lim_{x→x0} f(x) = 0",
+          "f(x) монотонна",
+        ],
+        correctIndex: 2,
+      },
+      {
+        text: "Разрыв первого рода — это когда существуют:",
+        options: [
+          "Только производные",
+          "Только интегралы",
+          "Оба односторонних предела конечны",
+          "Предел всегда бесконечен",
+          "Нет односторонних пределов",
+        ],
+        correctIndex: 2,
+      },
+      {
+        text: "Если функция непрерывна на [a,b], то она:",
+        options: [
+          "Обязательно линейна",
+          "Достигает максимума и минимума",
+          "Не имеет корней",
+          "Всегда возрастает",
+          "Всегда убывает",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Теорема Больцано–Коши говорит о:",
+        options: [
+          "Существовании производной",
+          "Существовании корня при смене знака",
+          "Сходимости ряда",
+          "Площадях фигур",
+          "Сходимости интеграла",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Непрерывность суммы непрерывных функций:",
+        options: [
+          "Не гарантируется",
+          "Гарантируется",
+          "Только если обе дифференцируемы",
+          "Только для полиномов",
+          "Только если сумма равна 0",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Непрерывность произведения непрерывных функций:",
+        options: ["Нет", "Да", "Только на (a,b)", "Только в 0", "Только при A=B"],
+        correctIndex: 1,
+      },
+      {
+        text: "Функция может быть непрерывной и не дифференцируемой?",
+        options: ["Нет", "Да", "Только если константа", "Только если линейна", "Никогда"],
+        correctIndex: 1,
+      },
+      {
+        text: "Если в точке разрыв, то обязательно:",
+        options: [
+          "Нет предела",
+          "Предел бесконечен",
+          "График скачет",
+          "Нарушено равенство lim f(x)=f(x0)",
+          "f(x0)=0",
+        ],
+        correctIndex: 3,
+      },
+      {
+        text: "Непрерывность в точке требует, чтобы функция была определена:",
+        options: ["Везде", "В этой точке", "Только слева", "Только справа", "Только на (a,b)"],
+        correctIndex: 1,
+      },
+      {
+        text: "Кусочно-заданная функция может быть непрерывной?",
+        options: ["Нет", "Да, при согласовании на стыках", "Только если без кусочков", "Только если тригонометрическая", "Только если полином"],
+        correctIndex: 1,
+      },
+    ],
+    math_derivatives: [
+      {
+        text: "Производная — это:",
+        options: [
+          "Площадь под графиком",
+          "Предел отношения приращений",
+          "Значение функции",
+          "Корень уравнения",
+          "Интеграл функции",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Производная константы равна:",
+        options: ["0", "1", "c", "∞", "Не существует"],
+        correctIndex: 0,
+      },
+      {
+        text: "Производная x^n равна:",
+        options: ["n·x^(n-1)", "x^(n+1)", "n·x^n", "x^n/n", "0"],
+        correctIndex: 0,
+      },
+      {
+        text: "Производная суммы равна:",
+        options: ["Сумме производных", "Произведению производных", "Частному производных", "Нулю", "Всегда 1"],
+        correctIndex: 0,
+      },
+      {
+        text: "Геометрический смысл производной:",
+        options: [
+          "Длина дуги",
+          "Тангенс угла наклона касательной",
+          "Площадь",
+          "Объём",
+          "Сумма углов",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Правило произведения (f·g)' равно:",
+        options: ["f'·g'", "f'·g + f·g'", "(f+g)'", "f'/g'", "f·g"],
+        correctIndex: 1,
+      },
+      {
+        text: "Правило частного (f/g)' равно:",
+        options: [
+          "(f'·g - f·g')/g^2",
+          "(f'·g + f·g')/g^2",
+          "f'/g'",
+          "f/g",
+          "g/f",
+        ],
+        correctIndex: 0,
+      },
+      {
+        text: "Производная sin(x) равна:",
+        options: ["cos(x)", "-cos(x)", "sin(x)", "-sin(x)", "1"],
+        correctIndex: 0,
+      },
+      {
+        text: "Производная cos(x) равна:",
+        options: ["sin(x)", "-sin(x)", "cos(x)", "-cos(x)", "0"],
+        correctIndex: 1,
+      },
+      {
+        text: "Если f'(x0) > 0, то в окрестности x0 функция:",
+        options: ["Убывает", "Возрастает", "Постоянна", "Не определена", "Всегда равна 0"],
+        correctIndex: 1,
+      },
+    ],
+    math_integrals: [
+      {
+        text: "Неопределённый интеграл — это:",
+        options: [
+          "Производная функции",
+          "Множество первообразных",
+          "Предел последовательности",
+          "Корень уравнения",
+          "Значение функции в точке",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Производная первообразной F(x) равна:",
+        options: ["F(x)", "f(x)", "0", "1", "∞"],
+        correctIndex: 1,
+      },
+      {
+        text: "Формула Ньютона–Лейбница относится к:",
+        options: [
+          "Производным",
+          "Определённым интегралам",
+          "Пределам",
+          "Рядам",
+          "Матрицам",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Определённый интеграл геометрически — это:",
+        options: [
+          "Угол наклона",
+          "Площадь под графиком (с учётом знака)",
+          "Длина касательной",
+          "Высота",
+          "Скорость",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Интеграл суммы равен:",
+        options: ["Сумме интегралов", "Произведению интегралов", "Частному интегралов", "0", "1"],
+        correctIndex: 0,
+      },
+      {
+        text: "Интеграл константы c равен:",
+        options: ["c", "c·x + C", "x + C", "0", "1"],
+        correctIndex: 1,
+      },
+      {
+        text: "Интеграл x^n (n≠-1) равен:",
+        options: ["x^(n-1)", "x^(n+1)/(n+1) + C", "n·x^(n-1)", "ln x + C", "1/x + C"],
+        correctIndex: 1,
+      },
+      {
+        text: "∫ 1/x dx равен:",
+        options: ["x", "ln|x| + C", "1/x", "x^2/2", "e^x"],
+        correctIndex: 1,
+      },
+      {
+        text: "Замена переменной применяется, чтобы:",
+        options: ["Усложнить интеграл", "Упростить интеграл", "Сделать предел", "Сделать производную", "Найти корни"],
+        correctIndex: 1,
+      },
+      {
+        text: "Интегрирование по частям основано на формуле:",
+        options: ["(u+v)'", "(u·v)'", "sin^2+cos^2", "a^2+b^2=c^2", "lim"],
+        correctIndex: 1,
+      },
+    ],
+    math_diff_eq: [
+      {
+        text: "Дифференциальное уравнение содержит:",
+        options: ["Интегралы", "Производные", "Только числа", "Только константы", "Только матрицы"],
+        correctIndex: 1,
+      },
+      {
+        text: "Уравнение вида y' = f(x) является:",
+        options: [
+          "Линейным 2-го порядка",
+          "Уравнением с разделяющимися переменными",
+          "Тригонометрическим",
+          "Алгебраическим",
+          "Не имеет решения",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Общее решение обычно содержит:",
+        options: ["Только x", "Константу(ы) интегрирования", "Только y", "Только числа", "Только пределы"],
+        correctIndex: 1,
+      },
+      {
+        text: "Начальная задача задаёт:",
+        options: ["Лекции", "Начальные условия", "Предел", "Интеграл", "Матрицу"],
+        correctIndex: 1,
+      },
+      {
+        text: "Уравнение y' = ky имеет решения вида:",
+        options: ["sin(x)", "e^{kx}", "x^2", "ln(x)", "1/x"],
+        correctIndex: 1,
+      },
+      {
+        text: "Линейное ДУ 1-го порядка имеет вид:",
+        options: [
+          "y' + p(x)y = q(x)",
+          "y'' + y = 0",
+          "y^2 = x",
+          "sin(y)=x",
+          "y' = y^2",
+        ],
+        correctIndex: 0,
+      },
+      {
+        text: "Метод разделения переменных применим, когда:",
+        options: [
+          "Нельзя разделить",
+          "Можно представить y' = f(x)g(y)",
+          "Уравнение второго порядка",
+          "Есть матрицы",
+          "Есть интегралы",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Частное решение получается после:",
+        options: ["Дифференцирования", "Подстановки начальных условий", "Предела", "Суммирования", "Линеаризации"],
+        correctIndex: 1,
+      },
+      {
+        text: "Порядок ДУ — это порядок максимальной производной:",
+        options: ["Нет", "Да", "Иногда", "Только для линейных", "Только для нелинейных"],
+        correctIndex: 1,
+      },
+      {
+        text: "Решение ДУ проверяют:",
+        options: ["По графику", "Подстановкой в уравнение", "Только численно", "Только по таблице", "Никак"],
+        correctIndex: 1,
+      },
+    ],
+    math_general: [],
+    cs_variables: [
+      {
+        text: "Какой способ объявления переменной нельзя переназначить?",
+        options: ["var", "let", "const", "define", "static"],
+        correctIndex: 2,
+      },
+      {
+        text: "Какое сравнение является строгим в JS?",
+        options: ["==", "=", "===", "<>", "equals()"],
+        correctIndex: 2,
+      },
+      {
+        text: "Тип данных для 'hello' — это:",
+        options: ["number", "string", "boolean", "object", "undefined"],
+        correctIndex: 1,
+      },
+      {
+        text: "Что вернёт typeof null?",
+        options: ["null", "undefined", "object", "number", "string"],
+        correctIndex: 2,
+      },
+      {
+        text: "Какое значение означает “нет значения” (по смыслу) чаще всего?",
+        options: ["0", "''", "null", "NaN", "false"],
+        correctIndex: 2,
+      },
+      {
+        text: "Как преобразовать строку в число (самый простой способ)?",
+        options: ["toString()", "Number(x)", "String(x)", "x++", "Boolean(x)"],
+        correctIndex: 1,
+      },
+      {
+        text: "Какая область видимости у let?",
+        options: ["Функциональная", "Блочная", "Глобальная всегда", "Только модульная", "Нет области"],
+        correctIndex: 1,
+      },
+      {
+        text: "Какая конструкция создаёт константу?",
+        options: ["var x", "let x", "const x", "x := ", "final x"],
+        correctIndex: 2,
+      },
+      {
+        text: "Что такое NaN?",
+        options: ["Число 0", "Не число", "Бесконечность", "Строка", "Объект"],
+        correctIndex: 1,
+      },
+      {
+        text: "Какая запись объявляет переменную x со значением 5?",
+        options: ["x == 5", "let x = 5", "let x == 5", "x := 5", "define x 5"],
+        correctIndex: 1,
+      },
+    ],
+    cs_conditions: [
+      {
+        text: "Конструкция ветвления в JS:",
+        options: ["for", "if/else", "switch только", "while", "map"],
+        correctIndex: 1,
+      },
+      {
+        text: "Логическое И — это оператор:",
+        options: ["||", "&&", "!", "??", "**"],
+        correctIndex: 1,
+      },
+      {
+        text: "Логическое ИЛИ — это оператор:",
+        options: ["||", "&&", "!", "??", "%"],
+        correctIndex: 0,
+      },
+      {
+        text: "Оператор отрицания:",
+        options: ["~", "!", "not", "&&", "||"],
+        correctIndex: 1,
+      },
+      {
+        text: "Что вернёт (5 > 3)?",
+        options: ["true", "false", "5", "3", "undefined"],
+        correctIndex: 0,
+      },
+      {
+        text: "Тернарный оператор выглядит как:",
+        options: ["a ?? b", "a ? b : c", "a && b", "a || b", "a -> b"],
+        correctIndex: 1,
+      },
+      {
+        text: "Что выполнится, если условие истинно?",
+        options: [
+          "Только else",
+          "Только if-блок",
+          "Ничего",
+          "Всегда оба",
+          "Только switch",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Для нескольких ветвей часто используют:",
+        options: ["if/else if/else", "for", "map", "filter", "reduce"],
+        correctIndex: 0,
+      },
+      {
+        text: "Строгое неравенство:",
+        options: ["!=", "!==", "==", "=", "<>"],
+        correctIndex: 1,
+      },
+      {
+        text: "switch сравнивает значение с case с помощью:",
+        options: ["==", "===", "!=", "<", ">"],
+        correctIndex: 1,
+      },
+    ],
+    cs_loops_arrays: [
+      {
+        text: "Массив в JS создаётся как:",
+        options: ["{}", "[]", "()", "<>", "array()"],
+        correctIndex: 1,
+      },
+      {
+        text: "Цикл for...of удобен для:",
+        options: ["Объектов", "Массивов/итераторов", "Чисел", "Строк только", "Функций"],
+        correctIndex: 1,
+      },
+      {
+        text: "Длина массива хранится в свойстве:",
+        options: ["size", "count", "length", "len", "total"],
+        correctIndex: 2,
+      },
+      {
+        text: "Добавить элемент в конец массива:",
+        options: ["push", "pop", "shift", "unshift", "slice"],
+        correctIndex: 0,
+      },
+      {
+        text: "Удалить элемент с конца массива:",
+        options: ["push", "pop", "shift", "unshift", "join"],
+        correctIndex: 1,
+      },
+      {
+        text: "Цикл while выполняется пока условие:",
+        options: ["Ложно", "Истинно", "Равно 0", "Равно 1", "Не определено"],
+        correctIndex: 1,
+      },
+      {
+        text: "Метод map возвращает:",
+        options: [
+          "Один элемент",
+          "Новый массив",
+          "Ничего",
+          "Объект",
+          "Строку",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Метод filter возвращает элементы, которые:",
+        options: [
+          "Всегда первые",
+          "Прошли условие",
+          "Не прошли условие",
+          "Отсортированы",
+          "Уникальны",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "break в цикле делает:",
+        options: ["Продолжает", "Выходит из цикла", "Пропускает итерацию", "Останавливает программу", "Ничего"],
+        correctIndex: 1,
+      },
+      {
+        text: "continue в цикле делает:",
+        options: ["Выходит из цикла", "Пропускает итерацию", "Перезапускает программу", "Удаляет массив", "Ничего"],
+        correctIndex: 1,
+      },
+    ],
+    cs_functions: [
+      {
+        text: "Функция в JS объявляется как:",
+        options: ["func x()", "function x()", "def x()", "fn x()", "lambda x"],
+        correctIndex: 1,
+      },
+      {
+        text: "Что делает return?",
+        options: ["Выводит в консоль", "Возвращает значение и завершает функцию", "Создаёт переменную", "Создаёт цикл", "Ничего"],
+        correctIndex: 1,
+      },
+      {
+        text: "Параметры функции — это:",
+        options: ["Возвращаемое значение", "Входные значения", "Циклы", "Типы", "Модули"],
+        correctIndex: 1,
+      },
+      {
+        text: "Аргументы — это:",
+        options: ["Что функция принимает при вызове", "Что функция возвращает", "Переменные внутри", "Ошибки", "Классы"],
+        correctIndex: 0,
+      },
+      {
+        text: "Стрелочная функция выглядит как:",
+        options: ["(a,b) => a+b", "function =>", "=> function()", "a -> b", "lambda a"],
+        correctIndex: 0,
+      },
+      {
+        text: "Замыкание — это когда функция:",
+        options: [
+          "Не имеет тела",
+          "Запоминает внешние переменные",
+          "Всегда возвращает 0",
+          "Всегда асинхронная",
+          "Всегда рекурсивная",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Рекурсия — это:",
+        options: [
+          "Цикл for",
+          "Вызов функции самой себя",
+          "Вызов console.log",
+          "Сортировка",
+          "Фильтрация",
+        ],
+        correctIndex: 1,
+      },
+      {
+        text: "Функция может возвращать:",
+        options: ["Только число", "Только строку", "Любой тип", "Только массив", "Только объект"],
+        correctIndex: 2,
+      },
+      {
+        text: "export function ... используется для:",
+        options: [
+          "Удаления функции",
+          "Импорта",
+          "Экспорта из модуля",
+          "Создания класса",
+          "Создания массива",
+        ],
+        correctIndex: 2,
+      },
+      {
+        text: "Если нет return, функция возвращает:",
+        options: ["0", "null", "undefined", "false", "''"],
+        correctIndex: 2,
+      },
+    ],
+    cs_strings: [
+      {
+        text: "Длина строки доступна через:",
+        options: ["size", "len", "length", "count", "total"],
+        correctIndex: 2,
+      },
+      {
+        text: "toLowerCase() делает строку:",
+        options: ["Верхним регистром", "Нижним регистром", "Без пробелов", "Числом", "Массивом"],
+        correctIndex: 1,
+      },
+      {
+        text: "split() возвращает:",
+        options: ["Число", "Массив", "Объект", "Функцию", "Boolean"],
+        correctIndex: 1,
+      },
+      {
+        text: "join() объединяет:",
+        options: ["Строки в число", "Массив в строку", "Число в строку", "Объект в массив", "Функции"],
+        correctIndex: 1,
+      },
+      {
+        text: "slice() используется для:",
+        options: ["Добавления", "Вырезания подстроки", "Сортировки", "Сравнения", "Перевода в число"],
+        correctIndex: 1,
+      },
+      {
+        text: "Конкатенация строк — это:",
+        options: ["Умножение", "Сложение/склейка", "Деление", "Сравнение", "Предел"],
+        correctIndex: 1,
+      },
+      {
+        text: "Шаблонные строки используют:",
+        options: ["' '", "\" \"", "` `", "( )", "{ }"],
+        correctIndex: 2,
+      },
+      {
+        text: "Интерполяция в шаблонных строках:",
+        options: ["${expr}", "#{expr}", "@{expr}", "<expr>", "(expr)"],
+        correctIndex: 0,
+      },
+      {
+        text: "includes(sub) проверяет:",
+        options: ["Равенство", "Содержит ли строка подстроку", "Длину", "Регистр", "Пробелы"],
+        correctIndex: 1,
+      },
+      {
+        text: "trim() делает что?",
+        options: ["Удаляет пробелы по краям", "Добавляет пробелы", "Меняет регистр", "Делает массив", "Делает число"],
+        correctIndex: 0,
+      },
+    ],
+    cs_objects: [
+      {
+        text: "Объект в JS создаётся как:",
+        options: ["[]", "{}", "()", "<>", "new Array()"],
+        correctIndex: 1,
+      },
+      {
+        text: "Доступ к полю obj.name делается через:",
+        options: ["obj(name)", "obj->name", "obj.name", "obj[name]()", "name.obj"],
+        correctIndex: 2,
+      },
+      {
+        text: "Как перебрать ключи объекта?",
+        options: ["for...of", "for...in", "while", "map", "filter"],
+        correctIndex: 1,
+      },
+      {
+        text: "JSON.stringify делает:",
+        options: ["Парсит JSON", "Преобразует объект в строку JSON", "Удаляет поля", "Сортирует", "Сравнивает"],
+        correctIndex: 1,
+      },
+      {
+        text: "JSON.parse делает:",
+        options: ["Преобразует объект в JSON", "Преобразует строку JSON в объект", "Сливает объекты", "Удаляет пробелы", "Вычисляет"],
+        correctIndex: 1,
+      },
+      {
+        text: "Массив — это тоже объект?",
+        options: ["Нет", "Да", "Только в TS", "Только в Python", "Никогда"],
+        correctIndex: 1,
+      },
+      {
+        text: "Как добавить новое поле в объект?",
+        options: ["obj.add(x)", "obj.x = 1", "push", "map", "split"],
+        correctIndex: 1,
+      },
+      {
+        text: "Object.keys(obj) возвращает:",
+        options: ["Число", "Массив ключей", "Объект", "Boolean", "Функцию"],
+        correctIndex: 1,
+      },
+      {
+        text: "Object.values(obj) возвращает:",
+        options: ["Массив значений", "Массив ключей", "Строку", "Число", "null"],
+        correctIndex: 0,
+      },
+      {
+        text: "Доступ к полю по строке key:",
+        options: ["obj.key", "obj[key]", "key[obj]", "obj->key", "obj::key"],
+        correctIndex: 1,
+      },
+    ],
+    cs_general: [],
+  }
+
+  if (banks[topicKey] && banks[topicKey].length >= 10) return banks[topicKey]
+
+  // fallback: choose a sensible default bank
+  if (String(topicKey).startsWith("math_")) return banks.math_limits
+  return banks.cs_variables
+}
+
+function seedLectureQuizzesForCourse(courseId) {
+  const course = module.exports.getCourseById(courseId)
+  if (!course) return
+
+  const category = course.category || "Computer Science"
+  const lectures = module.exports.getLectures(courseId)
+  lectures.forEach((lec) => {
+    try {
+      const existing = module.exports.getLectureQuizByLectureId(lec.id)
+      const ok =
+        existing &&
+        Array.isArray(existing.questions) &&
+        existing.questions.length >= 10 &&
+        existing.questions.every(
+          (q) => Array.isArray(q.options) && q.options.length >= 5,
+        )
+      if (ok) return
+
+      // recreate quiz for lecture
+      module.exports.deleteQuizByLecture(lec.id)
+
+      const quizTitle = `Тест по лекции: ${String(lec.title || "").replace(
+        /^\d+\.\s*/,
+        "",
+      )}`
+      const quiz = module.exports.upsertLectureQuiz(lec.id, quizTitle)
+      const topicKey = resolveLectureQuizTopic(category, lec.title)
+      const bank = getQuizBank(topicKey).slice(0, 10)
+
+      bank.forEach((q, qi) => {
+        const qId = uuidv4()
+        module.exports.createQuizQuestion({
+          id: qId,
+          quizId: quiz.id,
+          text: q.text,
+          ord: qi + 1,
+        })
+        q.options.slice(0, 5).forEach((optText, oi) => {
+          module.exports.createQuizOption({
+            id: uuidv4(),
+            questionId: qId,
+            text: optText,
+            isCorrect: oi === q.correctIndex,
+            ord: oi + 1,
+          })
+        })
+      })
+    } catch (e) {}
+  })
+}
+
 // Achievements должны быть всегда, даже если курс/задачи уже засидены
 seedAchievements()
 seedIfEmpty()
 seedProgrammingCourse()
+seedLectureQuizzesForCourse("higher-math")
+seedLectureQuizzesForCourse("programming-js")
