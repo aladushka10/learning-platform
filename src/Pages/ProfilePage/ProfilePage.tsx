@@ -11,8 +11,8 @@ import {
   IconSchool,
   IconFlame,
 } from "@tabler/icons-react"
-import { Button } from "../ui/button"
-import { Card, CardContent, CardHeader } from "../ui/card"
+import { Button } from "../../components/ui/button"
+import { Card, CardContent, CardHeader } from "../../components/ui/card"
 import { Loader } from "@mantine/core"
 import { renderAchievementIcon } from "../../utils/achievementIcons"
 

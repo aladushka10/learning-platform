@@ -78,6 +78,7 @@ function trackTaskOpen(userId, taskId) {
   }
 }
 
+
 function trackTaskAttempt(userId, taskId, success) {
   try {
     if (!userId || !taskId) return
@@ -294,12 +295,15 @@ app.post("/lectures/:id/quiz/submit", (req, res) => {
   const questions = Array.isArray(quiz.questions) ? quiz.questions : []
   const total = questions.length
 
+  const results = []
   let score = 0
   questions.forEach((q) => {
     const selectedOptionId = answers[q.id]
     const opts = Array.isArray(q.options) ? q.options : []
     const selected = opts.find((o) => o.id === selectedOptionId)
-    if (selected && selected.isCorrect === true) score++
+    const correct = !!(selected && selected.isCorrect === true)
+    if (correct) score++
+    results.push({ questionId: q.id, correct })
   })
 
   if (userId) {
@@ -318,7 +322,7 @@ app.post("/lectures/:id/quiz/submit", (req, res) => {
     }
   }
 
-  res.json({ ok: true, score, total })
+  res.json({ ok: true, score, total, results })
 })
 
 app.put("/lectures/:id", (req, res) => {
