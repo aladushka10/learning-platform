@@ -14,10 +14,10 @@ import ReactMarkdown from "react-markdown"
 import rehypeKatex from "rehype-katex"
 import remarkMath from "remark-math"
 import "katex/dist/katex.min.css"
-import { Button } from "../ui/button"
-import { Card, CardContent, CardHeader } from "../ui/card"
-import { Textarea } from "../ui/textarea"
-import { Badge } from "../ui/badge"
+import { Button } from "../../components/ui/button"
+import { Card, CardContent, CardHeader } from "../../components/ui/card"
+import { Textarea } from "../../components/ui/textarea"
+import { Badge } from "../../components/ui/badge"
 import {
   setSubmitting,
   setError,
@@ -33,16 +33,16 @@ import {
   createProgress,
   isAnswerCorrect,
   fetchLectureById,
-  trackTaskOpen,
   fetchTaskStats,
 } from "../../utils/api"
 import type { RootState } from "../../store"
+import { taskPageOpened } from "../../store/middlewares/trackTaskOpenMiddleware"
 import style from "./TaskSolverPage.module.scss"
-import AchievementBanner from "../AchievementBanner/AchievementBanner"
-import { AppButton } from "../AppButton/AppButton"
+import AchievementBanner from "../../components/AchievementBanner/AchievementBanner"
+import { AppButton } from "../../components/AppButton/AppButton"
 import { Loader, Title } from "@mantine/core"
-import { TaskBadges } from "../TaskBadges/TaskBadges"
-import { TaskSidebarCard } from "../TaskSidebar/TaskSidebarCard"
+import { TaskBadges } from "../../components/TaskBadges/TaskBadges"
+import { TaskSidebarCard } from "../../components/TaskSidebar/TaskSidebarCard"
 
 interface TaskData {
   id: string
@@ -220,7 +220,8 @@ const TaskSolverPage = () => {
           const stats = await fetchTaskStats(taskId)
           const failures = (stats.attempts || 0) - (stats.successes || 0)
           const shouldRecommend =
-            ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+            ((stats.successes || 0) == 0 && (stats.opens || 0) >= 4) ||
+            ((stats.successes || 0) == 0 && (stats.attempts || 0) >= 2) ||
             failures >= 2
           setShowQuizRecommendation(shouldRecommend)
         }
@@ -245,21 +246,24 @@ const TaskSolverPage = () => {
   }
 
   useEffect(() => {
-    if (!courseId || !taskId) return
+    if (!courseId || !taskId || !userIdFromStore) return
+
+    dispatch(taskPageOpened({ userId: userIdFromStore, taskId }))
+
     ;(async () => {
-      await trackTaskOpen(userIdFromStore, taskId!)
       try {
         const stats = await fetchTaskStats(taskId!)
         const failures = (stats.attempts || 0) - (stats.successes || 0)
         const shouldRecommend =
-          ((stats.opens || 0) >= 6 && (stats.attempts || 0) === 0) ||
+          ((stats.successes || 0) == 0 && (stats.opens || 0) >= 4) ||
+          ((stats.successes || 0) == 0 && (stats.attempts || 0) >= 2) ||
           failures >= 2
         setShowQuizRecommendation(shouldRecommend)
       } catch {
         // best-effort
       }
     })()
-  }, [courseId, taskId, userIdFromStore])
+  }, [courseId, taskId, userIdFromStore, dispatch])
 
   if (loading) {
     return (

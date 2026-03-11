@@ -27,14 +27,14 @@ import {
   fetchLectures,
   fetchTask,
   fetchTaskStats,
-  trackTaskOpen,
 } from "../../utils/api"
-import { AppButton } from "../AppButton/AppButton"
-import { TaskBadges } from "../TaskBadges/TaskBadges"
+import { AppButton } from "../../components/AppButton/AppButton"
+import { TaskBadges } from "../../components/TaskBadges/TaskBadges"
 import { useQueryClient } from "@tanstack/react-query"
-import { useSelector } from "react-redux"
-import { SubmitButton } from "../SubmitButton/SubmitButton"
-import { TaskSidebarCard } from "../TaskSidebar/TaskSidebarCard"
+import { useDispatch, useSelector } from "react-redux"
+import { taskPageOpened } from "../../store/middlewares/trackTaskOpenMiddleware"
+import { SubmitButton } from "../../components/SubmitButton/SubmitButton"
+import { TaskSidebarCard } from "../../components/TaskSidebar/TaskSidebarCard"
 
 type CodeTestCase = {
   name?: string
@@ -77,6 +77,7 @@ type RunResult = {
 const CodeTaskPage = () => {
   const { courseId, taskId } = useParams<{ courseId: string; taskId: string }>()
   const navigate = useNavigate()
+  const dispatch = useDispatch()
   const queryClient = useQueryClient()
   const userId = useSelector((state: any) => state.signIn?.userId) as
     | string
@@ -169,21 +170,24 @@ const CodeTaskPage = () => {
   const solved = hasResults && total > 0 && passed === total
 
   useEffect(() => {
-    if (!courseId || !taskId) return
+    if (!courseId || !taskId || !userId) return
+
+    dispatch(taskPageOpened({ userId, taskId }))
+
     ;(async () => {
-      await trackTaskOpen(userId, taskId!)
       try {
         const stats = await fetchTaskStats(taskId!)
         const failures = (stats.attempts || 0) - (stats.successes || 0)
         const shouldRecommend =
-          ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+          ((stats.successes || 0) == 0 && (stats.opens || 0) >= 4) ||
+          ((stats.successes || 0) == 0 && (stats.attempts || 0) >= 2) ||
           failures >= 2
         setShowQuizRecommendation(shouldRecommend)
       } catch {
         // best-effort
       }
     })()
-  }, [courseId, taskId, userId])
+  }, [courseId, taskId, userId, dispatch])
 
   const handleRun = async () => {
     setRunError(null)
@@ -261,7 +265,8 @@ const CodeTaskPage = () => {
         const stats = await fetchTaskStats(taskId)
         const failures = (stats.attempts || 0) - (stats.successes || 0)
         const shouldRecommend =
-          ((stats.opens || 0) >= 3 && (stats.attempts || 0) === 0) ||
+          ((stats.successes || 0) == 0 && (stats.opens || 0) >= 4) ||
+          ((stats.successes || 0) == 0 && (stats.attempts || 0) >= 2) ||
           failures >= 2
         setShowQuizRecommendation(shouldRecommend)
       }

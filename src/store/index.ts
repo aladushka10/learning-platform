@@ -11,6 +11,7 @@ import userSlice from "./userSlice"
 import orderSlice from "./orderSlice"
 import solutionSlice from "./solutionSlice"
 import progressSlice from "./progressSlice"
+import { trackTaskOpenMiddleware } from "./middlewares/trackTaskOpenMiddleware"
 
 export default configureStore({
   reducer: {
@@ -26,5 +27,8 @@ export default configureStore({
     order: orderSlice,
     solution: solutionSlice,
     progress: progressSlice,
+  },
+  middleware(getDefaultMiddleware) {
+    return getDefaultMiddleware().concat(trackTaskOpenMiddleware)
   },
 })
