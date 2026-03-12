@@ -1,13 +1,13 @@
-const BASE_URL = "/api"
+import { QUIZ_BASE_URL, QUIZ_ENDPOINTS } from "./quiz.constants"
 import { QuizSchema, QuizSubmitResultSchema } from "./quiz.contract"
 import type { Quiz, QuizSubmitResult } from "./quiz.type"
 
 export class QuizService {
-  private static baseURL = BASE_URL
+  private static baseURL = QUIZ_BASE_URL
 
   static async getByLectureId(lectureId: string): Promise<Quiz> {
     const res = await fetch(
-      `${QuizService.baseURL}/lectures/${lectureId}/quiz`,
+      `${QuizService.baseURL}${QUIZ_ENDPOINTS.byLectureId(lectureId)}`,
       { credentials: "include" },
     )
     if (!res.ok) throw new Error("Не удалось загрузить тест")
@@ -21,7 +21,7 @@ export class QuizService {
     userId?: string,
   ): Promise<QuizSubmitResult> {
     const res = await fetch(
-      `${QuizService.baseURL}/lectures/${lectureId}/quiz/submit`,
+      `${QuizService.baseURL}${QUIZ_ENDPOINTS.submit(lectureId)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

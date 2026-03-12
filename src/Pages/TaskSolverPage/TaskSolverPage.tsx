@@ -249,7 +249,6 @@ const TaskSolverPage = () => {
     if (!courseId || !taskId || !userIdFromStore) return
 
     dispatch(taskPageOpened({ userId: userIdFromStore, taskId }))
-
     ;(async () => {
       try {
         const stats = await fetchTaskStats(taskId!)

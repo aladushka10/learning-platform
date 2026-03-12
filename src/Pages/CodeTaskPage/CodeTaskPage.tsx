@@ -23,11 +23,7 @@ import {
   Title,
 } from "@mantine/core"
 import Editor from "@monaco-editor/react"
-import {
-  fetchLectures,
-  fetchTask,
-  fetchTaskStats,
-} from "../../utils/api"
+import { fetchLectures, fetchTask, fetchTaskStats } from "../../utils/api"
 import { AppButton } from "../../components/AppButton/AppButton"
 import { TaskBadges } from "../../components/TaskBadges/TaskBadges"
 import { useQueryClient } from "@tanstack/react-query"
@@ -173,7 +169,6 @@ const CodeTaskPage = () => {
     if (!courseId || !taskId || !userId) return
 
     dispatch(taskPageOpened({ userId, taskId }))
-
     ;(async () => {
       try {
         const stats = await fetchTaskStats(taskId!)
@@ -309,7 +304,7 @@ const CodeTaskPage = () => {
   const meta = task.meta || {}
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 py-16">
       <Container fluid px="lg">
         <div className="mx-auto max-w-[1400px]">
           <Group justify="space-between" mb="md">
