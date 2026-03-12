@@ -1,3 +1,10 @@
+@import url("https://fonts.googleapis.com/css2?family=Bungee+Shade&display=swap");
+
+.lp-logo {
+  font-family: "Bungee Shade", system-ui, sans-serif;
+  letter-spacing: 0.06em;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

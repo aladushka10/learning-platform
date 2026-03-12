@@ -77,6 +77,9 @@ const SignUp = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-xl">
+        <p className="lp-logo mb-6 block text-center text-5xl text-blue-500 hover:text-blue-600  ">
+          LP
+        </p>
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
           {/* Back */}
           <button
@@ -110,7 +113,9 @@ const SignUp = () => {
                 placeholder="John"
                 name="firstName"
                 value={formData.firstName}
-                onChange={(e) => handleFieldChange("firstName", e.currentTarget.value)}
+                onChange={(e) =>
+                  handleFieldChange("firstName", e.currentTarget.value)
+                }
                 required
                 radius="lg"
               />
@@ -120,7 +125,9 @@ const SignUp = () => {
                 placeholder="Doe"
                 name="lastName"
                 value={formData.lastName}
-                onChange={(e) => handleFieldChange("lastName", e.currentTarget.value)}
+                onChange={(e) =>
+                  handleFieldChange("lastName", e.currentTarget.value)
+                }
                 radius="lg"
               />
             </div>
@@ -131,7 +138,9 @@ const SignUp = () => {
               placeholder="your@email.com"
               name="email"
               value={formData.email}
-              onChange={(e) => handleFieldChange("email", e.currentTarget.value)}
+              onChange={(e) =>
+                handleFieldChange("email", e.currentTarget.value)
+              }
               required
               radius="lg"
             />
@@ -143,7 +152,9 @@ const SignUp = () => {
                 placeholder="At least 6 characters"
                 name="password"
                 value={formData.password}
-                onChange={(e) => handleFieldChange("password", e.currentTarget.value)}
+                onChange={(e) =>
+                  handleFieldChange("password", e.currentTarget.value)
+                }
                 required
                 radius="lg"
               />
