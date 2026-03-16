@@ -64,6 +64,9 @@ const SignIn = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-lg">
+        <p className="lp-logo mb-6 block text-center text-5xl text-blue-500 hover:text-blue-600  ">
+          LP
+        </p>
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
           <div className="mb-8">
             <Title order={2}>Welcome back</Title>

@@ -1,14 +1,21 @@
+import { useEffect, useState } from "react"
 import {
   IconTrophy,
   IconTarget,
   IconFlame,
   IconTrendingUp,
 } from "@tabler/icons-react"
-import { Card, CardContent, CardHeader } from "../ui/card"
-import { Progress } from "../ui/progress"
+import {
+  Card,
+  Group,
+  Progress,
+  Skeleton,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+} from "@mantine/core"
 import type { Task } from "../../App"
-import { useEffect, useState } from "react"
-import AchievementBanner from "../AchievementBanner/AchievementBanner"
 import { renderAchievementIcon } from "../../utils/achievementIcons"
 
 interface UserStats {
@@ -33,6 +40,8 @@ interface ProgressPanelProps {
     unlockedAt?: number | null
   } | null
   onRecentAchievementClose?: () => void
+  userStatsLoading?: boolean
+  tasksLoading?: boolean
 }
 
 export function ProgressPanel({
@@ -40,6 +49,8 @@ export function ProgressPanel({
   userStats,
   recentAchievement,
   onRecentAchievementClose,
+  userStatsLoading = false,
+  tasksLoading = false,
 }: ProgressPanelProps) {
   const [banner, setBanner] = useState<{
     id: string
@@ -49,15 +60,51 @@ export function ProgressPanel({
   } | null>(null)
 
   useEffect(() => {
-    if (recentAchievement) {
-      setBanner({
-        id: recentAchievement.id,
-        name: recentAchievement.name,
-        description: recentAchievement.description,
-        icon: recentAchievement.icon,
-      })
-    }
-  }, [recentAchievement?.id])
+    if (!recentAchievement) return
+    setBanner({
+      id: recentAchievement.id,
+      name: recentAchievement.name,
+      description: recentAchievement.description,
+      icon: recentAchievement.icon,
+    })
+  }, [recentAchievement])
+
+  useEffect(() => {
+    if (!banner) return
+    const t = setTimeout(() => {
+      setBanner(null)
+      onRecentAchievementClose?.()
+    }, 6000)
+    return () => clearTimeout(t)
+  }, [banner, onRecentAchievementClose])
+
+  const isLoadingAll = tasksLoading || userStatsLoading
+
+  if (isLoadingAll) {
+    return (
+      <Stack w={350} gap="lg" flex="0 0 auto">
+        <Card withBorder radius="md" p="xl">
+          <Stack gap="md">
+            <Group gap="xs">
+              <ThemeIcon variant="light" color="blue" radius="md" size="md">
+                <IconTrendingUp size={18} />
+              </ThemeIcon>
+              <Title order={5} fw={600}>
+                Ваш прогресс
+              </Title>
+            </Group>
+            <Text size="sm" c="dimmed">
+              Данные о задачах и достижениях ещё загружаются. Это может занять
+              пару секунд.
+            </Text>
+            <Skeleton height={12} width="80%" radius="xl" />
+            <Skeleton height={12} width="60%" radius="xl" />
+          </Stack>
+        </Card>
+      </Stack>
+    )
+  }
+
   const completedTasks = tasks.filter((t) => t.completed).length
   const totalTasks = tasks.length
   const progressPercentage =
@@ -72,168 +119,259 @@ export function ProgressPanel({
   const achievementsUnlocked =
     userStats?.achievements?.filter((a) => a.unlockedAt != null).length ?? 0
   const achievementsTotal =
-    (userStats?.achievements?.length ?? 0) > 0 ? userStats!.achievements!.length : 3
+    (userStats?.achievements?.length ?? 0) > 0
+      ? userStats!.achievements!.length
+      : 3
 
-  const stats = [
-    {
-      icon: IconTarget,
-      label: "Задач выполнено",
-      value: completedTasks,
-      total: totalTasks,
-      color: "text-blue-600",
-    },
-    {
-      icon: IconFlame,
-      label: "Дней подряд",
-      value: String(streakDays),
-      total: "дней",
-      color: "text-orange-500",
-    },
-    {
-      icon: IconTrophy,
-      label: "Достижения",
-      value: String(achievementsUnlocked),
-      total: achievementsTotal,
-      color: "text-yellow-600",
-    },
-  ]
+  const showSkeleton = tasksLoading || userStatsLoading
 
   return (
-    <div className="w-80 space-y-4 flex-shrink-0">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <IconTrendingUp className="w-5 h-5 text-blue-600" />
-            <h2 className="text-gray-900">Ваш прогресс</h2>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700">Общий прогресс</span>
-              <span className="text-gray-900">
-                {Math.round(progressPercentage)}%
-              </span>
-            </div>
-            <Progress value={progressPercentage} className="h-2" />
-            <p className="text-gray-500 mt-2">
-              {completedTasks} из {totalTasks} задач выполнено
-            </p>
-          </div>
+    <Stack w={350} gap="lg" flex="0 0 auto">
+      <Card withBorder radius="md" p="xl">
+        <Stack gap="lg">
+          <Group gap="xs">
+            <ThemeIcon variant="light" color="blue" radius="md" size="md">
+              <IconTrendingUp size={18} />
+            </ThemeIcon>
+            <Title order={5} fw={600}>
+              Ваш прогресс
+            </Title>
+          </Group>
 
-          <div className="space-y-4">
-            {stats.map((stat) => (
-              <div key={stat.label} className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-lg bg-gray-50 flex items-center justify-center ${stat.color}`}
-                >
-                  <stat.icon className="w-5 h-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-gray-700">{stat.label}</p>
-                  <p className="text-gray-900">
-                    {stat.value}{" "}
-                    {typeof stat.total === "string"
-                      ? stat.total
-                      : `/ ${stat.total}`}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          <AchievementBanner
-            achievement={banner}
-            onClose={() => {
-              setBanner(null)
-              onRecentAchievementClose?.()
-            }}
-          />
-        </CardContent>
+          {banner && (
+            <Card withBorder radius="md" p="sm" bg="blue.0">
+              <Stack gap={2}>
+                <Text fw={600}>Достижение получено!</Text>
+                <Group gap="sm" wrap="nowrap" align="flex-start">
+                  <Text size="lg">
+                    {renderAchievementIcon(banner.icon, true, 28)}
+                  </Text>
+                  <Stack gap={0} style={{ flex: 1 }}>
+                    <Text fw={600}>{banner.name}</Text>
+                    <Text size="sm" c="dimmed">
+                      {banner.description}
+                    </Text>
+                  </Stack>
+                </Group>
+              </Stack>
+            </Card>
+          )}
+
+          <Stack gap="sm">
+            <Group justify="space-between">
+              <Text size="sm" c="dark">
+                Общий прогресс
+              </Text>
+              {showSkeleton ? (
+                <Skeleton height={14} width={35} radius="xl" />
+              ) : (
+                <Text size="sm" fw={600}>
+                  {Math.round(progressPercentage)}%
+                </Text>
+              )}
+            </Group>
+            {showSkeleton ? (
+              <Skeleton height={10} radius="xl" />
+            ) : (
+              <Progress value={progressPercentage} size="sm" />
+            )}
+            {showSkeleton ? (
+              <Skeleton height={16} width={180} mt="16" radius="sm" />
+            ) : (
+              <Text size="sm">
+                {completedTasks} из {totalTasks} задач выполнено
+              </Text>
+            )}
+          </Stack>
+
+          <Stack gap="sm">
+            <Group gap="sm" justify="space-between" align="center">
+              <Group gap="xs">
+                <ThemeIcon variant="light" color="blue" radius="md" size="md">
+                  <IconTarget size={18} />
+                </ThemeIcon>
+                <Text size="sm" m="0" c="dark">
+                  Задач выполнено
+                </Text>
+              </Group>
+              {showSkeleton ? (
+                <Skeleton height={14} width={35} radius="md" />
+              ) : (
+                <Text size="sm" m="0" fw={500}>
+                  {completedTasks} / {totalTasks}
+                </Text>
+              )}
+            </Group>
+
+            <Group gap="sm" justify="space-between">
+              <Group gap="xs">
+                <ThemeIcon variant="light" color="orange" radius="md" size="md">
+                  <IconFlame size={18} />
+                </ThemeIcon>
+                <Text size="sm" m="0" c="dark">
+                  Дней подряд
+                </Text>
+              </Group>
+              {showSkeleton ? (
+                <Skeleton height={14} width={35} radius="md" />
+              ) : (
+                <Text size="sm" m="0" fw={500}>
+                  {streakDays}
+                </Text>
+              )}
+            </Group>
+
+            <Group gap="sm" justify="space-between">
+              <Group gap="xs">
+                <ThemeIcon variant="light" color="yellow" radius="md" size="md">
+                  <IconTrophy size={18} />
+                </ThemeIcon>
+                <Text size="sm" m="0" c="dark">
+                  Достижения
+                </Text>
+              </Group>
+              {showSkeleton ? (
+                <Skeleton height={14} width={35} radius="md" />
+              ) : (
+                <Text size="sm" m="0" fw={500}>
+                  {achievementsUnlocked} / {achievementsTotal}
+                </Text>
+              )}
+            </Group>
+          </Stack>
+        </Stack>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <h3 className="text-gray-900">По категориям</h3>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700">Математика</span>
-              <span className="text-gray-600">
-                {completedMath}/{mathTasks.length}
-              </span>
-            </div>
-            <Progress
-              value={
-                mathTasks.length > 0
-                  ? (completedMath / mathTasks.length) * 100
-                  : 0
-              }
-              className="h-2"
-            />
-          </div>
+      <Card withBorder radius="md" p="xl">
+        <Stack gap="sm">
+          <Title order={5} fw={600}>
+            По категориям
+          </Title>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-gray-700">Информатика</span>
-              <span className="text-gray-600">
-                {completedCS}/{csTasks.length}
-              </span>
-            </div>
-            <Progress
-              value={
-                csTasks.length > 0 ? (completedCS / csTasks.length) * 100 : 0
-              }
-              className="h-2"
-            />
-          </div>
-        </CardContent>
+          <Stack gap="md" p="sm">
+            <Stack gap={6}>
+              <Group justify="space-between">
+                <Text size="sm" m="0" c="dark">
+                  Математика
+                </Text>
+                {showSkeleton ? (
+                  <Skeleton height={14} width={35} radius="md" my="4" />
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    {completedMath}/{mathTasks.length}
+                  </Text>
+                )}
+              </Group>
+              {showSkeleton ? (
+                <Skeleton height={10} radius="xl" my="4" />
+              ) : (
+                <Progress
+                  value={
+                    mathTasks.length > 0
+                      ? (completedMath / mathTasks.length) * 100
+                      : 0
+                  }
+                  size="sm"
+                />
+              )}
+            </Stack>
+
+            <Stack gap={6}>
+              <Group justify="space-between">
+                <Text size="sm" m="0" c="dark">
+                  Информатика
+                </Text>
+                {showSkeleton ? (
+                  <Skeleton height={14} width={35} radius="md" />
+                ) : (
+                  <Text size="sm" c="dimmed">
+                    {completedCS}/{csTasks.length}
+                  </Text>
+                )}
+              </Group>
+              {showSkeleton ? (
+                <Skeleton height={10} radius="xl" m="8" />
+              ) : (
+                <Progress
+                  value={
+                    csTasks.length > 0
+                      ? (completedCS / csTasks.length) * 100
+                      : 0
+                  }
+                  size="sm"
+                />
+              )}
+            </Stack>
+          </Stack>
+        </Stack>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <h3 className="text-gray-900">Достижения</h3>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {(userStats?.achievements ?? []).length === 0 ? (
-            <p className="text-sm text-gray-500">
+      <Card withBorder radius="md" p="xl">
+        <Stack gap="lg">
+          <Title order={5} fw={600}>
+            Достижения
+          </Title>
+          {showSkeleton ? (
+            Array.from({ length: 3 }).map((_, idx) => (
+              <Card
+                key={idx}
+                radius="md"
+                p="md"
+                withBorder
+                style={{ backgroundColor: "#f9fafb" }}
+              >
+                <Group align="flex-start" gap="md" wrap="nowrap">
+                  <Skeleton height={24} width={24} radius="xl" />
+                  <Stack gap={8} style={{ flex: 1 }}>
+                    <Skeleton height={12} width="70%" radius="md" />
+                    <Skeleton height={10} width="90%" radius="md" />
+                    <Skeleton height={10} width="55%" radius="md" />
+                  </Stack>
+                </Group>
+              </Card>
+            ))
+          ) : (userStats?.achievements ?? []).length === 0 ? (
+            <Text size="sm" c="dimmed">
               Решайте задачи, чтобы открывать достижения.
-            </p>
+            </Text>
           ) : (
             (userStats?.achievements ?? []).slice(0, 3).map((a) => (
-              <div
+              <Card
                 key={a.id}
-                className={`flex items-start gap-3 rounded-lg border p-3 ${
-                  a.unlockedAt
-                    ? "bg-amber-50 border-amber-200"
-                    : "bg-gray-50 border-gray-200 opacity-80"
-                }`}
+                radius="md"
+                p="sm"
+                withBorder
+                bg={a.unlockedAt ? "yellow.0" : "gray.0"}
               >
-                <div className="text-2xl leading-none">
-                  {renderAchievementIcon(
-                    a.icon,
-                    a.unlockedAt != null,
-                    24,
-                    a.unlockedAt ? "text-amber-600" : "text-gray-500",
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {a.name}
-                  </p>
-                  <p className="text-xs text-gray-600">{a.description}</p>
-                  {a.unlockedAt && (
-                    <p className="text-xs text-amber-700 mt-1">
-                      Получено{" "}
-                      {new Date(a.unlockedAt).toLocaleDateString("ru-RU")}
-                    </p>
-                  )}
-                </div>
-              </div>
+                <Group align="flex-start" gap="sm" wrap="nowrap">
+                  <Text size="lg" m="0">
+                    {renderAchievementIcon(
+                      a.icon,
+                      a.unlockedAt != null,
+                      24,
+                      a.unlockedAt ? "text-amber-600" : "text-gray-500",
+                    )}
+                  </Text>
+                  <Stack gap={2} style={{ flex: 1 }}>
+                    <Text size="sm" m="0" fw={600} c="dark">
+                      {a.name}
+                    </Text>
+                    <Text size="xs" m="0" c="dimmed">
+                      {a.description}
+                    </Text>
+                    {a.unlockedAt && (
+                      <Text size="xs" m="0" c="yellow.9">
+                        Получено{" "}
+                        {new Date(a.unlockedAt).toLocaleDateString("ru-RU")}
+                      </Text>
+                    )}
+                  </Stack>
+                </Group>
+              </Card>
             ))
           )}
-        </CardContent>
+        </Stack>
       </Card>
-    </div>
+    </Stack>
   )
 }

@@ -24,8 +24,8 @@ import QuizPage from "./Pages/QuizPage/QuizPage"
 import SignIn from "./Pages/SignIn/SignIn"
 import SignUp from "./Pages/SignUp/SignUp"
 import { hydrateAuth } from "./store/signInSlice"
-import { useUserProgress } from "./hooks/useUserProgress"
 import { Loader, Skeleton, Title } from "@mantine/core"
+import { useUserProgress } from "./services/progress/progress.hooks"
 
 export interface Task {
   id: string
@@ -67,7 +67,6 @@ const resolveLectureTitle = (
   return fallbackLectureId ? lectureTitleByTopic[fallbackLectureId] : null
 }
 
-// Protected route component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const auth = useSelector((state: any) => state.signIn?.auth) as boolean
   const initialized = useSelector(
@@ -115,15 +114,18 @@ function TasksPage() {
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
-  // Только прогресс пользователя грузим через React Query
-  const { data: statsData } = useUserProgress(effectiveUserId)
+  const { data: statsData, isLoading: progressLoading } =
+    useUserProgress(effectiveUserId)
 
-  const userStats = effectiveUserId
-    ? {
-        streakDays: statsData?.streakDays ?? 0,
-        achievements: statsData?.achievements ?? [],
-      }
-    : null
+  const userStats =
+    effectiveUserId && statsData
+      ? {
+          streakDays: statsData.streakDays ?? 0,
+          achievements: statsData.achievements ?? [],
+        }
+      : null
+  const progressPanelLoading =
+    loading || (!!effectiveUserId && (!statsData || progressLoading))
 
   useEffect(() => {
     // load courses
@@ -290,7 +292,7 @@ function TasksPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
-                    {Array.from({ length: 6 }).map((_, idx) => (
+                    {Array.from({ length: 12 }).map((_, idx) => (
                       <div
                         key={idx}
                         className="relative w-full h-[240px]"
@@ -440,6 +442,8 @@ function TasksPage() {
               userStats={userStats}
               recentAchievement={recentAchievement}
               onRecentAchievementClose={() => setRecentAchievement(null)}
+              userStatsLoading={progressPanelLoading}
+              tasksLoading={progressPanelLoading}
             />
           </div>
         </main>
