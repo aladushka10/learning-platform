@@ -18,6 +18,7 @@ import { Footer } from "./components/Footer/Footer"
 import TaskSolverPage from "./Pages/TaskSolverPage/TaskSolverPage"
 import CodeTaskPage from "./Pages/CodeTaskPage/CodeTaskPage"
 import LecturePage from "./Pages/LecturePage/LecturePage"
+import TheoryPage from "./Pages/TheoryPage/TheoryPage"
 import ProfilePage from "./Pages/ProfilePage/ProfilePage"
 import AchievementsPage from "./Pages/AchievementsPage/AchievementsPage"
 import QuizPage from "./Pages/QuizPage/QuizPage"
@@ -126,6 +127,14 @@ function TasksPage() {
       : null
   const progressPanelLoading =
     loading || (!!effectiveUserId && (!statsData || progressLoading))
+  console.log(
+    "xui",
+    progressLoading,
+    loading,
+    !!effectiveUserId,
+    !statsData,
+    progressLoading,
+  )
 
   useEffect(() => {
     // load courses
@@ -501,6 +510,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <LecturePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/theory"
+          element={
+            <ProtectedRoute>
+              <TheoryPage />
             </ProtectedRoute>
           }
         />

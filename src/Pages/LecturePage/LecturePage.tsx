@@ -9,6 +9,7 @@ import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
+import { AppButton } from "../../components/AppButton/AppButton"
 
 interface LectureData {
   id: string
@@ -88,13 +89,16 @@ const LecturePage = () => {
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
-          <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
+          <AppButton
+            variant="subtle"
+            size="md"
+            leftSection={<IconArrowLeft size={20} />}
+            onClick={() => {
+              navigate(-1)
+            }}
           >
-            <IconArrowLeft size={20} />
             Вернуться
-          </button>
+          </AppButton>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <IconBook size={24} className="text-purple-600" />
             {lecture.title}

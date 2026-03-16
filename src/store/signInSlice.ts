@@ -1,6 +1,7 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit"
 import { fetchUserProfile } from "./userSlice"
 import { signUpUser } from "./signUpSlice"
+import { AuthService } from "../services/auth/auth.service"
 
 interface Credentials {
   email: string
@@ -33,40 +34,23 @@ export const signInUser = createAsyncThunk(
   "signIn/signInUser",
   async (credentials: Credentials, { rejectWithValue }) => {
     try {
-      const res = await fetch("/api/auth/sign-in", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          email: credentials.email,
-          password: credentials.password,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        return rejectWithValue(
-          data?.detail || data?.message || "Sign-in failed"
-        )
-      }
-      return { ...data, email: credentials.email }
+      return await AuthService.signIn(credentials)
     } catch (e: any) {
       return rejectWithValue(e.message || "Network error")
     }
-  }
+  },
 )
 
 export const hydrateAuth = createAsyncThunk(
   "signIn/hydrateAuth",
   async (_, { rejectWithValue }) => {
     try {
-      const res = await fetch("/api/auth/me", { credentials: "include" })
-      if (!res.ok) return { auth: false }
-      const user = await res.json()
+      const user = await AuthService.getSession()
       return { auth: true, user }
     } catch (e: any) {
       return rejectWithValue(e.message || "error")
     }
-  }
+  },
 )
 
 export const loginAndFetchUser = createAsyncThunk(
@@ -81,19 +65,14 @@ export const loginAndFetchUser = createAsyncThunk(
     } catch (error: any) {
       return rejectWithValue(error.message || "Login failed")
     }
-  }
+  },
 )
 
 export const signOut = createAsyncThunk(
   "signIn/signOut",
   async (_, { rejectWithValue }) => {
     try {
-      const res = await fetch("/api/auth/sign-out", {
-        method: "POST",
-        credentials: "include",
-      })
-      if (!res.ok) return rejectWithValue("Sign-out failed")
-      return { ok: true }
+      return await AuthService.signOut()
     } catch (e: any) {
       return rejectWithValue(e.message || "Network error")
     }
@@ -143,9 +122,8 @@ const signInSlice = createSlice({
         state.isLoading = false
         state.initialized = true
         state.auth = true
-        state.username = action.payload?.email || state.username
-
         if (action.payload?.userDetails) {
+          state.username = action.payload.userDetails.email || state.username
           state.firstName = action.payload.userDetails.firstName || null
           state.lastName = action.payload.userDetails.lastName || null
           state.userId = action.payload.userDetails.id || null
