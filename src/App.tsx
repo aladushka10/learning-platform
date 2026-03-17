@@ -127,14 +127,6 @@ function TasksPage() {
       : null
   const progressPanelLoading =
     loading || (!!effectiveUserId && (!statsData || progressLoading))
-  console.log(
-    "xui",
-    progressLoading,
-    loading,
-    !!effectiveUserId,
-    !statsData,
-    progressLoading,
-  )
 
   useEffect(() => {
     // load courses

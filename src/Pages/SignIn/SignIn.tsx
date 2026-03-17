@@ -70,7 +70,7 @@ const SignIn = () => {
   return (
     <Container size={680} className="min-h-screen flex items-center py-12">
       <Stack gap="lg" className="w-full" p="46">
-        <Image src={logoSrc} alt="LP" h={48} fit="contain" />
+        <Image src={logoSrc} alt="LP" h={100} fit="contain" />
 
         <Paper
           withBorder
