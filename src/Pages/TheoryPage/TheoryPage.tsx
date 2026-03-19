@@ -13,10 +13,13 @@ import {
 } from "@mantine/core"
 import { IconArrowLeft, IconBook2, IconChevronRight } from "@tabler/icons-react"
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { fetchLectures, fetchLectureById } from "../../utils/api"
 import { AppButton } from "../../components/AppButton/AppButton"
-import removeMarkdown from "remove-markdown"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
+import remarkMath from "remark-math"
+import rehypeKatex from "rehype-katex"
 
 interface LectureListItem {
   id: string
@@ -28,10 +31,13 @@ interface LectureListItem {
 
 const TheoryPage = () => {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [lectures, setLectures] = useState<LectureListItem[]>([])
+  const { courseId, taskId } = useParams<{ courseId: string; taskId: string }>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [categoryFilter, setCategoryFilter] = useState<"math" | "cs">("math")
+
+  const currentFilter = searchParams.get("type") === "cs" ? "cs" : "math"
 
   useEffect(() => {
     const loadAllLectures = async () => {
@@ -102,23 +108,25 @@ const TheoryPage = () => {
   }, [])
 
   const handleOpenLecture = (lecture: LectureListItem) => {
-    navigate(`/lecture/${lecture.id}`, {
-      state: lecture.content
-        ? {
-            lecture: {
-              id: lecture.id,
-              title: lecture.title,
-              content: lecture.content,
-            },
-          }
-        : undefined,
+    navigate(`/lecture/${lecture.id}?type=${currentFilter}`, {
+      state: {
+        from: "theory",
+        ...(lecture.content
+          ? {
+              lecture: {
+                id: lecture.id,
+                title: lecture.title,
+                content: lecture.content,
+              },
+            }
+          : {}),
+      },
     })
   }
 
   const filteredLectures = lectures.filter(
-    (l) => (l.category || "math") === categoryFilter,
+    (l) => (l.category || "math") === currentFilter,
   )
-
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Container size="lg" py="xl" className="flex-1 flex flex-col">
@@ -132,7 +140,8 @@ const TheoryPage = () => {
                 size="md"
                 leftSection={<IconArrowLeft size={20} />}
                 onClick={() => {
-                  navigate(-1)
+                  navigate(`/?course=${courseId || ""}`)
+                  window.scrollTo(0, 0)
                 }}
               >
                 Вернуться
@@ -150,12 +159,14 @@ const TheoryPage = () => {
             className="flex-1 bg-white border-gray-100 shadow-sm flex flex-col"
           >
             {loading ? (
-              <Group justify="center" py="xl">
-                <Loader />
-                <Text c="dimmed" size="sm">
-                  Загрузка лекций...
-                </Text>
-              </Group>
+              <Stack gap="sm" w={840}>
+                <Group justify="center" py="xl">
+                  <Loader />
+                  <Text c="dimmed" size="sm">
+                    Загрузка лекций...
+                  </Text>
+                </Group>
+              </Stack>
             ) : error ? (
               <Stack gap="sm">
                 <Text c="red" size="sm">
@@ -176,13 +187,12 @@ const TheoryPage = () => {
             ) : (
               <Stack gap="md" className="flex-1 flex flex-col">
                 <Group justify="space-between" align="center">
-                  <Title order={4}>Все лекции</Title>
+                  <Title order={3}>Все лекции</Title>
                   <SegmentedControl
-                    size="xs"
-                    value={categoryFilter}
-                    onChange={(value) =>
-                      setCategoryFilter(value as "math" | "cs")
-                    }
+                    value={currentFilter}
+                    onChange={(value) => {
+                      setSearchParams({ type: value }, { replace: true })
+                    }}
                     data={[
                       { label: "Математика", value: "math" },
                       { label: "Информатика", value: "cs" },
@@ -190,45 +200,8 @@ const TheoryPage = () => {
                   />
                 </Group>
                 <ScrollArea className="flex-1" type="auto">
-                  {/* <Stack gap="xs" pr="sm" className="pb-4">
-                    {filteredLectures.map((lecture) => (
-                      <Card
-                        key={lecture.id}
-                        withBorder
-                        radius="md"
-                        p="md"
-                        className="hover:border-blue-500 hover:shadow-sm cursor-pointer transition-all relative"
-                        onClick={() => handleOpenLecture(lecture)}
-                      >
-                        <Group gap="sm" align="flex-start">
-                          <IconBook2
-                            size={22}
-                            className="text-blue-600 mt-[2px]"
-                          />
-                          <Stack gap={4}>
-                            <Text fw={600} c={"dark"} size="sm">
-                              {lecture.title}
-                            </Text>
-                            {lecture.content && (
-                              <Text size="xs" c="dimmed" lineClamp={2}>
-                                {lecture.content}
-                              </Text>
-                            )}
-                          </Stack>
-                        </Group>
-                        <IconChevronRight
-                          size={18}
-                          className="text-black absolute top-3 right-3"
-                        />
-                      </Card>
-                    ))}
-                  </Stack> */}
                   <Stack gap="xs" pr="sm" className="pb-4">
                     {filteredLectures.map((lecture) => {
-                      const plainDescription = removeMarkdown(
-                        lecture.content || "",
-                      )
-
                       return (
                         <Card
                           key={lecture.id}
@@ -236,7 +209,10 @@ const TheoryPage = () => {
                           radius="md"
                           p="md"
                           className="hover:border-blue-500 hover:shadow-sm cursor-pointer transition-all relative"
-                          onClick={() => handleOpenLecture(lecture)}
+                          onClick={() => {
+                            handleOpenLecture(lecture)
+                            window.scrollTo(0, 0)
+                          }}
                         >
                           <Group gap="md" align="flex-start" p="sm">
                             <IconBook2
@@ -247,12 +223,17 @@ const TheoryPage = () => {
                               gap={4}
                               style={{ flex: 1, paddingRight: 24 }}
                             >
-                              <Text fw={600} c="dark" size="sm" mt="3">
+                              <Text fw={600} c="dark" size="md" mt="3">
                                 {lecture.title}
                               </Text>
                               {lecture.content && (
-                                <Text size="xs" c="dimmed" lineClamp={2}>
-                                  {plainDescription}
+                                <Text size="sm" c="dimmed" lineClamp={4}>
+                                  <ReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    rehypePlugins={[rehypeKatex]}
+                                  >
+                                    {lecture.content}
+                                  </ReactMarkdown>
                                 </Text>
                               )}
                             </Stack>

@@ -93,7 +93,7 @@ const SignUp = () => {
   return (
     <Container size={560} className="min-h-screen flex items-center py-12">
       <Stack gap="lg" className="w-full">
-        <Image src={logoSrc} alt="LP" h={48} fit="contain" />
+        <Image src={logoSrc} alt="LP" h={100} fit="contain" />
 
         <Paper
           withBorder

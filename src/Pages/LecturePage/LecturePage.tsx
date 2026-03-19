@@ -1,16 +1,28 @@
 import { useEffect, useState } from "react"
-import { useParams, useNavigate, useLocation } from "react-router-dom"
-import { IconArrowLeft, IconBook } from "@tabler/icons-react"
-import { Button } from "../../components/ui/button"
-import { Card, CardContent, CardHeader } from "../../components/ui/card"
-import { Loader } from "@mantine/core"
+import {
+  useParams,
+  useNavigate,
+  useLocation,
+  useSearchParams,
+} from "react-router-dom"
+import { IconArrowLeft, IconBook2 } from "@tabler/icons-react"
+import {
+  Box,
+  Code,
+  Container,
+  Group,
+  Loader,
+  Paper,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core"
+import { AppButton } from "../../components/AppButton/AppButton"
 import { fetchLectureById } from "../../utils/api"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
-import { AppButton } from "../../components/AppButton/AppButton"
-
 interface LectureData {
   id: string
   title: string
@@ -21,6 +33,7 @@ const LecturePage = () => {
   const { lectureId } = useParams<{ lectureId: string }>()
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
 
   const [lecture, setLecture] = useState<LectureData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -32,20 +45,18 @@ const LecturePage = () => {
       setError(null)
 
       try {
-        // Try to get from location state first
         if (location.state?.lecture) {
           setLecture(location.state.lecture)
           setLoading(false)
           return
         }
 
-        // Otherwise fetch from API
         if (lectureId) {
           const data = await fetchLectureById(lectureId)
           setLecture(data)
         }
       } catch (err: any) {
-        setError(err.message || "Failed to load lecture")
+        setError(err.message || "Не удалось загрузить лекцию")
       } finally {
         setLoading(false)
       }
@@ -56,104 +67,124 @@ const LecturePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="flex flex-col items-center gap-3">
+      <Container
+        size="lg"
+        py="xl"
+        className="flex-1 flex items-center justify-center"
+      >
+        <Stack align="center" gap="md">
           <Loader size="lg" />
-          <p className="text-gray-600">Загрузка лекции...</p>
-        </div>
-      </div>
+          <Text c="dimmed" size="sm">
+            Загрузка лекции...
+          </Text>
+        </Stack>
+      </Container>
     )
   }
 
   if (error || !lecture) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6">
-            <p className="text-red-600 mb-4">{error || "Lecture not found"}</p>
-            <Button
-              onClick={() => navigate(-1)}
-              variant="outline"
-              className="w-full"
-            >
+      <Container
+        size="sm"
+        py="xl"
+        className="flex-1 flex items-center justify-center"
+      >
+        <Paper withBorder radius="lg" p="xl" className="w-full max-w-md">
+          <Stack gap="md">
+            <Text c="red" size="sm">
+              {error || "Лекция не найдена"}
+            </Text>
+            <AppButton variant="outline" onClick={() => navigate(-1)} fullWidth>
               Вернуться
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+            </AppButton>
+          </Stack>
+        </Paper>
+      </Container>
     )
   }
 
+  const fromTheory = location.state?.from === "theory"
+  const typeFromQuery = searchParams.get("type") === "cs" ? "cs" : "math"
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
-          <AppButton
-            variant="subtle"
-            size="md"
-            leftSection={<IconArrowLeft size={20} />}
-            onClick={() => {
-              navigate(-1)
-            }}
+    <Container size="md" py="xl" className="flex-1 flex flex-col">
+      <Stack gap="xl" className="flex-1">
+        <Group mb="sm" wrap="nowrap">
+          <Box
+            style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}
           >
-            Вернуться
-          </AppButton>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <IconBook size={24} className="text-purple-600" />
-            {lecture.title}
-          </h1>
-          <div className="w-20"></div>
-        </div>
-      </div>
+            <AppButton
+              variant="subtle"
+              size="md"
+              leftSection={<IconArrowLeft size={20} />}
+              onClick={() => {
+                if (fromTheory) {
+                  navigate(`/theory?type=${typeFromQuery}`)
+                } else {
+                  navigate(-1)
+                }
+              }}
+            >
+              Вернуться
+            </AppButton>
+          </Box>
+          <Box>
+            <Title order={2}> {lecture.title}</Title>
+          </Box>
+        </Group>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 py-12">
-        <Card className="border-l-4 border-l-purple-600 shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50">
-            <h2 className="text-2xl font-semibold text-gray-900">
-              {lecture.title}
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">Материал для изучения</p>
-          </CardHeader>
-          <CardContent className="prose prose-lg max-w-none pt-8">
-            <div className="bg-white rounded-lg p-6">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm, remarkMath]}
-                rehypePlugins={[rehypeKatex]}
-              >
-                {lecture.content}
-              </ReactMarkdown>
-            </div>
+        <Paper
+          withBorder
+          radius="lg"
+          p="xl"
+          className="flex-1 bg-white border-gray-100 shadow-sm flex flex-col"
+        >
+          <Stack gap="lg" p="xl" className="flex-1">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={{
+                code({ inline, className, children, ...props }: any) {
+                  const match = /language-(\w+)/.exec(className || "")
+                  if (!inline && match) {
+                    return (
+                      <Code block miw={0} className="text-[24px]" {...props}>
+                        {String(children).replace(/\n$/, "")}
+                      </Code>
+                    )
+                  }
+                  return (
+                    <Code className={className} {...props}>
+                      {children}
+                    </Code>
+                  )
+                },
+              }}
+            >
+              {lecture.content}
+            </ReactMarkdown>
 
-            {/* Action Buttons */}
-            <div className="mt-8 flex gap-4 justify-between">
-              <Button
-                onClick={() => navigate(-1)}
-                variant="outline"
-                className="flex-1"
-              >
-                Вернуться к задаче
-              </Button>
-              <Button
-                onClick={() => navigate("/")}
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
-                К другим задачам
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            {!fromTheory && (
+              <Group grow gap="md" mt="md">
+                <AppButton variant="outline" onClick={() => navigate(-1)}>
+                  Вернуться назад
+                </AppButton>
+                <AppButton
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => navigate("/")}
+                >
+                  К задачам
+                </AppButton>
+              </Group>
+            )}
+          </Stack>
+        </Paper>
 
-        {/* Footer */}
-        <div className="mt-12 text-center text-sm text-gray-600">
-          <p>
-            Материал предоставлен в образовательных целях. Для более полного
-            понимания, рекомендуется прочитать дополнительные источники.
-          </p>
-        </div>
-      </div>
-    </div>
+        <Text ta="center" size="sm" c="dimmed">
+          Материал предоставлен в образовательных целях.
+        </Text>
+      </Stack>
+    </Container>
   )
 }
 
