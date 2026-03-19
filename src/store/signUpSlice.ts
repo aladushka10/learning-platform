@@ -1,4 +1,5 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
+import { AuthService } from "../services/auth/auth.service"
 
 interface ISignUpData {
   email: string
@@ -11,51 +12,17 @@ export const signUpUser = createAsyncThunk(
   "auth/signUpUser",
   async (userData: ISignUpData, { rejectWithValue }) => {
     try {
-      // let formattedDateOfBirth = userData.dateOfBirth || null
-      // if (formattedDateOfBirth) {
-      //   const parts = formattedDateOfBirth.split("-")
-      //   if (parts.length === 3 && parts[2].length === 4) {
-      //     formattedDateOfBirth = `${parts[2]}-${parts[1]}-${parts[0]}`
-      //   }
-      // }
-
       const payload = {
         email: userData.email,
         password: userData.password,
         firstName: userData.firstName,
         lastName: userData.lastName || "",
       }
-
-      console.log("Sending sign-up payload:", payload)
-
-      const response = await fetch("/api/auth/sign-up", {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(payload),
-      })
-
-      const responseData = await response.json()
-      console.log("Sign-up response:", responseData)
-
-      if (!response.ok) {
-        return rejectWithValue(
-          responseData.detail ||
-            responseData.message ||
-            responseData.title ||
-            "Sign-up failed"
-        )
-      }
-
-      return responseData
+      return await AuthService.signUp(payload)
     } catch (error: any) {
-      console.error("Sign-up catch error:", error)
       return rejectWithValue(error.message || "Network error")
     }
-  }
+  },
 )
 
 interface SignUpState {

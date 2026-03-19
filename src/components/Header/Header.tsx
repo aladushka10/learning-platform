@@ -1,10 +1,11 @@
 import { IconSearch, IconTrophy } from "@tabler/icons-react"
-import { Avatar, Button, Group, Text, TextInput } from "@mantine/core"
+import { Avatar, Button, Group, Text, TextInput, Image } from "@mantine/core"
 import { useNavigate } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
 import { signOut } from "../../store/signInSlice"
 import { MTextInput } from "../MTextInput/MTextInput"
 import { AppButton } from "../AppButton/AppButton"
+import logoSrc from "../../assets/LP.svg"
 
 interface HeaderProps {
   searchQuery: string
@@ -34,9 +35,7 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
     <header className="sticky top-0 z-50 border-b border-white/15 bg-gradient-to-br from-[#2563eb] to-blue-400 ">
       <div className="flex items-center justify-between min-h-16 px-6">
         <div className="flex items-center gap-8">
-          <p className="lp-logo block text-center text-4xl text-white [-webkit-text-stroke:2px_white]">
-            LP
-          </p>
+          <Image src={logoSrc} alt="LP" h={40} fit="contain" />
         </div>
 
         <div className="hidden flex-1 max-w-xl md:block">

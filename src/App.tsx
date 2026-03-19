@@ -18,6 +18,7 @@ import { Footer } from "./components/Footer/Footer"
 import TaskSolverPage from "./Pages/TaskSolverPage/TaskSolverPage"
 import CodeTaskPage from "./Pages/CodeTaskPage/CodeTaskPage"
 import LecturePage from "./Pages/LecturePage/LecturePage"
+import TheoryPage from "./Pages/TheoryPage/TheoryPage"
 import ProfilePage from "./Pages/ProfilePage/ProfilePage"
 import AchievementsPage from "./Pages/AchievementsPage/AchievementsPage"
 import QuizPage from "./Pages/QuizPage/QuizPage"
@@ -501,6 +502,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <LecturePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/theory"
+          element={
+            <ProtectedRoute>
+              <TheoryPage />
             </ProtectedRoute>
           }
         />

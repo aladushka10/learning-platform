@@ -78,6 +78,26 @@ export function ProgressPanel({
     return () => clearTimeout(t)
   }, [banner, onRecentAchievementClose])
 
+  const completedTasks = tasks.filter((t) => t.completed).length
+  const totalTasks = tasks.length
+  const progressPercentage =
+    totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+
+  const mathTasks = tasks.filter((t) => t.category === "Mathematics")
+  const csTasks = tasks.filter((t) => t.category === "Computer Science")
+  const completedMath = mathTasks.filter((t) => t.completed).length
+  const completedCS = csTasks.filter((t) => t.completed).length
+
+  const streakDays = userStats?.streakDays ?? 0
+  const achievementsUnlocked =
+    userStats?.achievements?.filter((a) => a.unlockedAt != null).length ?? 0
+  const achievementsTotal =
+    (userStats?.achievements?.length ?? 0) > 0
+      ? userStats!.achievements!.length
+      : 3
+
+  const showSkeleton = tasksLoading || userStatsLoading
+
   const isLoadingAll = tasksLoading || userStatsLoading
 
   if (isLoadingAll) {
@@ -104,27 +124,6 @@ export function ProgressPanel({
       </Stack>
     )
   }
-
-  const completedTasks = tasks.filter((t) => t.completed).length
-  const totalTasks = tasks.length
-  const progressPercentage =
-    totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
-
-  const mathTasks = tasks.filter((t) => t.category === "Mathematics")
-  const csTasks = tasks.filter((t) => t.category === "Computer Science")
-  const completedMath = mathTasks.filter((t) => t.completed).length
-  const completedCS = csTasks.filter((t) => t.completed).length
-
-  const streakDays = userStats?.streakDays ?? 0
-  const achievementsUnlocked =
-    userStats?.achievements?.filter((a) => a.unlockedAt != null).length ?? 0
-  const achievementsTotal =
-    (userStats?.achievements?.length ?? 0) > 0
-      ? userStats!.achievements!.length
-      : 3
-
-  const showSkeleton = tasksLoading || userStatsLoading
-
   return (
     <Stack w={350} gap="lg" flex="0 0 auto">
       <Card withBorder radius="md" p="xl">

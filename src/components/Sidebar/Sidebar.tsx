@@ -1,46 +1,84 @@
-import { BookOpen, Target, TrendingUp, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '../ui/button';
-import { useState } from 'react';
+import {
+  BookOpen,
+  ChevronLeft,
+  ChevronRight,
+  Target,
+  TrendingUp,
+  User,
+  Text,
+  Group,
+} from "lucide-react"
+import { ActionIcon, Box, Flex, NavLink, Stack, Tooltip } from "@mantine/core"
+import { useLocation, useNavigate } from "react-router-dom"
+import { AppButton } from "../AppButton/AppButton"
 
 interface SidebarProps {
-  collapsed: boolean;
-  onToggleCollapse: () => void;
+  collapsed: boolean
+  onToggleCollapse: () => void
 }
 
 const menuItems = [
-  { icon: Target, label: 'Задачи', active: true },
-  { icon: BookOpen, label: 'Теория', active: false },
-  { icon: TrendingUp, label: 'Прогресс', active: false },
-  { icon: Settings, label: 'Настройки', active: false },
-];
+  { icon: Target, label: "Задачи", path: "/" },
+  { icon: BookOpen, label: "Теория", path: "/theory" },
+  { icon: TrendingUp, label: "Прогресс", path: "/progress", disabled: true },
+  { icon: User, label: "Профиль", path: "/profile" },
+]
 
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
-  return (
-    <aside
-      className={`fixed left-0 top-16 bottom-0 bg-white border-r border-gray-200 transition-all duration-300 z-40 ${
-        collapsed ? 'w-16' : 'w-64'
-      }`}
-    >
-      <div className="flex flex-col h-full">
-        <div className="flex-1 py-4">
-          <nav className="space-y-1 px-2">
-            {menuItems.map((item) => (
-              <Button
-                key={item.label}
-                variant={item.active ? 'secondary' : 'ghost'}
-                className={`w-full justify-start ${collapsed ? 'px-3' : 'px-4'} ${
-                  item.active ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                }`}
-              >
-                <item.icon className={`w-5 h-5 ${collapsed ? '' : 'mr-3'}`} />
-                {!collapsed && <span>{item.label}</span>}
-              </Button>
-            ))}
-          </nav>
-        </div>
+  const navigate = useNavigate()
+  const location = useLocation()
 
-        <div className="p-2 border-t border-gray-200">
-          <Button
+  return (
+    <Box
+      component="aside"
+      className="fixed left-0 top-16 bottom-0 z-40 border-r border-gray-200 bg-white transition-all duration-300"
+      style={{ width: collapsed ? 64 : 256 }}
+    >
+      <Flex direction="column" h="100%">
+        <Box p="xs" className="flex-1">
+          <Stack gap={4}>
+            {menuItems.map((item) => {
+              const isActive =
+                item.path === "/"
+                  ? location.pathname === "/"
+                  : location.pathname.startsWith(item.path)
+
+              const content = (
+                <NavLink
+                  key={item.label}
+                  active={isActive}
+                  label={collapsed ? undefined : item.label}
+                  leftSection={<item.icon className="h-4 w-4" />}
+                  disabled={item.disabled}
+                  onClick={() => {
+                    if (item.disabled) return
+                    navigate(item.path)
+                  }}
+                  className={
+                    isActive
+                      ? "bg-blue-50 text-blue-600"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }
+                  px={collapsed ? "xs" : "sm"}
+                  py="xs"
+                />
+              )
+
+              if (collapsed) {
+                return (
+                  <Tooltip key={item.label} label={item.label} position="right">
+                    {content}
+                  </Tooltip>
+                )
+              }
+
+              return content
+            })}
+          </Stack>
+        </Box>
+
+        <Stack className="p-2 border-t border-gray-200">
+          <AppButton
             variant="ghost"
             size="sm"
             onClick={onToggleCollapse}
@@ -54,9 +92,9 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                 <span>Свернуть</span>
               </>
             )}
-          </Button>
-        </div>
-      </div>
-    </aside>
-  );
+          </AppButton>
+        </Stack>
+      </Flex>
+    </Box>
+  )
 }

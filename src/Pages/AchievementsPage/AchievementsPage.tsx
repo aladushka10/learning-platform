@@ -6,6 +6,7 @@ import { Loader } from "@mantine/core"
 import { Card, CardContent, CardHeader } from "../../components/ui/card"
 import { Button } from "../../components/ui/button"
 import { renderAchievementIcon } from "../../utils/achievementIcons"
+import { AppButton } from "../../components/AppButton/AppButton"
 
 const API_BASE = "/api"
 
@@ -88,12 +89,16 @@ export default function AchievementsPage() {
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-orange-50">
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
-          <button
-            onClick={() => navigate("/")}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
+          <AppButton
+            variant="subtle"
+            size="md"
+            leftSection={<IconArrowLeft size={20} />}
+            onClick={() => {
+              navigate(-1)
+            }}
           >
-            <IconArrowLeft size={20} /> К задачам
-          </button>
+            Вернуться
+          </AppButton>
           <h1 className="text-2xl font-bold text-gray-900">Достижения</h1>
           <div className="w-24" />
         </div>
@@ -116,7 +121,12 @@ export default function AchievementsPage() {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-4xl font-bold">{totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0}%</p>
+                <p className="text-4xl font-bold">
+                  {totalCount > 0
+                    ? Math.round((unlockedCount / totalCount) * 100)
+                    : 0}
+                  %
+                </p>
                 <p className="text-amber-100 text-sm">прогресс</p>
               </div>
             </div>
@@ -134,7 +144,8 @@ export default function AchievementsPage() {
           <CardContent>
             {achievements.length === 0 ? (
               <p className="text-gray-500 text-center py-8">
-                Список достижений загружается. Решайте задачи и собирайте серии дней, чтобы получать награды.
+                Список достижений загружается. Решайте задачи и собирайте серии
+                дней, чтобы получать награды.
               </p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -173,10 +184,7 @@ export default function AchievementsPage() {
                     </div>
                     {a.unlockedAt && (
                       <div className="absolute top-2 right-2">
-                        <IconAward
-                          size={18}
-                          className="text-amber-500"
-                        />
+                        <IconAward size={18} className="text-amber-500" />
                       </div>
                     )}
                   </div>

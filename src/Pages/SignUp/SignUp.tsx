@@ -1,12 +1,28 @@
 import { useNavigate } from "react-router-dom"
 import { useEffect, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
-import { IconArrowLeft } from "@tabler/icons-react"
+import {
+  IconAlertCircle,
+  IconArrowLeft,
+  IconArrowRight,
+} from "@tabler/icons-react"
 import { signUpUser, clearError } from "../../store/signUpSlice"
 import { z } from "zod"
-import { SubmitButton } from "../../components/SubmitButton/SubmitButton"
-import { AppButton } from "../../components/AppButton/AppButton"
 import { MTextInput } from "../../components/MTextInput/MTextInput"
+import {
+  ActionIcon,
+  Alert,
+  Button,
+  Container,
+  Paper,
+  SimpleGrid,
+  Stack,
+  Text,
+  Title,
+  Image,
+} from "@mantine/core"
+import logoSrc from "../../assets/LP-sign.svg"
+import { Icon } from "lucide-react"
 
 const signUpSchema = z
   .object({
@@ -75,136 +91,153 @@ const SignUp = () => {
   }, [success, navigate])
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-6 py-12">
-      <div className="w-full max-w-xl">
-        <p className="lp-logo mb-6 block text-center text-5xl text-blue-500 hover:text-blue-600  ">
-          LP
-        </p>
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-10">
-          {/* Back */}
-          <button
-            onClick={() => navigate("/")}
-            className="mb-6 text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            <IconArrowLeft size={20} />
-          </button>
+    <Container size={560} className="min-h-screen flex items-center py-12">
+      <Stack gap="lg" className="w-full">
+        <Image src={logoSrc} alt="LP" h={100} fit="contain" />
 
-          {/* Title */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900">
-              Create account
-            </h2>
-            <p className="text-gray-500 mt-2 text-sm">
-              Join the platform and start learning
-            </p>
-          </div>
-
-          {(localError || error) && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-6">
-              <p className="text-red-600 text-sm">{localError || error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {/* Name grid */}
-            <div className="grid grid-cols-2 gap-6">
-              <MTextInput
-                label="First Name"
-                placeholder="John"
-                name="firstName"
-                value={formData.firstName}
-                onChange={(e) =>
-                  handleFieldChange("firstName", e.currentTarget.value)
-                }
-                required
-                radius="lg"
-              />
-
-              <MTextInput
-                label="Last Name"
-                placeholder="Doe"
-                name="lastName"
-                value={formData.lastName}
-                onChange={(e) =>
-                  handleFieldChange("lastName", e.currentTarget.value)
-                }
-                radius="lg"
-              />
-            </div>
-
-            <MTextInput
-              label="Email"
-              type="email"
-              placeholder="your@email.com"
-              name="email"
-              value={formData.email}
-              onChange={(e) =>
-                handleFieldChange("email", e.currentTarget.value)
-              }
-              required
-              radius="lg"
-            />
-
-            <div>
-              <MTextInput
-                label="Password"
-                type="password"
-                placeholder="At least 6 characters"
-                name="password"
-                value={formData.password}
-                onChange={(e) =>
-                  handleFieldChange("password", e.currentTarget.value)
-                }
-                required
-                radius="lg"
-              />
-              <p className="text-xs text-gray-400 mt-2">Minimum 6 characters</p>
-            </div>
-
-            <MTextInput
-              label="Confirm Password"
-              type="password"
-              placeholder="Repeat password"
-              name="passwordConfirm"
-              value={formData.passwordConfirm}
-              onChange={(e) =>
-                handleFieldChange("passwordConfirm", e.currentTarget.value)
-              }
-              required
-              radius="lg"
-            />
-
-            <SubmitButton
-              loading={loading}
-              fullWidth
-              radius="lg"
-              size="md"
-              mt="xl"
+        <Paper
+          withBorder
+          radius="xl"
+          p="xl"
+          shadow="md"
+          className="border-gray-100 shadow-lg"
+        >
+          <Stack gap="lg">
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              radius="xl"
+              size="lg"
+              onClick={() => navigate("/")}
             >
-              {loading ? "Creating account..." : "Create Account"}
-            </SubmitButton>
+              <IconArrowLeft size={18} />
+            </ActionIcon>
 
-            <div className="text-center text-sm text-gray-500">
-              Already have an account?
-            </div>
+            <Stack gap={6}>
+              <Title order={2}>Create account</Title>
+              <Text c="dimmed" m={0}>
+                Join the platform and start learning
+              </Text>
+            </Stack>
 
-            <AppButton
-              type="button"
-              variant="outline"
-              fullWidth
-              radius="lg"
-              onClick={() => navigate("/sign-in")}
-            >
-              Sign In
-            </AppButton>
-          </form>
+            {(localError || error) && (
+              <Alert
+                color="red"
+                radius="lg"
+                icon={<IconAlertCircle size={16} />}
+              >
+                {localError || error}
+              </Alert>
+            )}
 
-          <p className="text-xs text-gray-400 text-center mt-8">
-            By signing up, you agree to our Terms of Service
-          </p>
-        </div>
-      </div>
-    </div>
+            <form onSubmit={handleSubmit}>
+              <Stack gap="md">
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                  <MTextInput
+                    label="First Name"
+                    placeholder="John"
+                    name="firstName"
+                    value={formData.firstName}
+                    onChange={(e) =>
+                      handleFieldChange("firstName", e.currentTarget.value)
+                    }
+                    required
+                    radius="lg"
+                  />
+
+                  <MTextInput
+                    label="Last Name"
+                    placeholder="Doe"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={(e) =>
+                      handleFieldChange("lastName", e.currentTarget.value)
+                    }
+                    radius="lg"
+                  />
+                </SimpleGrid>
+
+                <MTextInput
+                  label="Email"
+                  type="email"
+                  placeholder="your@email.com"
+                  name="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    handleFieldChange("email", e.currentTarget.value)
+                  }
+                  required
+                  radius="lg"
+                />
+
+                <Stack gap={6}>
+                  <MTextInput
+                    label="Password"
+                    type="password"
+                    placeholder="At least 6 characters"
+                    name="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      handleFieldChange("password", e.currentTarget.value)
+                    }
+                    required
+                    radius="lg"
+                  />
+                  <Text size="xs" c="dimmed" m={0}>
+                    Minimum 6 characters
+                  </Text>
+                </Stack>
+
+                <MTextInput
+                  label="Confirm Password"
+                  type="password"
+                  placeholder="Repeat password"
+                  name="passwordConfirm"
+                  value={formData.passwordConfirm}
+                  onChange={(e) =>
+                    handleFieldChange("passwordConfirm", e.currentTarget.value)
+                  }
+                  required
+                  radius="lg"
+                />
+
+                <Button
+                  type="submit"
+                  fullWidth
+                  radius="lg"
+                  size="md"
+                  loading={loading}
+                  rightSection={<IconArrowRight size={16} />}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Create Account
+                </Button>
+
+                <Text ta="center" c="dimmed" size="sm" m={0}>
+                  Already have an account?
+                </Text>
+
+                <Button
+                  type="button"
+                  variant="default"
+                  fullWidth
+                  radius="lg"
+                  size="md"
+                  onClick={() => navigate("/sign-in")}
+                  className="border-gray-200 bg-white hover:bg-gray-50"
+                >
+                  Sign In
+                </Button>
+              </Stack>
+            </form>
+
+            <Text ta="center" size="xs" c="dimmed" m={0}>
+              By signing up, you agree to our Terms of Service
+            </Text>
+          </Stack>
+        </Paper>
+      </Stack>
+    </Container>
   )
 }
 
