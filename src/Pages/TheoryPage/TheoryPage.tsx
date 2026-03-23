@@ -7,6 +7,7 @@ import {
   Paper,
   ScrollArea,
   SegmentedControl,
+  Skeleton,
   Stack,
   Text,
   Title,
@@ -33,7 +34,7 @@ const TheoryPage = () => {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const [lectures, setLectures] = useState<LectureListItem[]>([])
-  const { courseId, taskId } = useParams<{ courseId: string; taskId: string }>()
+  const { courseId } = useParams<{ courseId: string; taskId: string }>()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -159,13 +160,35 @@ const TheoryPage = () => {
             className="flex-1 bg-white border-gray-100 shadow-sm flex flex-col"
           >
             {loading ? (
-              <Stack gap="sm" w={840}>
-                <Group justify="center" py="xl">
-                  <Loader />
-                  <Text c="dimmed" size="sm">
-                    Загрузка лекций...
-                  </Text>
+              <Stack gap="md" w={1060}>
+                <Group justify="space-between" align="center" mb="md">
+                  <Title order={3}>Все лекции</Title>
+                  <Skeleton height={30} width="25%" radius="sm" />
                 </Group>
+                <ScrollArea className="flex-1" type="auto">
+                  <Stack gap="xs" pr="sm" className="pb-4">
+                    {Array.from({ length: 6 }).map((_, idx) => (
+                      <Card
+                        key={idx}
+                        withBorder
+                        radius="md"
+                        p="md"
+                        w="100%"
+                        className="relative border-gray-200"
+                      >
+                        <Group gap="md" align="flex-start" p="sm" wrap="nowrap">
+                          <Stack gap={8} style={{ flex: 1 }}>
+                            <Skeleton height={24} width="40%" radius="sm" />
+                            <Skeleton height={18} width="60%" radius="sm" />
+                            <Skeleton height={18} width="80%" radius="sm" />
+                            <Skeleton height={18} width="85%" radius="sm" />
+                            <Skeleton height={18} width="70%" radius="sm" />
+                          </Stack>
+                        </Group>
+                      </Card>
+                    ))}
+                  </Stack>
+                </ScrollArea>
               </Stack>
             ) : error ? (
               <Stack gap="sm">

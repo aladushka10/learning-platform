@@ -19,6 +19,7 @@ import TaskSolverPage from "./Pages/TaskSolverPage/TaskSolverPage"
 import CodeTaskPage from "./Pages/CodeTaskPage/CodeTaskPage"
 import LecturePage from "./Pages/LecturePage/LecturePage"
 import TheoryPage from "./Pages/TheoryPage/TheoryPage"
+import ProgressPage from "./Pages/ProgressPage/ProgressPage"
 import ProfilePage from "./Pages/ProfilePage/ProfilePage"
 import AchievementsPage from "./Pages/AchievementsPage/AchievementsPage"
 import QuizPage from "./Pages/QuizPage/QuizPage"
@@ -27,6 +28,7 @@ import SignUp from "./Pages/SignUp/SignUp"
 import { hydrateAuth } from "./store/signInSlice"
 import { Loader, Skeleton, Title } from "@mantine/core"
 import { useUserProgress } from "./services/progress/progress.hooks"
+import { usePagination } from "./hooks/usePagination"
 
 export interface Task {
   id: string
@@ -36,6 +38,8 @@ export interface Task {
   category: "Mathematics" | "Computer Science"
   topic: string
   completed: boolean
+  progressStatus?: "not_started" | "in_progress" | "completed"
+  progressUpdatedAt?: number | null
   taskType?: string
   language?: string
   lectureTitle?: string | null
@@ -115,6 +119,22 @@ function TasksPage() {
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
+  const statusFilterParam = searchParams.get("status")
+  const statusFilter =
+    statusFilterParam === "completed" ||
+    statusFilterParam === "in_progress" ||
+    statusFilterParam === "not_started"
+      ? (statusFilterParam as "completed" | "in_progress" | "not_started")
+      : null
+
+  const typeFilterParam = searchParams.get("type")
+  const typeFilter =
+    typeFilterParam === "math" || typeFilterParam === "cs"
+      ? (typeFilterParam as "math" | "cs")
+      : null
+
+  const sortParam = searchParams.get("sort")
+
   const { data: statsData, isLoading: progressLoading } =
     useUserProgress(effectiveUserId)
 
@@ -140,7 +160,16 @@ function TasksPage() {
         if (data.length > 0) {
           const fromQuery = searchParams.get("course")
           const exists = fromQuery && data.some((c) => c.id === fromQuery)
-          const initial = exists ? (fromQuery as string) : data[0].id
+          const byType = typeFilter
+            ? data.find((c) => {
+                const isMath = String(c.category || "")
+                  .toLowerCase()
+                  .includes("math")
+                return typeFilter === "math" ? isMath : !isMath
+              })?.id
+            : null
+          const initial =
+            (exists ? (fromQuery as string) : null) ?? byType ?? data[0].id
           setSelectedCourseId(initial)
           const next = new URLSearchParams(searchParams)
           next.set("course", initial)
@@ -178,13 +207,11 @@ function TasksPage() {
           lectureTitleByTopic[l.id] = formatLectureTitle(l.title || l.id)
         })
 
-        // Загружаем прогресс только для авторизованного пользователя
         let userProgress = null
         if (effectiveUserId) {
           userProgress = statsData?.tasks || []
         }
 
-        // map backend task shape to client Task
         const course = courses.find((c) => c.id === selectedCourseId)
         const mapped: Task[] = rawTasks.map((t: any) => {
           let meta = {}
@@ -197,9 +224,17 @@ function TasksPage() {
           }
           const topic = (meta as any).topic || (course && course.title) || ""
 
-          // Check if task is completed in user progress
           const taskProgress = userProgress?.find((p: any) => p.taskId === t.id)
-          const isCompleted = taskProgress?.status === "completed"
+          const progressStatus =
+            taskProgress?.status === "completed" ||
+            taskProgress?.status === "in_progress"
+              ? (taskProgress.status as "completed" | "in_progress")
+              : "not_started"
+          const progressUpdatedAt =
+            typeof taskProgress?.updatedAt === "number"
+              ? taskProgress.updatedAt
+              : null
+          const isCompleted = progressStatus === "completed"
 
           return {
             id: t.id,
@@ -216,6 +251,8 @@ function TasksPage() {
                 : "Computer Science",
             topic,
             completed: isCompleted,
+            progressStatus,
+            progressUpdatedAt,
             taskType: (meta as any).type,
             language: (meta as any).language,
             lectureTitle: topic
@@ -241,6 +278,31 @@ function TasksPage() {
       task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.topic.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+
+  const statusFilteredTasks = statusFilter
+    ? filteredTasks.filter(
+        (t) => (t.progressStatus || "not_started") === statusFilter,
+      )
+    : filteredTasks
+
+  const sortedTasks = [...statusFilteredTasks].sort((a, b) => {
+    if (sortParam === "recent") {
+      const aTs = a.progressUpdatedAt ?? 0
+      const bTs = b.progressUpdatedAt ?? 0
+      return bTs - aTs
+    }
+    return a.title.localeCompare(b.title, "ru")
+  })
+  const {
+    displayedItems: visibleTasks,
+    hasMore,
+    loadMore,
+    reset,
+  } = usePagination(sortedTasks, 9)
+
+  useEffect(() => {
+    reset()
+  }, [selectedCourseId, searchQuery, reset])
 
   const handleTaskSelect = (task: Task) => {
     setSelectedTask(task)
@@ -423,7 +485,7 @@ function TasksPage() {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
-                        {filteredTasks.map((task) => (
+                        {visibleTasks.map((task) => (
                           <TaskCard
                             key={task.id}
                             task={task}
@@ -432,6 +494,18 @@ function TasksPage() {
                           />
                         ))}
                       </div>
+
+                      {hasMore && (
+                        <div className="flex justify-center pt-2">
+                          <button
+                            type="button"
+                            onClick={loadMore}
+                            className="rounded-lg border border-gray-200 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                          >
+                            Показать больше
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </>
@@ -510,6 +584,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <TheoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/progress"
+          element={
+            <ProtectedRoute>
+              <ProgressPage />
             </ProtectedRoute>
           }
         />
