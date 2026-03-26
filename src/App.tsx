@@ -135,6 +135,49 @@ function TasksPage() {
 
   const sortParam = searchParams.get("sort")
 
+  const typeLabel =
+    typeFilter === "math"
+      ? "Математика"
+      : typeFilter === "cs"
+        ? "Информатика"
+        : null
+  const statusLabel =
+    statusFilter === "completed"
+      ? "Выполнено"
+      : statusFilter === "in_progress"
+        ? "В процессе"
+        : statusFilter === "not_started"
+          ? "Не начато"
+          : null
+
+  const typePhrase =
+    typeFilter === "math"
+      ? "по математике"
+      : typeFilter === "cs"
+        ? "по информатике"
+        : null
+  const statusPhrase =
+    statusFilter === "completed"
+      ? "Выполненные задачи"
+      : statusFilter === "in_progress"
+        ? "Задачи в процессе"
+        : statusFilter === "not_started"
+          ? "Не начатые задачи"
+          : null
+
+  const pageTitle =
+    statusPhrase && typePhrase
+      ? `${statusPhrase} ${typePhrase}`
+      : typePhrase
+        ? `Задачи ${typePhrase}`
+        : statusPhrase
+          ? statusPhrase
+          : "Библиотека задач"
+  const pageSubtitle =
+    typeLabel || statusLabel
+      ? "Список отфильтрован по выбранным параметрам прогресса."
+      : "Выберите курс и задачу для начала обучения"
+
   const { data: statsData, isLoading: progressLoading } =
     useUserProgress(effectiveUserId)
 
@@ -457,9 +500,9 @@ function TasksPage() {
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <Title order={2}>Библиотека задач</Title>
+                          <Title order={2}>{pageTitle}</Title>
                           <p className="text-gray-600 mt-1">
-                            Выберите курс и задачу для начала обучения
+                            {pageSubtitle}
                           </p>
                         </div>
 

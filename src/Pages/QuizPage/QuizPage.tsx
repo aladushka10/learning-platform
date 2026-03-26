@@ -76,45 +76,6 @@ export default function QuizPage() {
 
   if (isLoading) {
     return (
-      // <Container size="lg" py="xl" mt="30">
-      //   <Stack gap="lg">
-      //     <Group mb="lg" wrap="nowrap">
-      //       <Box
-      //         style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}
-      //       >
-      //         <Skeleton height={40} width={200} radius="sm" />
-      //       </Box>
-      //       <Box>
-      //         <Skeleton height={40} width={700} radius="xl" />
-      //       </Box>
-      //     </Group>
-
-      //     {Array.from({ length: 4 }).map((_, idx) => (
-      //       <Paper
-      //         key={idx}
-      //         radius="lg"
-      //         p="sm"
-      //         withBorder
-      //         style={{
-      //           borderWidth: 2,
-      //           borderColor: "var(--mantine-color-blue-4)",
-      //         }}
-      //       >
-      //         <Stack gap="md">
-      //           <Skeleton height={24} width="60%" />
-      //           <Stack gap="md">
-      //             <Skeleton height={20} width="15%" />
-      //             <Skeleton height={20} width="15%" />
-      //             <Skeleton height={20} width="15%" />
-      //             <Skeleton height={20} width="15%" />
-      //           </Stack>
-      //         </Stack>
-      //       </Paper>
-      //     ))}
-
-      //     <Skeleton height={44} width={180} radius="xl" />
-      //   </Stack>
-      // </Container>
       <Container size="lg" py="xl" mt={30}>
         <Stack gap="lg">
           <Group mb="lg" wrap="nowrap">

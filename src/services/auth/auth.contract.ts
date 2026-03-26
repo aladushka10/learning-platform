@@ -5,6 +5,7 @@ export const AuthUserSchema = z.object({
   email: z.string().email(),
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
+  avatarId: z.string().nullable().optional(),
 })
 
 export const AuthSessionSchema = AuthUserSchema.extend({

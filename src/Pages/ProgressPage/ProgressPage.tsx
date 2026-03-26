@@ -29,6 +29,7 @@ import {
 } from "recharts"
 import { AppButton } from "../../components/AppButton/AppButton"
 import { useUserProgress } from "../../services/progress/progress.hooks"
+import { useTaskCategoryById } from "../../hooks/useTaskCategoryById"
 
 type RangeKey = "7d" | "30d" | "90d"
 type StatusKey = "completed" | "in_progress" | "not_started"
@@ -116,43 +117,12 @@ const ProgressPage = () => {
   const days = range === "7d" ? 7 : range === "90d" ? 90 : 30
 
   const { data, isLoading, error } = useUserProgress(userId)
-  const [taskCategoryById, setTaskCategoryById] = useState<
-    Record<string, "math" | "cs">
-  >({})
 
-  useEffect(() => {
-    const loadTaskCategories = async () => {
-      try {
-        const coursesRes = await fetch("/api/courses", {
-          credentials: "include",
-        })
-        if (!coursesRes.ok) return
-        const courses: { id: string; category?: string }[] =
-          await coursesRes.json()
-
-        const mapping: Record<string, "math" | "cs"> = {}
-        for (const c of courses) {
-          try {
-            const tasksRes = await fetch(`/api/courses/${c.id}/tasks`, {
-              credentials: "include",
-            })
-            if (!tasksRes.ok) continue
-            const tasks: { id: string }[] = await tasksRes.json()
-            const cat: "math" | "cs" =
-              c.category && c.category.toLowerCase().includes("math")
-                ? "math"
-                : "cs"
-            tasks.forEach((t) => {
-              mapping[t.id] = cat
-            })
-          } catch {}
-        }
-        setTaskCategoryById(mapping)
-      } catch {}
-    }
-
-    loadTaskCategories()
-  }, [])
+  const needsCategoryFallback = useMemo(() => {
+    const raw = data?.tasks ?? []
+    return raw.some((t: any) => t && t.taskId && t.category == null)
+  }, [data?.tasks])
+  const { mapping: categoryById } = useTaskCategoryById(needsCategoryFallback)
 
   const chartData = useMemo(() => {
     const tasks = data?.tasks ?? []
@@ -172,7 +142,8 @@ const ProgressPage = () => {
       const d = new Date(t.updatedAt)
       d.setHours(0, 0, 0, 0)
       const key = toDayKey(d)
-      const category = taskCategoryById[t.taskId] ?? "cs"
+      const category: "math" | "cs" =
+        t.category ?? categoryById[t.taskId] ?? "cs"
       if (d < rangeStart) {
         if (category === "math") baselineMath += 1
         else baselineCs += 1
@@ -209,21 +180,28 @@ const ProgressPage = () => {
     }
 
     return out
-  }, [data?.tasks, days, taskCategoryById])
+  }, [data?.tasks, days, categoryById])
 
   const normalizedTasks = useMemo(() => {
     const raw = data?.tasks ?? []
-    const unique = new Map<string, { taskId: string; status: StatusKey }>()
+    const unique = new Map<
+      string,
+      { taskId: string; status: StatusKey; category?: "math" | "cs" }
+    >()
     raw.forEach((t: any) => {
       if (!t?.taskId) return
       const status: StatusKey =
         t.status === "completed" || t.status === "in_progress"
           ? t.status
           : "not_started"
-      unique.set(t.taskId, { taskId: t.taskId, status })
+      unique.set(t.taskId, {
+        taskId: t.taskId,
+        status,
+        category: t.category ?? categoryById[t.taskId],
+      })
     })
     return Array.from(unique.values())
-  }, [data?.tasks])
+  }, [data?.tasks, categoryById])
 
   const totalTasks = normalizedTasks.length
   const completedTasks = normalizedTasks.filter(
@@ -251,7 +229,7 @@ const ProgressPage = () => {
     }
 
     normalizedTasks.forEach((t) => {
-      const cat: "math" | "cs" = taskCategoryById[t.taskId] ?? "cs"
+      const cat: "math" | "cs" = t.category ?? "cs"
 
       by.all[t.status] += 1
       by.all.total += 1
@@ -261,7 +239,7 @@ const ProgressPage = () => {
     })
 
     return by
-  }, [normalizedTasks, taskCategoryById])
+  }, [normalizedTasks])
 
   const donutData = (key: CategoryKey) => {
     const s = statsByCategory[key]
@@ -477,7 +455,11 @@ const ProgressPage = () => {
           ) : (
             <Box h={320}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ left: 0, right: 8 }}>
+                <LineChart
+                  key={`${range}-${data?.tasks?.length ?? 0}`}
+                  data={chartData}
+                  margin={{ left: 0, right: 8 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="label" tickMargin={8} />
                   <YAxis allowDecimals={false} />
@@ -501,7 +483,6 @@ const ProgressPage = () => {
                     stroke="#0088ff"
                     strokeWidth={2}
                     dot={false}
-                    isAnimationActive
                     animationDuration={650}
                     name="Математика"
                   />
@@ -511,7 +492,6 @@ const ProgressPage = () => {
                     stroke="#12b886"
                     strokeWidth={2}
                     dot={false}
-                    isAnimationActive
                     animationDuration={650}
                     name="Информатика"
                   />

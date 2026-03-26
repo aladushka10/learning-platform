@@ -1,22 +1,67 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useSelector } from "react-redux"
+import { useDispatch } from "react-redux"
 import {
   IconArrowLeft,
-  IconTrophy,
-  IconCalendar,
+  IconAward,
   IconBook,
   IconBolt,
-  IconAward,
-  IconSchool,
+  IconCalendar,
   IconFlame,
+  IconSchool,
+  IconTrophy,
+  IconStopwatch,
+  IconHttpDelete,
+  IconCross,
+  IconTrash,
 } from "@tabler/icons-react"
-import { Button } from "../../components/ui/button"
-import { Card, CardContent, CardHeader } from "../../components/ui/card"
-import { Loader } from "@mantine/core"
-import { renderAchievementIcon } from "../../utils/achievementIcons"
+import {
+  Avatar,
+  Box,
+  Center,
+  Container,
+  Divider,
+  Group,
+  Loader,
+  Modal,
+  Paper,
+  Progress,
+  SimpleGrid,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+  Tooltip,
+  UnstyledButton,
+} from "@mantine/core"
+import { AppButton } from "../../components/AppButton/AppButton"
+import { AchievementsList } from "../../components/Achievements/AchievementsList"
+import { CategoryProgressBars } from "../../components/Progress/CategoryProgressBars"
+import { useTaskCategoryById } from "../../hooks/useTaskCategoryById"
+
+import avatar1 from "../../assets/avatar/image1.png"
+import avatar2 from "../../assets/avatar/image2.png"
+import avatar3 from "../../assets/avatar/image3.png"
+import avatar4 from "../../assets/avatar/image4.png"
+import avatar5 from "../../assets/avatar/image5.png"
+import avatar6 from "../../assets/avatar/image6.png"
+import avatar7 from "../../assets/avatar/image7.png"
+import avatar8 from "../../assets/avatar/image8.png"
+import { setAvatarId as setAvatarIdAction } from "../../store/signInSlice"
 
 const API_BASE = "/api"
+
+const AVATARS = [
+  { id: "image1", src: avatar1 },
+  { id: "image2", src: avatar2 },
+  { id: "image3", src: avatar3 },
+  { id: "image4", src: avatar4 },
+  { id: "image5", src: avatar5 },
+  { id: "image6", src: avatar6 },
+  { id: "image7", src: avatar7 },
+  { id: "image8", src: avatar8 },
+] as const
 
 interface AchievementItem {
   id: string
@@ -32,15 +77,54 @@ interface StatsResponse {
   totalTasks: number
   streakDays: number
   achievements: AchievementItem[]
+  tasks?: Array<{
+    taskId: string
+    status: string
+    category?: "math" | "cs"
+    updatedAt?: number | null
+  }>
 }
 
 const ProfilePage = () => {
   const navigate = useNavigate()
-  const { username, userId, auth } = useSelector((state: any) => state.signIn)
+  const dispatch = useDispatch()
+  const { username, userId, auth, firstName, lastName, avatarId } = useSelector(
+    (state: any) => state.signIn,
+  )
   const effectiveUserId = auth ? userId : null
 
   const [stats, setStats] = useState<StatsResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false)
+  const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null)
+
+  const selectedAvatarSrc = useMemo(() => {
+    const found = AVATARS.find((a) => a.id === selectedAvatarId)
+    return found?.src ?? null
+  }, [selectedAvatarId])
+
+  useEffect(() => {
+    setSelectedAvatarId(avatarId ?? null)
+  }, [avatarId])
+
+  const handleSelectAvatar = async (id: string | null) => {
+    if (!effectiveUserId) return
+    setSelectedAvatarId(id)
+    try {
+      const res = await fetch(`${API_BASE}/users/${effectiveUserId}/avatar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({ avatarId: id }),
+      })
+      if (res.ok) {
+        dispatch(setAvatarIdAction(id))
+      }
+    } finally {
+      setAvatarModalOpen(false)
+    }
+  }
 
   useEffect(() => {
     if (!effectiveUserId) {
@@ -51,7 +135,10 @@ const ProfilePage = () => {
     let cancelled = false
     const load = async () => {
       try {
-        const res = await fetch(`${API_BASE}/users/${effectiveUserId}/stats`)
+        const res = await fetch(`${API_BASE}/users/${effectiveUserId}/stats`, {
+          credentials: "include",
+          cache: "no-store",
+        })
         if (!res.ok) throw new Error("Failed to load stats")
         const data = await res.json()
         if (!cancelled) setStats(data)
@@ -70,273 +157,231 @@ const ProfilePage = () => {
   const tasksCompleted = stats?.completedTasks ?? 0
   const tasksInProgress = stats?.inProgressTasks ?? 0
   const streakDays = stats?.streakDays ?? 0
-  const totalTasks = stats?.totalTasks ?? 0
-  const totalPoints = Math.min(3000, tasksCompleted * 150)
-  const level = Math.floor(totalPoints / 300) + 1
   const achievements = stats?.achievements ?? []
 
-  const activityData = [
-    { day: "Пн", solved: 2 },
-    { day: "Вт", solved: 3 },
-    { day: "Ср", solved: 1 },
-    { day: "Чт", solved: 2 },
-    { day: "Пт", solved: 3 },
-    { day: "Сб", solved: 2 },
-    { day: "Вс", solved: 1 },
-  ]
-  const maxSolved = Math.max(1, ...activityData.map((d) => d.solved))
+  const needsCategoryFallback = useMemo(() => {
+    const raw = stats?.tasks ?? []
+    return raw.some((t) => t && (t as any).category == null)
+  }, [stats?.tasks])
+  const { mapping: categoryById, loading: categoriesLoading } =
+    useTaskCategoryById(needsCategoryFallback)
 
-  if (!auth) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-8 text-center">
-            <p className="text-gray-600 mb-4">Войдите в аккаунт, чтобы видеть прогресс и достижения.</p>
-            <Button onClick={() => navigate("/sign-in")}>Войти</Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const progressByCategory = useMemo(() => {
+    const raw = stats?.tasks ?? []
+    const by = {
+      math: { total: 0, completed: 0, in_progress: 0, not_started: 0 },
+      cs: { total: 0, completed: 0, in_progress: 0, not_started: 0 },
+    }
+
+    raw.forEach((t) => {
+      if (!t?.taskId) return
+      const status =
+        t.status === "completed" || t.status === "in_progress"
+          ? (t.status as "completed" | "in_progress")
+          : "not_started"
+      const cat: "math" | "cs" = t.category ?? categoryById[t.taskId] ?? "cs"
+      by[cat].total += 1
+      by[cat][status] += 1
+    })
+
+    return by
+  }, [stats?.tasks, categoryById])
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader size="lg" />
-          <p className="text-gray-600">Загрузка профиля...</p>
-        </div>
-      </div>
+      <Box className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <Center h="100vh">
+          <Stack align="center" gap="sm">
+            <Loader size="lg" />
+            <Text c="dimmed">Загрузка профиля...</Text>
+          </Stack>
+        </Center>
+      </Box>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-6 py-6 flex items-center justify-between">
-          <button
-            onClick={() => navigate("/")}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
+    <Box className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <Container size="lg" py="xl">
+        <Stack gap="xl">
+          <Modal
+            opened={avatarModalOpen}
+            onClose={() => setAvatarModalOpen(false)}
+            title="Выберите аватар"
+            centered
+            size="md"
           >
-            <IconArrowLeft size={20} />К задачам
-          </button>
-          <h1 className="text-2xl font-bold text-gray-900">Профиль</h1>
-          <div className="w-24"></div>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-6 py-12 space-y-8">
-        {/* Profile Header Card */}
-        <Card className="bg-gradient-to-r from-blue-600 to-purple-600 border-0 text-white overflow-hidden">
-          <CardContent className="p-8">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-4xl font-bold mb-2">
-                  {username || "User"}
-                </h2>
-                <p className="text-blue-100 text-lg">Уровень {stats.level}</p>
-              </div>
-              <div className="text-6xl">
-                <IconSchool size={56} />
-              </div>
-            </div>
-
-            {/* Stats Row */}
-            <div className="grid grid-cols-4 gap-4 mt-8">
-              <div className="bg-white/20 rounded-lg p-4 backdrop-blur">
-                <p className="text-blue-100 text-sm">Решено задач</p>
-                <p className="text-3xl font-bold">{stats.tasksCompleted}</p>
-              </div>
-              <div className="bg-white/20 rounded-lg p-4 backdrop-blur">
-                <p className="text-blue-100 text-sm">В процессе</p>
-                <p className="text-3xl font-bold">{stats.tasksInProgress}</p>
-              </div>
-              <div className="bg-white/20 rounded-lg p-4 backdrop-blur">
-                <p className="text-blue-100 text-sm">Дневная серия</p>
-                <p className="text-3xl font-bold inline-flex items-center gap-1">
-                  {stats.streakDays}
-                  <IconFlame size={26} />
-                </p>
-              </div>
-              <div className="bg-white/20 rounded-lg p-4 backdrop-blur">
-                <p className="text-blue-100 text-sm">Очки</p>
-                <p className="text-3xl font-bold">{stats.totalPoints}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Progress and Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Progress */}
-          <Card>
-            <CardHeader>
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <IconBook size={24} className="text-blue-600" />
-                Прогресс обучения
-              </h3>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Level Progress */}
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-gray-600">Уровень {stats.level}</span>
-                  <span className="text-gray-600">
-                    {stats.totalPoints}/3000 XP
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500"
-                    style={{
-                      width: `${(stats.totalPoints / 3000) * 100}%`,
-                    }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Course Progress */}
-              <div className="space-y-3 mt-6">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-gray-700 font-medium">Прогресс по задачам</span>
-                    <span className="text-gray-600">{tasksCompleted} из {totalTasks}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-green-500 h-2 rounded-full transition-all"
-                      style={{ width: totalTasks > 0 ? `${(tasksCompleted / totalTasks) * 100}%` : "0%" }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Weekly Activity */}
-          <Card>
-            <CardHeader>
-              <h3 className="text-xl font-semibold flex items-center gap-2">
-                <IconCalendar size={24} className="text-green-600" />
-                Активность на неделе
-              </h3>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-end justify-between h-40 gap-1">
-                {activityData.map((data, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-2">
-                    <div className="relative group">
-                      <div
-                        className="w-8 bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-md transition-all duration-300 hover:from-blue-700 hover:to-blue-500 cursor-pointer"
-                        style={{
-                          height: `${(data.solved / maxSolved) * 100}px`,
-                        }}
-                      ></div>
-                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 bg-gray-900 text-white px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap mb-1">
-                        {data.solved} задач
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-600 font-medium">
-                      {data.day}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Achievements */}
-        <Card>
-          <CardHeader>
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <IconTrophy size={24} className="text-yellow-500" />
-              Достижения
-            </h3>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-              {achievements.length > 0 ? (
-                achievements.map((achievement) => (
-                  <div
-                    key={achievement.id}
-                    className={`relative p-4 rounded-lg border-2 transition-all duration-300 ${
-                      achievement.unlockedAt
-                        ? "bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-300 hover:shadow-lg"
-                        : "bg-gray-50 border-gray-300 opacity-60"
-                    }`}
+            <SimpleGrid cols={{ base: 3, sm: 4 }} spacing="sm" p="sm" mb="sm">
+              {AVATARS.map((a) => {
+                return (
+                  <UnstyledButton
+                    key={a.id}
+                    onClick={() => handleSelectAvatar(a.id)}
+                    className="mx-auto inline-flex rounded-full p-0.5 hover:ring-2 hover:ring-blue-600 focus:outline-none"
                   >
-                    <div className="text-center">
-                      <div className="text-4xl mb-2 flex justify-center">
-                        {renderAchievementIcon(
-                          achievement.icon,
-                          achievement.unlockedAt != null,
-                          32,
-                          achievement.unlockedAt ? "text-amber-600" : "text-gray-500",
-                        )}
-                      </div>
-                      <h4 className="font-semibold text-gray-900 text-sm">
-                        {achievement.name}
-                      </h4>
-                      <p className="text-xs text-gray-600 mt-1">
-                        {achievement.description}
-                      </p>
-                    </div>
-                    {achievement.unlockedAt && (
-                      <div className="absolute top-2 right-2">
-                        <IconAward size={16} className="text-yellow-500" />
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-gray-500 col-span-full">Пока нет достижений. Решайте задачи и собирайте серии дней!</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                    <Avatar src={a.src} size={72} radius="sm" />
+                  </UnstyledButton>
+                )
+              })}
+            </SimpleGrid>
+            <Group justify="center">
+              <AppButton
+                variant="outline"
+                onClick={() => handleSelectAvatar(null)}
+                size="sm"
+              >
+                <IconTrash size={18} />
+              </AppButton>
+            </Group>
+          </Modal>
 
-        {/* Stats Summary */}
-        <Card>
-          <CardHeader>
-            <h3 className="text-xl font-semibold flex items-center gap-2">
-              <IconBolt size={24} className="text-orange-500" />
-              Статистика
-            </h3>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-gray-600 text-sm">Всего решено</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {stats.tasksCompleted}
-                </p>
-              </div>
-              <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
-                <p className="text-gray-600 text-sm">Текущая серия</p>
-                <p className="text-2xl font-bold text-orange-600">
-                  {stats.streakDays} дн
-                </p>
-              </div>
-              <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <p className="text-gray-600 text-sm">Всего XP</p>
-                <p className="text-2xl font-bold text-purple-600">
-                  {stats.totalPoints}
-                </p>
-              </div>
-              <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                <p className="text-gray-600 text-sm">Уровень</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {stats.level}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </div>
+          <Group justify="space-between" wrap="nowrap">
+            <Box
+              style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}
+            >
+              <AppButton
+                variant="subtle"
+                size="md"
+                leftSection={<IconArrowLeft size={20} />}
+                onClick={() => {
+                  navigate("/")
+                  window.scrollTo(0, 0)
+                }}
+              >
+                К задачам
+              </AppButton>
+            </Box>
+
+            <Title order={2}>Профиль</Title>
+            <Box style={{ flex: 1 }} />
+          </Group>
+
+          <Paper
+            radius="xl"
+            p="xl"
+            className="border-white/15 bg-gradient-to-br from-[#2563eb] to-blue-400 "
+          >
+            <Group justify="space-between" align="flex-start" wrap="nowrap">
+              <Stack gap={4}>
+                <Title order={2} c="white">
+                  {`${firstName} ${lastName}`}
+                </Title>
+                <Text c="white" fw={400}>
+                  {username}
+                </Text>
+              </Stack>
+
+              <Tooltip label="Сменить аватар" withArrow>
+                <UnstyledButton
+                  onClick={() => setAvatarModalOpen(true)}
+                  className="rounded-full p-1 transition hover:bg-white/10"
+                >
+                  <Avatar
+                    src={selectedAvatarSrc}
+                    size={80}
+                    radius="100%"
+                    className="ring-2 ring-white/30"
+                  >
+                    <IconSchool color="white" size={44} />
+                  </Avatar>
+                </UnstyledButton>
+              </Tooltip>
+            </Group>
+
+            <SimpleGrid cols={{ base: 1, md: 3 }} mt="lg">
+              <Paper
+                radius="lg"
+                p="md"
+                style={{ backgroundColor: "rgba(255,255,255,0.18)" }}
+              >
+                <Text size="md" fw={600} c="white" m="0">
+                  Решено задач
+                </Text>
+                <Text fw={800} size="xl" c="white">
+                  {tasksCompleted}
+                </Text>
+              </Paper>
+
+              <Paper
+                radius="lg"
+                p="md"
+                style={{ backgroundColor: "rgba(255,255,255,0.18)" }}
+              >
+                <Text size="md" fw={600} c="white" m="0">
+                  В процессе
+                </Text>
+                <Text fw={800} size="xl" c="white">
+                  {tasksInProgress}
+                </Text>
+              </Paper>
+
+              <Paper
+                radius="lg"
+                p="md"
+                style={{ backgroundColor: "rgba(255,255,255,0.18)" }}
+              >
+                <Text size="md" fw={600} c="white" m="0">
+                  Дневная серия
+                </Text>
+                <Group gap={6} align="baseline" wrap="nowrap">
+                  <Text fw={800} size="xl" c="white">
+                    {streakDays}
+                  </Text>
+                </Group>
+              </Paper>
+            </SimpleGrid>
+          </Paper>
+
+          <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="lg">
+            <Paper
+              withBorder
+              radius="xl"
+              p="xl"
+              className="bg-white border-gray-100 shadow-sm"
+            >
+              <Group gap="sm" mb="md">
+                <ThemeIcon variant="light" color="blue" radius="xl">
+                  <IconBook size={18} />
+                </ThemeIcon>
+                <Title order={4}>Прогресс обучения</Title>
+              </Group>
+
+              <Stack gap="md" p="sm" justify="center">
+                <CategoryProgressBars
+                  isLoading={
+                    loading || (needsCategoryFallback && categoriesLoading)
+                  }
+                  math={{
+                    completed: progressByCategory.math.completed,
+                    total: progressByCategory.math.total,
+                  }}
+                  cs={{
+                    completed: progressByCategory.cs.completed,
+                    total: progressByCategory.cs.total,
+                  }}
+                />
+              </Stack>
+            </Paper>
+
+            <Paper
+              withBorder
+              radius="xl"
+              p="xl"
+              className="bg-white border-gray-100 shadow-sm"
+            >
+              <Group gap="sm" mb="md">
+                <ThemeIcon variant="light" color="yellow" radius="xl">
+                  <IconTrophy size={18} />
+                </ThemeIcon>
+                <Title order={4}>Достижения</Title>
+              </Group>
+
+              <AchievementsList achievements={achievements} isLoading={false} />
+            </Paper>
+          </SimpleGrid>
+        </Stack>
+      </Container>
+    </Box>
   )
 }
 

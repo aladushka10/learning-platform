@@ -21,6 +21,7 @@ export const UserStatsResponseSchema = z.object({
       z.object({
         taskId: z.string(),
         taskTitle: z.string().optional(),
+        category: z.enum(["math", "cs"]).optional(),
         status: z.string(),
         updatedAt: z.number().nullable().optional(),
       }),
