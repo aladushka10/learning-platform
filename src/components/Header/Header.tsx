@@ -6,6 +6,13 @@ import { signOut } from "../../store/signInSlice"
 import { MTextInput } from "../MTextInput/MTextInput"
 import { AppButton } from "../AppButton/AppButton"
 import logoSrc from "../../assets/LP.svg"
+import avatar1 from "../../assets/avatar/image1.png"
+import avatar2 from "../../assets/avatar/image2.png"
+import avatar3 from "../../assets/avatar/image3.png"
+import avatar4 from "../../assets/avatar/image4.png"
+import avatar5 from "../../assets/avatar/image5.png"
+import avatar6 from "../../assets/avatar/image6.png"
+import avatar7 from "../../assets/avatar/image7.png"
 
 interface HeaderProps {
   searchQuery: string
@@ -15,7 +22,7 @@ interface HeaderProps {
 export function Header({ searchQuery, onSearchChange }: HeaderProps) {
   const dispatch = useDispatch()
   const navigate = useNavigate()
-  const { auth, username, firstName, lastName } = useSelector(
+  const { auth, username, firstName, lastName, avatarId } = useSelector(
     (state: any) => state.signIn,
   )
 
@@ -30,6 +37,17 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
   }
 
   const displayName = firstName || username?.split("@")[0] || "User"
+  const avatarSrcById: Record<string, string> = {
+    image1: avatar1,
+    image2: avatar2,
+    image3: avatar3,
+    image4: avatar4,
+    image5: avatar5,
+    image6: avatar6,
+    image7: avatar7,
+  }
+  const avatarSrc =
+    typeof avatarId === "string" ? avatarSrcById[avatarId] : undefined
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/15 bg-gradient-to-br from-[#2563eb] to-blue-400 ">
@@ -72,7 +90,12 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 className="text-white/95 hover:bg-white/15"
                 onClick={() => navigate("/profile")}
                 leftSection={
-                  <Avatar size={24} radius="xl" color="white">
+                  <Avatar
+                    size={24}
+                    radius="xl"
+                    color="white"
+                    src={avatarSrc}
+                  >
                     {displayName.charAt(0).toUpperCase()}
                   </Avatar>
                 }

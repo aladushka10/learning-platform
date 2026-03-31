@@ -93,9 +93,21 @@ function init() {
       passwordHash TEXT NOT NULL,
       firstName TEXT,
       lastName TEXT,
+      avatarId TEXT,
       createdAt INTEGER
     )`,
   ).run()
+
+  // migration: add avatarId for existing databases
+  try {
+    const cols = db.prepare("PRAGMA table_info(users)").all()
+    const hasAvatarId = cols.some((c) => c && c.name === "avatarId")
+    if (!hasAvatarId) {
+      db.prepare("ALTER TABLE users ADD COLUMN avatarId TEXT").run()
+    }
+  } catch (e) {
+    // best-effort migration
+  }
 
   db.prepare(
     `CREATE TABLE IF NOT EXISTS solutions (
@@ -501,33 +513,45 @@ module.exports = {
   getUsers: () =>
     db
       .prepare(
-        "SELECT id, email, firstName, lastName, createdAt FROM users ORDER BY createdAt DESC",
+        "SELECT id, email, firstName, lastName, avatarId, createdAt FROM users ORDER BY createdAt DESC",
       )
       .all(),
   getUserById: (id) =>
     db
       .prepare(
-        "SELECT id, email, passwordHash, firstName, lastName, createdAt FROM users WHERE id = ?",
+        "SELECT id, email, passwordHash, firstName, lastName, avatarId, createdAt FROM users WHERE id = ?",
       )
       .get(id),
   getUserByEmail: (email) =>
     db
       .prepare(
-        "SELECT id, email, passwordHash, firstName, lastName, createdAt FROM users WHERE email = ?",
+        "SELECT id, email, passwordHash, firstName, lastName, avatarId, createdAt FROM users WHERE email = ?",
       )
       .get(email),
   createUser: (u) =>
     db
       .prepare(
-        "INSERT INTO users (id, email, passwordHash, firstName, lastName, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO users (id, email, passwordHash, firstName, lastName, avatarId, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(u.id, u.email, u.passwordHash, u.firstName, u.lastName, u.createdAt),
+      .run(
+        u.id,
+        u.email,
+        u.passwordHash,
+        u.firstName,
+        u.lastName,
+        u.avatarId || null,
+        u.createdAt,
+      ),
   updateUser: (id, data) =>
     db
       .prepare(
         "UPDATE users SET email = ?, firstName = ?, lastName = ? WHERE id = ?",
       )
       .run(data.email, data.firstName, data.lastName, id),
+  updateUserAvatar: (id, avatarId) =>
+    db
+      .prepare("UPDATE users SET avatarId = ? WHERE id = ?")
+      .run(avatarId, id),
   deleteUser: (id) => db.prepare("DELETE FROM users WHERE id = ?").run(id),
 
   // categories
