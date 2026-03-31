@@ -15,12 +15,13 @@ import {
 import { IconArrowLeft, IconBook2, IconChevronRight } from "@tabler/icons-react"
 import { useEffect, useState } from "react"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { fetchLectures, fetchLectureById } from "../../utils/api"
 import { AppButton } from "../../components/AppButton/AppButton"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
+import { CoursesService } from "../../services/courses/courses.service"
+import { LecturesService } from "../../services/lectures/lectures.service"
 
 interface LectureListItem {
   id: string
@@ -45,15 +46,12 @@ const TheoryPage = () => {
       setLoading(true)
       setError(null)
       try {
-        const coursesRes = await fetch("/api/courses")
-        if (!coursesRes.ok) throw new Error("Не удалось загрузить курсы")
-        const courses: { id: string; title?: string; category?: string }[] =
-          await coursesRes.json()
+        const courses = await CoursesService.getCourses()
 
         const allLectures: LectureListItem[] = []
         for (const course of courses) {
           try {
-            const courseLectures = await fetchLectures(course.id)
+            const courseLectures = await CoursesService.getCourseLectures(course.id)
             if (Array.isArray(courseLectures)) {
               courseLectures.forEach((l: any) => {
                 const isMath =
@@ -84,7 +82,7 @@ const TheoryPage = () => {
         const enriched: LectureListItem[] = []
         for (const l of list) {
           try {
-            const full = await fetchLectureById(l.id)
+            const full = await LecturesService.getById(l.id)
             enriched.push({
               id: full.id,
               title: full.title || l.title,

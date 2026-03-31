@@ -1,5 +1,5 @@
 import { createAction } from "@reduxjs/toolkit"
-import { trackTaskOpen } from "../../utils/api"
+import { TasksService } from "../../services/tasks/tasks.service"
 
 export const taskPageOpened = createAction<{ userId: string; taskId: string }>(
   "tasks/pageOpened",
@@ -10,7 +10,7 @@ export const trackTaskOpenMiddleware =
     if (action.type === "tasks/pageOpened") {
       const { userId, taskId } = action.payload
       if (userId && taskId) {
-        trackTaskOpen(userId, taskId)
+        TasksService.trackTaskOpen(taskId, userId)
       }
     }
 

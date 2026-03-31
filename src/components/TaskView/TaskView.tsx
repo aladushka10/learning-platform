@@ -6,7 +6,7 @@ import { Badge } from "../ui/badge"
 import { useState } from "react"
 import type { Task } from "../../App"
 import style from "./TaskView.module.scss"
-import { createSolution } from "../../utils/api"
+import { TasksService } from "../../services/tasks/tasks.service"
 
 interface TaskViewProps {
   task: Task
@@ -85,11 +85,10 @@ export function TaskView({
 
     setSubmitting(true)
     try {
-      const resp = await createSolution(task.id, {
-        user_id: userId,
-        task_id: task.id,
+      const resp = await TasksService.createSolution({
+        taskId: task.id,
+        userId,
         code: solution,
-        created_at: Date.now(),
       })
 
       const correct = resp?.correct === true
