@@ -78,7 +78,6 @@ function trackTaskOpen(userId, taskId) {
   }
 }
 
-
 function trackTaskAttempt(userId, taskId, success) {
   try {
     if (!userId || !taskId) return
@@ -291,7 +290,10 @@ app.post("/lectures/:id/quiz/submit", (req, res) => {
   const bodyUserId = req.body?.userId
   const userId = authUserId || bodyUserId
 
-  const answers = req.body?.answers && typeof req.body.answers === "object" ? req.body.answers : {}
+  const answers =
+    req.body?.answers && typeof req.body.answers === "object"
+      ? req.body.answers
+      : {}
   const questions = Array.isArray(quiz.questions) ? quiz.questions : []
   const total = questions.length
 
@@ -406,6 +408,32 @@ app.put("/users/:id", (req, res) => {
   if (!existing) return res.status(404).json({ error: "not_found" })
   db.updateUser(req.params.id, req.body)
   res.json({ ok: true })
+})
+
+app.put("/users/:id/avatar", (req, res) => {
+  const authUserId = getAuthUserId(req)
+  const userId = req.params.id
+  if (!authUserId) return res.status(401).json({ error: "unauthorized" })
+  if (authUserId !== userId) return res.status(403).json({ error: "forbidden" })
+
+  const raw = req.body?.avatarId
+  const avatarId = raw == null ? null : String(raw)
+  const allowed = new Set([
+    "image1",
+    "image2",
+    "image3",
+    "image4",
+    "image5",
+    "image6",
+    "image7",
+    "image8",
+  ])
+  if (avatarId !== null && !allowed.has(avatarId)) {
+    return res.status(400).json({ error: "invalid_avatar" })
+  }
+
+  db.updateUserAvatar(userId, avatarId)
+  res.json({ ok: true, avatarId })
 })
 
 app.delete("/users/:id", (req, res) => {
@@ -793,6 +821,7 @@ app.post("/auth/sign-in", (req, res) => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      avatarId: user.avatarId ?? null,
     },
   })
 })
@@ -812,6 +841,7 @@ app.get("/auth/me", (req, res) => {
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
+    avatarId: user.avatarId ?? null,
     createdAt: user.createdAt,
   })
 })
@@ -827,6 +857,7 @@ app.get("/auth/user", (req, res) => {
       email: u.email,
       firstName: u.firstName,
       lastName: u.lastName,
+      avatarId: u.avatarId ?? null,
       createdAt: u.createdAt,
     })
   }
@@ -843,6 +874,7 @@ app.get("/auth/user", (req, res) => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      avatarId: user.avatarId ?? null,
       createdAt: user.createdAt,
     })
   }
@@ -855,6 +887,7 @@ app.get("/auth/user", (req, res) => {
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
+    avatarId: user.avatarId ?? null,
     createdAt: user.createdAt,
   })
 })
@@ -889,6 +922,7 @@ app.post("/auth/sign-up", (req, res) => {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      avatarId: user.avatarId ?? null,
     },
   })
 })
@@ -899,6 +933,17 @@ app.post("/auth/sign-up", (req, res) => {
 app.get("/users/:userId/stats", (req, res) => {
   const { userId } = req.params
   const courses = db.getCourses()
+  const categoryByCourseId = {}
+  courses.forEach((c) => {
+    const cat = String(c.category || "").toLowerCase()
+    const isMath =
+      cat.includes("math") ||
+      cat.includes("матем") ||
+      cat.includes("мат") ||
+      cat.includes("алгеб") ||
+      cat.includes("геом")
+    categoryByCourseId[c.id] = isMath ? "math" : "cs"
+  })
   const allTasks = courses.flatMap((c) => db.getTasks(c.id))
   const progressByTask = {}
   db.getProgressByUser(userId).forEach((p) => {
@@ -911,18 +956,38 @@ app.get("/users/:userId/stats", (req, res) => {
     const solutions = db
       .getSolutionsByTask(task.id)
       .filter((s) => s.user_id === userId)
+
+    let latestAttemptAt = null
+    let latestCorrectAt = null
     if (solutions.length > 0) {
-      const hasCorrect = solutions.some((sol) => {
+      for (const sol of solutions) {
+        const createdAt =
+          typeof sol?.created_at === "number" ? sol.created_at : null
+        if (createdAt != null) {
+          if (latestAttemptAt == null || createdAt > latestAttemptAt) {
+            latestAttemptAt = createdAt
+          }
+        }
+
         const results = db.getCheckResultsBySolution(sol.id)
-        return results.some((r) => r.status === "correct")
-      })
-      if (hasCorrect) status = "completed"
+        const hasCorrect = results.some((r) => r.status === "correct")
+        if (hasCorrect && createdAt != null) {
+          if (latestCorrectAt == null || createdAt > latestCorrectAt) {
+            latestCorrectAt = createdAt
+          }
+        }
+      }
+
+      if (latestCorrectAt != null) status = "completed"
       else if (status === "not_started") status = "in_progress"
     }
-    const updatedAt = prog?.updatedAt ?? solutions[0]?.created_at ?? null
+
+    const updatedAt =
+      prog?.updatedAt ?? latestCorrectAt ?? latestAttemptAt ?? null
     return {
       taskId: task.id,
       taskTitle: task.title || "Unknown",
+      category: categoryByCourseId[task.courseId] || "cs",
       status,
       updatedAt,
     }

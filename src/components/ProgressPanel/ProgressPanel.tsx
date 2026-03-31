@@ -17,6 +17,8 @@ import {
 } from "@mantine/core"
 import type { Task } from "../../App"
 import { renderAchievementIcon } from "../../utils/achievementIcons"
+import { AchievementsList } from "../Achievements/AchievementsList"
+import { CategoryProgressBars } from "../Progress/CategoryProgressBars"
 
 interface UserStats {
   streakDays?: number
@@ -248,59 +250,11 @@ export function ProgressPanel({
           </Title>
 
           <Stack gap="md" p="sm">
-            <Stack gap={6}>
-              <Group justify="space-between">
-                <Text size="sm" m="0" c="dark">
-                  Математика
-                </Text>
-                {showSkeleton ? (
-                  <Skeleton height={14} width={35} radius="md" my="4" />
-                ) : (
-                  <Text size="sm" c="dimmed">
-                    {completedMath}/{mathTasks.length}
-                  </Text>
-                )}
-              </Group>
-              {showSkeleton ? (
-                <Skeleton height={10} radius="xl" my="4" />
-              ) : (
-                <Progress
-                  value={
-                    mathTasks.length > 0
-                      ? (completedMath / mathTasks.length) * 100
-                      : 0
-                  }
-                  size="sm"
-                />
-              )}
-            </Stack>
-
-            <Stack gap={6}>
-              <Group justify="space-between">
-                <Text size="sm" m="0" c="dark">
-                  Информатика
-                </Text>
-                {showSkeleton ? (
-                  <Skeleton height={14} width={35} radius="md" />
-                ) : (
-                  <Text size="sm" c="dimmed">
-                    {completedCS}/{csTasks.length}
-                  </Text>
-                )}
-              </Group>
-              {showSkeleton ? (
-                <Skeleton height={10} radius="xl" m="8" />
-              ) : (
-                <Progress
-                  value={
-                    csTasks.length > 0
-                      ? (completedCS / csTasks.length) * 100
-                      : 0
-                  }
-                  size="sm"
-                />
-              )}
-            </Stack>
+            <CategoryProgressBars
+              isLoading={showSkeleton}
+              math={{ completed: completedMath, total: mathTasks.length }}
+              cs={{ completed: completedCS, total: csTasks.length }}
+            />
           </Stack>
         </Stack>
       </Card>
@@ -310,65 +264,12 @@ export function ProgressPanel({
           <Title order={5} fw={600}>
             Достижения
           </Title>
-          {showSkeleton ? (
-            Array.from({ length: 3 }).map((_, idx) => (
-              <Card
-                key={idx}
-                radius="md"
-                p="md"
-                withBorder
-                style={{ backgroundColor: "#f9fafb" }}
-              >
-                <Group align="flex-start" gap="md" wrap="nowrap">
-                  <Skeleton height={24} width={24} radius="xl" />
-                  <Stack gap={8} style={{ flex: 1 }}>
-                    <Skeleton height={12} width="70%" radius="md" />
-                    <Skeleton height={10} width="90%" radius="md" />
-                    <Skeleton height={10} width="55%" radius="md" />
-                  </Stack>
-                </Group>
-              </Card>
-            ))
-          ) : (userStats?.achievements ?? []).length === 0 ? (
-            <Text size="sm" c="dimmed">
-              Решайте задачи, чтобы открывать достижения.
-            </Text>
-          ) : (
-            (userStats?.achievements ?? []).slice(0, 3).map((a) => (
-              <Card
-                key={a.id}
-                radius="md"
-                p="sm"
-                withBorder
-                bg={a.unlockedAt ? "yellow.0" : "gray.0"}
-              >
-                <Group align="flex-start" gap="sm" wrap="nowrap">
-                  <Text size="lg" m="0">
-                    {renderAchievementIcon(
-                      a.icon,
-                      a.unlockedAt != null,
-                      24,
-                      a.unlockedAt ? "text-amber-600" : "text-gray-500",
-                    )}
-                  </Text>
-                  <Stack gap={2} style={{ flex: 1 }}>
-                    <Text size="sm" m="0" fw={600} c="dark">
-                      {a.name}
-                    </Text>
-                    <Text size="xs" m="0" c="dimmed">
-                      {a.description}
-                    </Text>
-                    {a.unlockedAt && (
-                      <Text size="xs" m="0" c="yellow.9">
-                        Получено{" "}
-                        {new Date(a.unlockedAt).toLocaleDateString("ru-RU")}
-                      </Text>
-                    )}
-                  </Stack>
-                </Group>
-              </Card>
-            ))
-          )}
+          <AchievementsList
+            variant="list"
+            isLoading={showSkeleton}
+            achievements={(userStats?.achievements ?? []) as any}
+            limit={3}
+          />
         </Stack>
       </Card>
     </Stack>

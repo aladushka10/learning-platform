@@ -20,7 +20,7 @@ interface SidebarProps {
 const menuItems = [
   { icon: Target, label: "Задачи", path: "/" },
   { icon: BookOpen, label: "Теория", path: "/theory" },
-  { icon: TrendingUp, label: "Прогресс", path: "/progress", disabled: true },
+  { icon: TrendingUp, label: "Прогресс", path: "/progress" },
   { icon: User, label: "Профиль", path: "/profile" },
 ]
 
@@ -49,9 +49,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                   active={isActive}
                   label={collapsed ? undefined : item.label}
                   leftSection={<item.icon className="h-4 w-4" />}
-                  disabled={item.disabled}
                   onClick={() => {
-                    if (item.disabled) return
                     navigate(item.path)
                   }}
                   className={
