@@ -25,16 +25,7 @@ import {
   addSolution,
   setCheckResults,
 } from "../../store/solutionSlice"
-import {
-  fetchTask,
-  fetchLectures,
-  createSolution,
-  createCheckResult,
-  createProgress,
-  isAnswerCorrect,
-  fetchLectureById,
-  fetchTaskStats,
-} from "../../utils/api"
+import { createProgress } from "../../utils/api"
 import type { RootState } from "../../store"
 import { taskPageOpened } from "../../store/middlewares/trackTaskOpenMiddleware"
 import style from "./TaskSolverPage.module.scss"
@@ -43,6 +34,8 @@ import { AppButton } from "../../components/AppButton/AppButton"
 import { Loader, Title } from "@mantine/core"
 import { TaskBadges } from "../../components/TaskBadges/TaskBadges"
 import { TaskSidebarCard } from "../../components/TaskSidebar/TaskSidebarCard"
+import { CoursesService } from "../../services/courses/courses.service"
+import { TasksService } from "../../services/tasks/tasks.service"
 
 interface TaskData {
   id: string
@@ -75,7 +68,7 @@ const TaskSolverPage = () => {
   const dispatch = useDispatch()
 
   const [task, setTask] = useState<TaskData | null>(null)
-  const [lectures, setLectures] = useState<LectureData[]>([])
+  const [, setLectures] = useState<LectureData[]>([])
   const [relatedLecture, setRelatedLecture] = useState<LectureData | null>(null)
   const [userAnswer, setUserAnswer] = useState("")
   const [showHint, setShowHint] = useState(false)
@@ -107,7 +100,8 @@ const TaskSolverPage = () => {
       try {
         if (!courseId || !taskId) throw new Error("Missing course or task ID")
 
-        const taskData = await fetchTask(courseId, taskId)
+        const tasks = await CoursesService.getCourseTasks(courseId)
+        const taskData = tasks.find((t: any) => t?.id === taskId)
         if (!taskData) throw new Error("Task not found")
 
         // Parse meta if it's a string
@@ -120,7 +114,7 @@ const TaskSolverPage = () => {
 
         // Load lectures to find related material
         try {
-          const lectData = await fetchLectures(courseId)
+          const lectData = await CoursesService.getCourseLectures(courseId)
           setLectures(lectData)
 
           // Try to find a relevant lecture by topic
@@ -166,17 +160,19 @@ const TaskSolverPage = () => {
 
     try {
       // Create solution (server also creates checkResult and progress)
-      const resp = await createSolution(taskId!, {
-        user_id: userId,
-        task_id: taskId!,
+      const resp = await TasksService.createSolution({
+        taskId: taskId!,
+        userId,
         code: userAnswer,
-        created_at: Date.now(),
       })
 
       // Use server-side result
       const solution = resp.solution
       const checkResult = resp.checkResult
       const correct = resp.correct === true
+      if (!solution || !checkResult) {
+        throw new Error("Сервер вернул неожиданный ответ при сохранении решения")
+      }
 
       const newlyUnlocked = Array.isArray((resp as any)?.newAchievements)
         ? (resp as any).newAchievements
@@ -217,7 +213,7 @@ const TaskSolverPage = () => {
       // Refresh recommendation status after an attempt
       try {
         if (taskId) {
-          const stats = await fetchTaskStats(taskId)
+          const stats = await TasksService.getTaskStats(taskId)
           const failures = (stats.attempts || 0) - (stats.successes || 0)
           const shouldRecommend =
             ((stats.successes || 0) == 0 && (stats.opens || 0) >= 4) ||
@@ -251,7 +247,7 @@ const TaskSolverPage = () => {
     dispatch(taskPageOpened({ userId: userIdFromStore, taskId }))
     ;(async () => {
       try {
-        const stats = await fetchTaskStats(taskId!)
+        const stats = await TasksService.getTaskStats(taskId!)
         const failures = (stats.attempts || 0) - (stats.successes || 0)
         const shouldRecommend =
           ((stats.successes || 0) == 0 && (stats.opens || 0) >= 4) ||

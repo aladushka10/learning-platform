@@ -18,11 +18,11 @@ import {
   Title,
 } from "@mantine/core"
 import { AppButton } from "../../components/AppButton/AppButton"
-import { fetchLectureById } from "../../utils/api"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
+import { LecturesService } from "../../services/lectures/lectures.service"
 interface LectureData {
   id: string
   title: string
@@ -52,7 +52,7 @@ const LecturePage = () => {
         }
 
         if (lectureId) {
-          const data = await fetchLectureById(lectureId)
+          const data = await LecturesService.getById(lectureId)
           setLecture(data)
         }
       } catch (err: any) {

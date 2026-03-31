@@ -10,8 +10,6 @@ import {
 import {
   Alert,
   Badge,
-  Button,
-  Card,
   Code,
   Container,
   Group,
@@ -23,14 +21,14 @@ import {
   Title,
 } from "@mantine/core"
 import Editor from "@monaco-editor/react"
-import { fetchLectures, fetchTask, fetchTaskStats } from "../../utils/api"
 import { AppButton } from "../../components/AppButton/AppButton"
 import { TaskBadges } from "../../components/TaskBadges/TaskBadges"
 import { useQueryClient } from "@tanstack/react-query"
 import { useDispatch, useSelector } from "react-redux"
 import { taskPageOpened } from "../../store/middlewares/trackTaskOpenMiddleware"
-import { SubmitButton } from "../../components/SubmitButton/SubmitButton"
 import { TaskSidebarCard } from "../../components/TaskSidebar/TaskSidebarCard"
+import { CoursesService } from "../../services/courses/courses.service"
+import { TasksService } from "../../services/tasks/tasks.service"
 
 type CodeTestCase = {
   name?: string
@@ -104,7 +102,8 @@ const CodeTaskPage = () => {
 
       try {
         if (!courseId || !taskId) throw new Error("Missing course or task ID")
-        const taskData = await fetchTask(courseId, taskId)
+        const tasks = await CoursesService.getCourseTasks(courseId)
+        const taskData = tasks.find((t: any) => t?.id === taskId)
         if (!taskData) throw new Error("Task not found")
 
         const rawMeta =
@@ -125,7 +124,7 @@ const CodeTaskPage = () => {
         setCode(meta.starterCode || "")
 
         try {
-          const lectData = await fetchLectures(courseId)
+          const lectData = await CoursesService.getCourseLectures(courseId)
           const topic = meta.topic
           if (topic && Array.isArray(lectData)) {
             const topicLower = String(topic).toLowerCase()
@@ -171,7 +170,7 @@ const CodeTaskPage = () => {
     dispatch(taskPageOpened({ userId, taskId }))
     ;(async () => {
       try {
-        const stats = await fetchTaskStats(taskId!)
+        const stats = await TasksService.getTaskStats(taskId!)
         const failures = (stats.attempts || 0) - (stats.successes || 0)
         const shouldRecommend =
           ((stats.successes || 0) == 0 && (stats.opens || 0) >= 4) ||
@@ -257,7 +256,7 @@ const CodeTaskPage = () => {
     // Refresh recommendation after an attempt
     try {
       if (userId && taskId) {
-        const stats = await fetchTaskStats(taskId)
+        const stats = await TasksService.getTaskStats(taskId)
         const failures = (stats.attempts || 0) - (stats.successes || 0)
         const shouldRecommend =
           ((stats.successes || 0) == 0 && (stats.opens || 0) >= 4) ||
