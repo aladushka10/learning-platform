@@ -1,4 +1,4 @@
-import { IconSearch, IconTrophy } from "@tabler/icons-react"
+import { IconSearch, IconTrendingUp, IconTrophy } from "@tabler/icons-react"
 import { Avatar, Button, Group, Text, TextInput, Image } from "@mantine/core"
 import { useNavigate } from "react-router-dom"
 import { useDispatch, useSelector } from "react-redux"
@@ -76,12 +76,12 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 variant="subtle"
                 size="sm"
                 leftSection={
-                  <IconTrophy size={16} className="text-amber-300" />
+                  <IconTrendingUp size={16} className="text-amber-300" />
                 }
                 className="text-white hover:bg-white/15"
-                onClick={() => navigate("/achievements")}
+                onClick={() => navigate("/progress")}
               >
-                <span className="text-white text-base">Достижения</span>
+                <span className="text-white text-base">Прогресс</span>
               </AppButton>
 
               <AppButton
@@ -90,12 +90,7 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
                 className="text-white/95 hover:bg-white/15"
                 onClick={() => navigate("/profile")}
                 leftSection={
-                  <Avatar
-                    size={24}
-                    radius="xl"
-                    color="white"
-                    src={avatarSrc}
-                  >
+                  <Avatar size={24} radius="xl" color="white" src={avatarSrc}>
                     {displayName.charAt(0).toUpperCase()}
                   </Avatar>
                 }

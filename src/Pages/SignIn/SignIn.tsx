@@ -158,10 +158,6 @@ const SignIn = () => {
                 </AppButton>
               </Stack>
             </form>
-
-            <Text ta="center" size="sm" c="dimmed" m={0}>
-              Demo: `demo@example.com` / `hashed_password_123`
-            </Text>
           </Stack>
         </Paper>
       </Stack>

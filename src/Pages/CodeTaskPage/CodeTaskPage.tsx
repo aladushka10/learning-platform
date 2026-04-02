@@ -344,7 +344,7 @@ const CodeTaskPage = () => {
                       </Text>
                     </div>
 
-                    <div className="absolute top-0 right-0">
+                    <div className="sm:absolute sm:top-0 sm:right-0 mt-3 sm:mt-0 w-full sm:w-auto flex justify-end">
                       <TaskBadges
                         difficulty={task.meta?.difficulty ?? "Easy"}
                         taskType={task.meta?.type}
