@@ -276,7 +276,7 @@ const ProgressPage = () => {
         : null
     if (!status) return
 
-    navigate(`/?type=${category}&status=${status}&sort=recent`)
+    navigate(`/tasks?type=${category}&status=${status}&sort=recent`)
     window.scrollTo(0, 0)
   }
 
@@ -292,7 +292,7 @@ const ProgressPage = () => {
               size="md"
               leftSection={<IconArrowLeft size={20} />}
               onClick={() => {
-                navigate(`/?course=${courseId || ""}`)
+                navigate(`/tasks?course=${courseId || ""}`)
                 window.scrollTo(0, 0)
               }}
             >
@@ -336,7 +336,7 @@ const ProgressPage = () => {
               ? ([{ key: "all" as const, title: "Все задачи" }] as const)
               : ([
                   { key: "math" as const, title: "Математика" },
-                  { key: "cs" as const, title: "Информатика" },
+                  { key: "cs" as const, title: "Программирование" },
                 ] as const)
             ).map((item) => {
               const s = statsByCategory[item.key]
@@ -470,7 +470,8 @@ const ProgressPage = () => {
                     formatter={(value: any, name: any) => {
                       const key = String(name ?? "")
                       if (key === "cumulativeMath") return [value, "Математика"]
-                      if (key === "cumulativeCs") return [value, "Информатика"]
+                      if (key === "cumulativeCs")
+                        return [value, "Программирование"]
                       return [value, key]
                     }}
                     labelFormatter={(label: any) => `Дата: ${label}`}
@@ -496,7 +497,7 @@ const ProgressPage = () => {
                     strokeWidth={2}
                     dot={false}
                     animationDuration={650}
-                    name="Информатика"
+                    name="Программирование"
                   />
                 </LineChart>
               </ResponsiveContainer>

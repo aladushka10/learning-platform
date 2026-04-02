@@ -15,8 +15,8 @@ import avatar6 from "../../assets/avatar/image6.png"
 import avatar7 from "../../assets/avatar/image7.png"
 
 interface HeaderProps {
-  searchQuery: string
-  onSearchChange: (query: string) => void
+  searchQuery?: string
+  onSearchChange?: (query: string) => void
 }
 
 export function Header({ searchQuery, onSearchChange }: HeaderProps) {
@@ -56,18 +56,20 @@ export function Header({ searchQuery, onSearchChange }: HeaderProps) {
           <Image src={logoSrc} alt="LP" h={40} fit="contain" />
         </div>
 
-        <div className="hidden flex-1 max-w-xl md:block">
-          <MTextInput
-            value={searchQuery}
-            onChange={(e) => onSearchChange(e.currentTarget.value)}
-            placeholder="Поиск задач, тем или концепций..."
-            leftSection={<IconSearch size={16} className="text-slate-500" />}
-            classNames={{
-              input:
-                "bg-white/95 border-white/40 text-slate-800 placeholder:text-slate-500",
-            }}
-          />
-        </div>
+        {typeof searchQuery === "string" && onSearchChange ? (
+          <div className="hidden flex-1 max-w-xl md:block">
+            <MTextInput
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.currentTarget.value)}
+              placeholder="Поиск задач, тем или концепций..."
+              leftSection={<IconSearch size={16} className="text-slate-500" />}
+              classNames={{
+                input:
+                  "bg-white/95 border-white/40 text-slate-800 placeholder:text-slate-500",
+              }}
+            />
+          </div>
+        ) : null}
 
         <Group gap="xs" className="w-144 h-12  px-2 py-2">
           {auth ? (

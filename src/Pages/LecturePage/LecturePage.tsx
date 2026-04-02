@@ -109,7 +109,7 @@ const LecturePage = () => {
               leftSection={<IconArrowLeft size={20} />}
               onClick={() => {
                 if (fromTheory) {
-                  navigate(`/theory?type=${typeFromQuery}`)
+                  navigate(`/?type=${typeFromQuery}`)
                 } else {
                   navigate(-1)
                 }
@@ -161,7 +161,7 @@ const LecturePage = () => {
                 </AppButton>
                 <AppButton
                   className="bg-blue-600 hover:bg-blue-700"
-                  onClick={() => navigate("/")}
+                  onClick={() => navigate("/tasks")}
                 >
                   К задачам
                 </AppButton>

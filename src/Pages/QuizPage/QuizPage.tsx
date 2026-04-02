@@ -62,7 +62,15 @@ export default function QuizPage() {
     return quiz.questions.every((q) => Boolean(answers[q.id]))
   }, [quiz, answers])
 
-  const goBack = () => navigate(`/?course=${courseId || ""}`)
+  const questions = useMemo(() => {
+    if (!quiz?.questions?.length) return []
+    return quiz.questions.map((q) => ({
+      ...q,
+      options: [...q.options].sort(() => Math.random() - 0.5),
+    }))
+  }, [quiz])
+
+  const goBack = () => navigate(`/tasks?course=${courseId || ""}`)
 
   if (!lectureId) {
     return (
@@ -171,7 +179,7 @@ export default function QuizPage() {
           </Alert>
         )}
 
-        {quiz.questions.map((q, index) => {
+        {questions.map((q, index) => {
           const questionResult = submitResult?.results?.find(
             (r) => r.questionId === q.id,
           )
