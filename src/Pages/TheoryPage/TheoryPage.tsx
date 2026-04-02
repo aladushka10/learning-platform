@@ -22,6 +22,7 @@ import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
 import { CoursesService } from "../../services/courses/courses.service"
 import { LecturesService } from "../../services/lectures/lectures.service"
+import { AppState } from "../../components/AppState/AppState"
 
 interface LectureListItem {
   id: string
@@ -51,7 +52,9 @@ const TheoryPage = () => {
         const allLectures: LectureListItem[] = []
         for (const course of courses) {
           try {
-            const courseLectures = await CoursesService.getCourseLectures(course.id)
+            const courseLectures = await CoursesService.getCourseLectures(
+              course.id,
+            )
             if (Array.isArray(courseLectures)) {
               courseLectures.forEach((l: any) => {
                 const isMath =
@@ -126,6 +129,27 @@ const TheoryPage = () => {
   const filteredLectures = lectures.filter(
     (l) => (l.category || "math") === currentFilter,
   )
+
+  if (!loading && error) {
+    return (
+      <AppState
+        title="Не удалось загрузить лекции"
+        actionLabel="Обновить страницу"
+        onAction={() => window.location.reload()}
+      />
+    )
+  }
+
+  if (!loading && filteredLectures.length === 0) {
+    return (
+      <AppState
+        title="Лекции не найдены"
+        actionLabel="Обновить страницу"
+        onAction={() => window.location.reload()}
+      />
+    )
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Container size="lg" py="xl" className="flex-1 flex flex-col">
@@ -187,23 +211,6 @@ const TheoryPage = () => {
                     ))}
                   </Stack>
                 </ScrollArea>
-              </Stack>
-            ) : error ? (
-              <Stack gap="sm">
-                <Text c="red" size="sm">
-                  {error}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  Попробуйте обновить страницу чуть позже.
-                </Text>
-              </Stack>
-            ) : lectures.length === 0 ? (
-              <Stack gap="sm">
-                <Title order={4}>Лекции не найдены</Title>
-                <Text size="sm" c="dimmed">
-                  На платформе пока нет опубликованных лекций по математике и
-                  информатике.
-                </Text>
               </Stack>
             ) : (
               <Stack gap="md" className="flex-1 flex flex-col">

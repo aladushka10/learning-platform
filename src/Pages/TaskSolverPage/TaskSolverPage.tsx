@@ -318,11 +318,11 @@ const TaskSolverPage = () => {
             <CardHeader className="relative mb-6">
               <Title
                 order={2}
-                className="text-xl font-semibold text-gray-900 pr-44"
+                className="text-xl font-semibold text-gray-900 sm:pr-44 pr-0"
               >
                 Условие задачи
               </Title>
-              <div className="absolute top-6 right-6">
+              <div className="sm:absolute sm:top-6 sm:right-6 mt-3 sm:mt-0 w-full sm:w-auto flex justify-end">
                 <TaskBadges
                   difficulty={task.meta?.difficulty}
                   taskType={task.meta?.type}

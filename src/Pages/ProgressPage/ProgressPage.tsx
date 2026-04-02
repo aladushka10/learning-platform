@@ -30,6 +30,7 @@ import {
 import { AppButton } from "../../components/AppButton/AppButton"
 import { useUserProgress } from "../../services/progress/progress.hooks"
 import { useTaskCategoryById } from "../../hooks/useTaskCategoryById"
+import { AppState } from "../../components/AppState/AppState"
 
 type RangeKey = "7d" | "30d" | "90d"
 type StatusKey = "completed" | "in_progress" | "not_started"
@@ -449,9 +450,11 @@ const ProgressPage = () => {
               <Loader />
             </Group>
           ) : error ? (
-            <Text c="red" size="sm">
-              Не удалось загрузить прогресс
-            </Text>
+            <AppState
+              title="Не удалось загрузить прогресс"
+              actionLabel="Обновить страницу"
+              onAction={() => window.location.reload()}
+            />
           ) : (
             <Box h={320}>
               <ResponsiveContainer width="100%" height="100%">

@@ -29,6 +29,7 @@ import { hydrateAuth } from "./store/signInSlice"
 import { Loader, Skeleton, Title } from "@mantine/core"
 import { useUserProgress } from "./services/progress/progress.hooks"
 import { usePagination } from "./hooks/usePagination"
+import { AppState } from "./components/AppState/AppState"
 
 export interface Task {
   id: string
@@ -106,6 +107,7 @@ function TasksPage() {
   const effectiveUserId = auth && userIdFromStore ? userIdFromStore : null
 
   const [courses, setCourses] = useState<Course[]>([])
+  const [coursesLoaded, setCoursesLoaded] = useState(false)
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<Task[]>([])
   const [recentAchievement, setRecentAchievement] = useState<{
@@ -132,8 +134,6 @@ function TasksPage() {
     typeFilterParam === "math" || typeFilterParam === "cs"
       ? (typeFilterParam as "math" | "cs")
       : null
-
-  const sortParam = searchParams.get("sort")
 
   const typeLabel =
     typeFilter === "math"
@@ -186,10 +186,15 @@ function TasksPage() {
       ? {
           streakDays: statsData.streakDays ?? 0,
           achievements: statsData.achievements ?? [],
+          tasks: statsData.tasks ?? [],
         }
       : null
   const progressPanelLoading =
     loading || (!!effectiveUserId && (!statsData || progressLoading))
+
+  const showErrorOverlay = coursesLoaded && !loading && Boolean(error)
+  const showEmptyOverlay =
+    coursesLoaded && !loading && !error && courses.length === 0
 
   useEffect(() => {
     // load courses
@@ -222,6 +227,7 @@ function TasksPage() {
         setError(e.message || "error")
       } finally {
         setLoading(false)
+        setCoursesLoaded(true)
       }
     }
     load()
@@ -328,14 +334,8 @@ function TasksPage() {
       )
     : filteredTasks
 
-  const sortedTasks = [...statusFilteredTasks].sort((a, b) => {
-    if (sortParam === "recent") {
-      const aTs = a.progressUpdatedAt ?? 0
-      const bTs = b.progressUpdatedAt ?? 0
-      return bTs - aTs
-    }
-    return a.title.localeCompare(b.title, "ru")
-  })
+  // Keep backend order (ord ASC) without extra sorting.
+  const sortedTasks = statusFilteredTasks
   const {
     displayedItems: visibleTasks,
     hasMore,
@@ -371,6 +371,19 @@ function TasksPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      {showErrorOverlay ? (
+        <AppState
+          title="Не удалось загрузить данные"
+          actionLabel="Обновить страницу"
+          onAction={() => window.location.reload()}
+        />
+      ) : showEmptyOverlay ? (
+        <AppState
+          title="Курсы не найдены"
+          actionLabel="Обновить страницу"
+          onAction={() => window.location.reload()}
+        />
+      ) : null}
       <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
 
       <div className="flex flex-1">
@@ -485,8 +498,6 @@ function TasksPage() {
                 </div>
               ) : (
                 <>
-                  {error && <p className="text-red-600">{error}</p>}
-
                   {selectedTask ? (
                     <TaskView
                       task={selectedTask}
@@ -501,9 +512,7 @@ function TasksPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <Title order={2}>{pageTitle}</Title>
-                          <p className="text-gray-600 mt-1">
-                            {pageSubtitle}
-                          </p>
+                          <p className="text-gray-600 mt-1">{pageSubtitle}</p>
                         </div>
 
                         <div className="flex items-center gap-3">
@@ -526,7 +535,23 @@ function TasksPage() {
                           </select>
                         </div>
                       </div>
-
+                      {showErrorOverlay ? (
+                        <div className="py-10 flex justify-center">
+                          <AppState
+                            title="Не удалось загрузить данные"
+                            actionLabel="Обновить страницу"
+                            onAction={() => window.location.reload()}
+                          />
+                        </div>
+                      ) : showEmptyOverlay ? (
+                        <div className="py-10 flex justify-center">
+                          <AppState
+                            title="Курсы не найдены"
+                            actionLabel="Обновить страницу"
+                            onAction={() => window.location.reload()}
+                          />
+                        </div>
+                      ) : null}
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
                         {visibleTasks.map((task) => (
                           <TaskCard

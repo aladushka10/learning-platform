@@ -29,6 +29,13 @@ interface UserStats {
     icon: string
     unlockedAt: number | null
   }[]
+  tasks?: {
+    taskId: string
+    taskTitle?: string
+    category?: "math" | "cs"
+    status: string
+    updatedAt?: number | null
+  }[]
 }
 
 interface ProgressPanelProps {
@@ -85,10 +92,22 @@ export function ProgressPanel({
   const progressPercentage =
     totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
 
-  const mathTasks = tasks.filter((t) => t.category === "Mathematics")
-  const csTasks = tasks.filter((t) => t.category === "Computer Science")
-  const completedMath = mathTasks.filter((t) => t.completed).length
-  const completedCS = csTasks.filter((t) => t.completed).length
+  const statsTasks = userStats?.tasks
+  const categorySource = Array.isArray(statsTasks) ? statsTasks : null
+  const mathTotal = categorySource
+    ? categorySource.filter((t) => t.category === "math").length
+    : tasks.filter((t) => t.category === "Mathematics").length
+  const csTotal = categorySource
+    ? categorySource.filter((t) => t.category === "cs").length
+    : tasks.filter((t) => t.category === "Computer Science").length
+  const completedMath = categorySource
+    ? categorySource.filter((t) => t.category === "math" && t.status === "completed")
+        .length
+    : tasks.filter((t) => t.category === "Mathematics" && t.completed).length
+  const completedCS = categorySource
+    ? categorySource.filter((t) => t.category === "cs" && t.status === "completed")
+        .length
+    : tasks.filter((t) => t.category === "Computer Science" && t.completed).length
 
   const streakDays = userStats?.streakDays ?? 0
   const achievementsUnlocked =
@@ -252,8 +271,8 @@ export function ProgressPanel({
           <Stack gap="md" p="sm">
             <CategoryProgressBars
               isLoading={showSkeleton}
-              math={{ completed: completedMath, total: mathTasks.length }}
-              cs={{ completed: completedCS, total: csTasks.length }}
+              math={{ completed: completedMath, total: mathTotal }}
+              cs={{ completed: completedCS, total: csTotal }}
             />
           </Stack>
         </Stack>
@@ -265,10 +284,8 @@ export function ProgressPanel({
             Достижения
           </Title>
           <AchievementsList
-            variant="list"
             isLoading={showSkeleton}
             achievements={(userStats?.achievements ?? []) as any}
-            limit={3}
           />
         </Stack>
       </Card>

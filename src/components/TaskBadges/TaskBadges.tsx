@@ -1,5 +1,6 @@
 import { Badge, Group } from "@mantine/core"
 import { IconCode, IconPencil } from "@tabler/icons-react"
+import { useMediaQuery } from "@mantine/hooks"
 
 type Props = {
   difficulty?: undefined | string
@@ -26,35 +27,45 @@ export const TaskBadges = ({
   category,
   language,
 }: Props) => {
+  const isXs = useMediaQuery("(max-width: 1330px)")
+  const isSm = useMediaQuery("(max-width: 1490px)")
+
+  const badgeSize = isXs ? "xs" : isSm ? "sm" : "lg"
+  const gap = isXs ? "xs" : isSm ? "sm" : "md"
+
   return (
-    <Group justify="flex-end" gap="md" className="flex-wrap">
+    <Group justify="flex-end" gap={gap} wrap="wrap">
       {difficulty && (
-        <Badge size="lg" variant="outline" color={difficultyColors[difficulty]}>
+        <Badge
+          size={badgeSize}
+          variant="outline"
+          color={difficultyColors[difficulty]}
+        >
           {difficultyLabels[difficulty]}
         </Badge>
       )}
 
       {taskType === "code" && language && (
-        <Badge size="lg" fw={500} variant="light" color="gray">
+        <Badge size={badgeSize} fw={500} variant="light" color="gray">
           {language}
         </Badge>
       )}
       {category && (
-        <Badge size="lg" fw={500} variant="light" color="gray">
+        <Badge size={badgeSize} fw={500} variant="light" color="gray">
           {category === "Mathematics" ? "Математика" : "Информатика"}
         </Badge>
       )}
       {taskType && (
         <Badge
-          size="lg"
+          size={badgeSize}
           fw={500}
           variant="light"
           color="blue"
           leftSection={
             taskType === "code" ? (
-              <IconCode size={14} />
+              <IconCode size={13} />
             ) : (
-              <IconPencil size={14} />
+              <IconPencil size={13} />
             )
           }
         >

@@ -23,6 +23,7 @@ import remarkGfm from "remark-gfm"
 import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
 import { LecturesService } from "../../services/lectures/lectures.service"
+import { AppState } from "../../components/AppState/AppState"
 interface LectureData {
   id: string
   title: string
@@ -84,22 +85,11 @@ const LecturePage = () => {
 
   if (error || !lecture) {
     return (
-      <Container
-        size="sm"
-        py="xl"
-        className="flex-1 flex items-center justify-center"
-      >
-        <Paper withBorder radius="lg" p="xl" className="w-full max-w-md">
-          <Stack gap="md">
-            <Text c="red" size="sm">
-              {error || "Лекция не найдена"}
-            </Text>
-            <AppButton variant="outline" onClick={() => navigate(-1)} fullWidth>
-              Вернуться
-            </AppButton>
-          </Stack>
-        </Paper>
-      </Container>
+      <AppState
+        title={error ? "Не удалось загрузить лекцию" : "Лекция не найдена"}
+        actionLabel="Вернуться"
+        onAction={() => navigate(-1)}
+      />
     )
   }
 
