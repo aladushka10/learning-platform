@@ -50,6 +50,16 @@ function getAuthUserId(req) {
   }
 }
 
+function isAdminUserId(userId) {
+  if (!userId) return false
+  const u = db.getUserById(String(userId))
+  return Boolean(u?.isAdmin)
+}
+
+function adminLearningForbidden(res) {
+  return res.status(403).json({ error: "admin_learning_forbidden" })
+}
+
 function setAuthCookie(res, userId) {
   const token = jwt.sign({ sub: userId }, JWT_SECRET, {
     expiresIn: JWT_MAX_AGE_SEC,
@@ -190,6 +200,92 @@ function checkAchievements(userId) {
   return newlyUnlocked
 }
 
+function buildUserProgressStats(userId) {
+  const courses = db.getCourses()
+  const categoryByCourseId = {}
+  courses.forEach((c) => {
+    const cat = String(c.category || "").toLowerCase()
+    const isMath =
+      cat.includes("math") ||
+      cat.includes("матем") ||
+      cat.includes("мат") ||
+      cat.includes("алгеб") ||
+      cat.includes("геом")
+    categoryByCourseId[c.id] = isMath ? "math" : "cs"
+  })
+  const allTasks = courses.flatMap((c) => db.getTasks(c.id))
+  const progressByTask = {}
+  db.getProgressByUser(userId).forEach((p) => {
+    progressByTask[p.taskId] = p
+  })
+
+  const taskDetails = allTasks.map((task) => {
+    const prog = progressByTask[task.id]
+    let status = prog?.status || "not_started"
+    const solutions = db
+      .getSolutionsByTask(task.id)
+      .filter((s) => s.user_id === userId)
+
+    let latestAttemptAt = null
+    let latestCorrectAt = null
+    if (solutions.length > 0) {
+      for (const sol of solutions) {
+        const createdAt =
+          typeof sol?.created_at === "number" ? sol.created_at : null
+        if (createdAt != null) {
+          if (latestAttemptAt == null || createdAt > latestAttemptAt) {
+            latestAttemptAt = createdAt
+          }
+        }
+
+        const results = db.getCheckResultsBySolution(sol.id)
+        const hasCorrect = results.some((r) => r.status === "correct")
+        if (hasCorrect && createdAt != null) {
+          if (latestCorrectAt == null || createdAt > latestCorrectAt) {
+            latestCorrectAt = createdAt
+          }
+        }
+      }
+
+      if (latestCorrectAt != null) status = "completed"
+      else if (status === "not_started") status = "in_progress"
+    }
+
+    const updatedAt =
+      prog?.updatedAt ?? latestCorrectAt ?? latestAttemptAt ?? null
+    return {
+      taskId: task.id,
+      taskTitle: task.title || "Unknown",
+      category: categoryByCourseId[task.courseId] || "cs",
+      status,
+      updatedAt,
+    }
+  })
+
+  const completed = taskDetails.filter((t) => t.status === "completed").length
+  const inProgress = taskDetails.filter(
+    (t) => t.status === "in_progress",
+  ).length
+  const notStarted = taskDetails.filter(
+    (t) => t.status === "not_started",
+  ).length
+  const total = allTasks.length
+
+  const streakDays = getStreak(userId)
+  const achievements = db.getUserAchievements(userId)
+
+  return {
+    totalTasks: total,
+    completedTasks: completed,
+    inProgressTasks: inProgress,
+    notStartedTasks: notStarted,
+    completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
+    tasks: taskDetails,
+    streakDays,
+    achievements,
+  }
+}
+
 app.use(cors())
 app.use(express.json())
 
@@ -290,6 +386,10 @@ app.post("/lectures/:id/quiz/submit", (req, res) => {
   const bodyUserId = req.body?.userId
   const userId = authUserId || bodyUserId
 
+  if (userId && isAdminUserId(userId)) {
+    return adminLearningForbidden(res)
+  }
+
   const answers =
     req.body?.answers && typeof req.body.answers === "object"
       ? req.body.answers
@@ -379,6 +479,43 @@ app.delete("/modules/:id", (req, res) => {
 app.get("/users", (req, res) => {
   res.json(db.getUsers())
 })
+
+// Сводка прогресса по всем пользователям (только администратор).
+// Объявлено до /users/:id, иначе Express примет сегмент как id пользователя.
+// Дублируем путь с префиксом /api: часть прокси/клиентов шлёт URL без rewrite.
+function handleAdminUsersProgressSummary(req, res) {
+  const authId = getAuthUserId(req)
+  if (!authId) return res.status(401).json({ error: "unauthorized" })
+  const authUser = db.getUserById(authId)
+  if (!authUser?.isAdmin) return res.status(403).json({ error: "forbidden" })
+
+  const users = db.getUsers().filter((u) => !u.isAdmin)
+  const rows = users.map((u) => {
+    const stats = buildUserProgressStats(u.id)
+    const achievementsUnlocked = (stats.achievements || []).filter(
+      (a) => a.unlockedAt != null,
+    ).length
+    return {
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName || "",
+      lastName: u.lastName || "",
+      isAdmin: Boolean(u.isAdmin),
+      totalTasks: stats.totalTasks,
+      completedTasks: stats.completedTasks,
+      inProgressTasks: stats.inProgressTasks,
+      notStartedTasks: stats.notStartedTasks,
+      completionRate: stats.completionRate,
+      streakDays: stats.streakDays,
+      achievementsUnlocked,
+    }
+  })
+
+  res.json({ users: rows })
+}
+
+app.get("/users/all/progress-summary", handleAdminUsersProgressSummary)
+app.get("/api/users/all/progress-summary", handleAdminUsersProgressSummary)
 
 app.get("/users/:id", (req, res) => {
   const u = db.getUserById(req.params.id)
@@ -573,6 +710,13 @@ app.post("/tasks/:id/solutions", (req, res) => {
     const authUserId = getAuthUserId(req)
     const userId = authUserId || bodyUserId
 
+    if (authUserId && isAdminUserId(authUserId)) {
+      return adminLearningForbidden(res)
+    }
+    if (userId && isAdminUserId(userId)) {
+      return adminLearningForbidden(res)
+    }
+
     const task = db.getTaskById(taskId)
     if (!task) {
       return res.status(404).json({ error: "Задача не найдена" })
@@ -690,6 +834,13 @@ app.get("/users/:id/progress", (req, res) =>
 app.post("/users/:id/progress", (req, res) => {
   if (!req.body?.taskId) return res.status(400).json({ error: "invalid" })
   const userId = req.params.id
+  const authId = getAuthUserId(req)
+  if (!authId || authId !== userId) {
+    return res.status(403).json({ error: "forbidden" })
+  }
+  if (isAdminUserId(userId)) {
+    return adminLearningForbidden(res)
+  }
   const status = req.body.status || "in_progress"
   const updatedAt = Date.now()
   db.upsertProgress({
@@ -708,6 +859,13 @@ app.post("/tasks/:id/open", (req, res) => {
   const authUserId = getAuthUserId(req)
   const bodyUserId = req.body?.userId
   const userId = authUserId || bodyUserId
+
+  if (authUserId && isAdminUserId(authUserId)) {
+    return adminLearningForbidden(res)
+  }
+  if (userId && isAdminUserId(userId)) {
+    return adminLearningForbidden(res)
+  }
 
   if (userId) {
     trackTaskOpen(userId, taskId)
@@ -822,6 +980,7 @@ app.post("/auth/sign-in", (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       avatarId: user.avatarId ?? null,
+      isAdmin: Boolean(user.isAdmin),
     },
   })
 })
@@ -842,6 +1001,7 @@ app.get("/auth/me", (req, res) => {
     firstName: user.firstName,
     lastName: user.lastName,
     avatarId: user.avatarId ?? null,
+    isAdmin: Boolean(user.isAdmin),
     createdAt: user.createdAt,
   })
 })
@@ -858,6 +1018,7 @@ app.get("/auth/user", (req, res) => {
       firstName: u.firstName,
       lastName: u.lastName,
       avatarId: u.avatarId ?? null,
+      isAdmin: Boolean(u.isAdmin),
       createdAt: u.createdAt,
     })
   }
@@ -875,6 +1036,7 @@ app.get("/auth/user", (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       avatarId: user.avatarId ?? null,
+      isAdmin: Boolean(user.isAdmin),
       createdAt: user.createdAt,
     })
   }
@@ -888,6 +1050,7 @@ app.get("/auth/user", (req, res) => {
     firstName: user.firstName,
     lastName: user.lastName,
     avatarId: user.avatarId ?? null,
+    isAdmin: Boolean(user.isAdmin),
     createdAt: user.createdAt,
   })
 })
@@ -910,6 +1073,7 @@ app.post("/auth/sign-up", (req, res) => {
     passwordHash: password,
     firstName: firstName || "",
     lastName: lastName || "",
+    isAdmin: 0,
     createdAt: Date.now(),
   }
 
@@ -923,6 +1087,7 @@ app.post("/auth/sign-up", (req, res) => {
       firstName: user.firstName,
       lastName: user.lastName,
       avatarId: user.avatarId ?? null,
+      isAdmin: false,
     },
   })
 })
@@ -931,92 +1096,18 @@ app.post("/auth/sign-up", (req, res) => {
 
 // Получить статистику по прогрессу пользователя (по всем курсам и задачам)
 app.get("/users/:userId/stats", (req, res) => {
+  const authId = getAuthUserId(req)
+  if (!authId) return res.status(401).json({ error: "unauthorized" })
+  const authUser = db.getUserById(authId)
+  if (!authUser) return res.status(401).json({ error: "unauthorized" })
+
   const { userId } = req.params
-  const courses = db.getCourses()
-  const categoryByCourseId = {}
-  courses.forEach((c) => {
-    const cat = String(c.category || "").toLowerCase()
-    const isMath =
-      cat.includes("math") ||
-      cat.includes("матем") ||
-      cat.includes("мат") ||
-      cat.includes("алгеб") ||
-      cat.includes("геом")
-    categoryByCourseId[c.id] = isMath ? "math" : "cs"
-  })
-  const allTasks = courses.flatMap((c) => db.getTasks(c.id))
-  const progressByTask = {}
-  db.getProgressByUser(userId).forEach((p) => {
-    progressByTask[p.taskId] = p
-  })
+  if (userId !== authId && !authUser.isAdmin) {
+    return res.status(403).json({ error: "forbidden" })
+  }
 
-  const taskDetails = allTasks.map((task) => {
-    const prog = progressByTask[task.id]
-    let status = prog?.status || "not_started"
-    const solutions = db
-      .getSolutionsByTask(task.id)
-      .filter((s) => s.user_id === userId)
-
-    let latestAttemptAt = null
-    let latestCorrectAt = null
-    if (solutions.length > 0) {
-      for (const sol of solutions) {
-        const createdAt =
-          typeof sol?.created_at === "number" ? sol.created_at : null
-        if (createdAt != null) {
-          if (latestAttemptAt == null || createdAt > latestAttemptAt) {
-            latestAttemptAt = createdAt
-          }
-        }
-
-        const results = db.getCheckResultsBySolution(sol.id)
-        const hasCorrect = results.some((r) => r.status === "correct")
-        if (hasCorrect && createdAt != null) {
-          if (latestCorrectAt == null || createdAt > latestCorrectAt) {
-            latestCorrectAt = createdAt
-          }
-        }
-      }
-
-      if (latestCorrectAt != null) status = "completed"
-      else if (status === "not_started") status = "in_progress"
-    }
-
-    const updatedAt =
-      prog?.updatedAt ?? latestCorrectAt ?? latestAttemptAt ?? null
-    return {
-      taskId: task.id,
-      taskTitle: task.title || "Unknown",
-      category: categoryByCourseId[task.courseId] || "cs",
-      status,
-      updatedAt,
-    }
-  })
-
-  const completed = taskDetails.filter((t) => t.status === "completed").length
-  const inProgress = taskDetails.filter(
-    (t) => t.status === "in_progress",
-  ).length
-  const notStarted = taskDetails.filter(
-    (t) => t.status === "not_started",
-  ).length
-  const total = allTasks.length
-
-  const streakDays = getStreak(userId)
   checkAchievements(userId)
-
-  const achievements = db.getUserAchievements(userId)
-
-  res.json({
-    totalTasks: total,
-    completedTasks: completed,
-    inProgressTasks: inProgress,
-    notStartedTasks: notStarted,
-    completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
-    tasks: taskDetails,
-    streakDays,
-    achievements,
-  })
+  res.json(buildUserProgressStats(userId))
 })
 
 // Получить статистику по курсу для пользователя
@@ -1118,8 +1209,13 @@ app.post("/code/run", async (req, res) => {
   try {
     const language = String(req.body?.language || "javascript").toLowerCase()
     const code = String(req.body?.code || "")
-    const tests = Array.isArray(req.body?.tests) ? req.body.tests : []
+    const tests = Array.isArray(req.body.tests) ? req.body.tests : []
     const taskId = req.body?.taskId ? String(req.body.taskId) : null
+
+    const authUid = getAuthUserId(req)
+    if (taskId && authUid && isAdminUserId(authUid)) {
+      return adminLearningForbidden(res)
+    }
 
     if (language !== "javascript") {
       return res.status(400).json({ error: "unsupported_language" })
@@ -1151,7 +1247,7 @@ app.post("/code/run", async (req, res) => {
     const testsOk =
       testResults.length > 0 && testResults.every((r) => r && r.pass === true)
 
-    const userId = getAuthUserId(req)
+    const userId = authUid
 
     // track attempt for recommendations/statistics
     if (userId && taskId) {

@@ -17,6 +17,7 @@ import CodeTaskPage from "./Pages/CodeTaskPage/CodeTaskPage"
 import LecturePage from "./Pages/LecturePage/LecturePage"
 import TheoryPage from "./Pages/TheoryPage/TheoryPage"
 import ProgressPage from "./Pages/ProgressPage/ProgressPage"
+import AdminUsersProgressPage from "./Pages/AdminUsersProgressPage/AdminUsersProgressPage"
 import ProfilePage from "./Pages/ProfilePage/ProfilePage"
 import AchievementsPage from "./Pages/AchievementsPage/AchievementsPage"
 import QuizPage from "./Pages/QuizPage/QuizPage"
@@ -90,6 +91,38 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!auth) return <Navigate to="/sign-in" replace />
+
+  return <>{children}</>
+}
+
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const auth = useSelector((state: any) => state.signIn?.auth) as boolean
+  const isAdmin = useSelector((state: any) => state.signIn?.isAdmin) as boolean
+  const initialized = useSelector(
+    (state: any) => state.signIn?.initialized,
+  ) as boolean
+
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader size="lg" />
+          <p className="text-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!auth) return <Navigate to="/sign-in" replace />
+  if (!isAdmin) return <Navigate to="/tasks" replace />
+
+  return <>{children}</>
+}
+
+const StudentLearningRoute = ({ children }: { children: React.ReactNode }) => {
+  const isAdmin = useSelector((state: any) => state.signIn?.isAdmin) as boolean
+
+  if (isAdmin) return <Navigate to="/admin/users-progress" replace />
 
   return <>{children}</>
 }
@@ -494,41 +527,56 @@ function TasksPage() {
                   <p className="text-gray-600 mt-1">{pageSubtitle}</p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <select
-                    value={selectedCourseId ?? ""}
-                    onChange={(e) => {
-                      const value = e.currentTarget.value
-                      setSelectedCourseId(value)
-                      const next = new URLSearchParams(searchParams)
-                      next.set("course", value)
-                      setSearchParams(next, { replace: true })
-                    }}
-                    className="rounded-md border px-3 py-1"
-                  >
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.title}
-                      </option>
-                    ))}
-                  </select>
+                <div className="flex flex-col items-end gap-2">
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={selectedCourseId ?? ""}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value
+                        setSelectedCourseId(value)
+                        const next = new URLSearchParams(searchParams)
+                        next.set("course", value)
+                        setSearchParams(next, { replace: true })
+                      }}
+                      className="rounded-md border px-3 py-1"
+                    >
+                      {courses.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.title}
+                        </option>
+                      ))}
+                    </select>
 
-                  <select
-                    value={statusFilter ?? ""}
-                    onChange={(e) => {
-                      const value = e.currentTarget.value
+                    <select
+                      value={statusFilter ?? ""}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value
+                        const next = new URLSearchParams(searchParams)
+                        if (!value) next.delete("status")
+                        else next.set("status", value)
+                        setSearchParams(next, { replace: true })
+                      }}
+                      className="rounded-md border px-3 py-1"
+                    >
+                      <option value="">Все</option>
+                      <option value="completed">Выполненные</option>
+                      <option value="not_started">Невыполненные</option>
+                      <option value="in_progress">В процессе</option>
+                    </select>
+                  </div>
+
+                  <AppButton
+                    variant="outline"
+                    size="xs"
+                    onClick={() => {
                       const next = new URLSearchParams(searchParams)
-                      if (!value) next.delete("status")
-                      else next.set("status", value)
+                      next.delete("status")
                       setSearchParams(next, { replace: true })
+                      setSearchQuery("")
                     }}
-                    className="rounded-md border px-3 py-1"
                   >
-                    <option value="">Все</option>
-                    <option value="completed">Выполненные</option>
-                    <option value="not_started">Невыполненные</option>
-                    <option value="in_progress">В процессе</option>
-                  </select>
+                    Сбросить фильтр
+                  </AppButton>
                 </div>
               </div>
               {showErrorOverlay ? (
@@ -552,16 +600,6 @@ function TasksPage() {
                   <Title order={5} fw={400} m={0} mb={30}>
                     Таких задач пока нет
                   </Title>
-                  <AppButton
-                    onClick={() => {
-                      const next = new URLSearchParams(searchParams)
-                      next.delete("status")
-                      setSearchParams(next, { replace: true })
-                      setSearchQuery("")
-                    }}
-                  >
-                    Сбросить фильтр
-                  </AppButton>
                 </Box>
               ) : null}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
@@ -616,7 +654,9 @@ export default function App() {
           path="/tasks"
           element={
             <ProtectedRoute>
-              <TasksPage />
+              <StudentLearningRoute>
+                <TasksPage />
+              </StudentLearningRoute>
             </ProtectedRoute>
           }
         />
@@ -624,7 +664,9 @@ export default function App() {
           path="/course/:courseId/task/:taskId"
           element={
             <ProtectedRoute>
-              <TaskSolverPage />
+              <StudentLearningRoute>
+                <TaskSolverPage />
+              </StudentLearningRoute>
             </ProtectedRoute>
           }
         />
@@ -632,7 +674,9 @@ export default function App() {
           path="/course/:courseId/code/:taskId"
           element={
             <ProtectedRoute>
-              <CodeTaskPage />
+              <StudentLearningRoute>
+                <CodeTaskPage />
+              </StudentLearningRoute>
             </ProtectedRoute>
           }
         />
@@ -640,7 +684,9 @@ export default function App() {
           path="/course/:courseId/quiz"
           element={
             <ProtectedRoute>
-              <QuizPage />
+              <StudentLearningRoute>
+                <QuizPage />
+              </StudentLearningRoute>
             </ProtectedRoute>
           }
         />
@@ -657,8 +703,18 @@ export default function App() {
           path="/progress"
           element={
             <ProtectedRoute>
-              <ProgressPage />
+              <StudentLearningRoute>
+                <ProgressPage />
+              </StudentLearningRoute>
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users-progress"
+          element={
+            <AdminRoute>
+              <AdminUsersProgressPage />
+            </AdminRoute>
           }
         />
         <Route
@@ -673,7 +729,9 @@ export default function App() {
           path="/achievements"
           element={
             <ProtectedRoute>
-              <AchievementsPage />
+              <StudentLearningRoute>
+                <AchievementsPage />
+              </StudentLearningRoute>
             </ProtectedRoute>
           }
         />

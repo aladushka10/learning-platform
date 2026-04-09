@@ -6,6 +6,7 @@ export const AuthUserSchema = z.object({
   firstName: z.string().nullable().optional(),
   lastName: z.string().nullable().optional(),
   avatarId: z.string().nullable().optional(),
+  isAdmin: z.boolean().optional(),
 })
 
 export const AuthSessionSchema = AuthUserSchema.extend({
