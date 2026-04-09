@@ -52,7 +52,7 @@ export const TaskBadges = ({
       )}
       {category && (
         <Badge size={badgeSize} fw={500} variant="light" color="gray">
-          {category === "Mathematics" ? "Математика" : "Информатика"}
+          {category === "Mathematics" ? "Математика" : "Программирование"}
         </Badge>
       )}
       {taskType && (

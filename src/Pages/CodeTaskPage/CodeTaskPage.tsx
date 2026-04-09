@@ -290,7 +290,7 @@ const CodeTaskPage = () => {
             </Alert>
             <AppButton
               variant="medium"
-              onClick={() => navigate(`/?course=${courseId || ""}`)}
+              onClick={() => navigate(`/tasks?course=${courseId || ""}`)}
             >
               Вернуться
             </AppButton>
@@ -310,7 +310,7 @@ const CodeTaskPage = () => {
             <AppButton
               variant="subtle"
               leftSection={<IconArrowLeft size={20} />}
-              onClick={() => navigate(`/?course=${courseId || ""}`)}
+              onClick={() => navigate(`/tasks?course=${courseId || ""}`)}
               className="px-0 text-blue-600 hover:text-blue-700"
             >
               Вернуться

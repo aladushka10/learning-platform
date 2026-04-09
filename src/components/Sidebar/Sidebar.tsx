@@ -18,8 +18,8 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { icon: Target, label: "Задачи", path: "/" },
-  { icon: BookOpen, label: "Теория", path: "/theory" },
+  { icon: BookOpen, label: "Теория", path: "/" },
+  { icon: Target, label: "Задачи", path: "/tasks" },
   { icon: TrendingUp, label: "Прогресс", path: "/progress" },
   { icon: User, label: "Профиль", path: "/profile" },
 ]
@@ -32,7 +32,7 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
     <Box
       component="aside"
       className="fixed left-0 top-16 bottom-0 z-40 border-r border-gray-200 bg-white transition-all duration-300"
-      style={{ width: collapsed ? 64 : 256 }}
+      style={{ width: collapsed ? 64 : 190 }}
     >
       <Flex direction="column" h="100%">
         <Box p="xs" className="flex-1">
@@ -40,8 +40,12 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
             {menuItems.map((item) => {
               const isActive =
                 item.path === "/"
-                  ? location.pathname === "/"
-                  : location.pathname.startsWith(item.path)
+                  ? location.pathname === "/" ||
+                    location.pathname.startsWith("/theory")
+                  : item.path === "/tasks"
+                    ? location.pathname === "/tasks" ||
+                      location.pathname.startsWith("/course/")
+                    : location.pathname.startsWith(item.path)
 
               const content = (
                 <NavLink

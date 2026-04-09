@@ -9,12 +9,9 @@ import {
   useSearchParams,
 } from "react-router-dom"
 import { useDispatch } from "react-redux"
-import { Header } from "./components/Header/Header"
-import { Sidebar } from "./components/Sidebar/Sidebar"
 import { TaskCard } from "./components/TaskCard/TaskCard"
 import { TaskView } from "./components/TaskView/TaskView"
 import { ProgressPanel } from "./components/ProgressPanel/ProgressPanel"
-import { Footer } from "./components/Footer/Footer"
 import TaskSolverPage from "./Pages/TaskSolverPage/TaskSolverPage"
 import CodeTaskPage from "./Pages/CodeTaskPage/CodeTaskPage"
 import LecturePage from "./Pages/LecturePage/LecturePage"
@@ -26,10 +23,12 @@ import QuizPage from "./Pages/QuizPage/QuizPage"
 import SignIn from "./Pages/SignIn/SignIn"
 import SignUp from "./Pages/SignUp/SignUp"
 import { hydrateAuth } from "./store/signInSlice"
-import { Loader, Skeleton, Title } from "@mantine/core"
+import { Box, Loader, Skeleton, Title } from "@mantine/core"
 import { useUserProgress } from "./services/progress/progress.hooks"
 import { usePagination } from "./hooks/usePagination"
 import { AppState } from "./components/AppState/AppState"
+import { AppButton } from "./components/AppButton/AppButton"
+import { AppLayout } from "./components/AppLayout/AppLayout"
 
 export interface Task {
   id: string
@@ -96,7 +95,6 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 }
 
 function TasksPage() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchParams, setSearchParams] = useSearchParams()
@@ -139,7 +137,7 @@ function TasksPage() {
     typeFilter === "math"
       ? "Математика"
       : typeFilter === "cs"
-        ? "Информатика"
+        ? "Программирование"
         : null
   const statusLabel =
     statusFilter === "completed"
@@ -154,7 +152,7 @@ function TasksPage() {
     typeFilter === "math"
       ? "по математике"
       : typeFilter === "cs"
-        ? "по информатике"
+        ? "по программированию"
         : null
   const statusPhrase =
     statusFilter === "completed"
@@ -345,7 +343,7 @@ function TasksPage() {
 
   useEffect(() => {
     reset()
-  }, [selectedCourseId, searchQuery, reset])
+  }, [selectedCourseId, searchQuery, statusFilter, reset])
 
   const handleTaskSelect = (task: Task) => {
     setSelectedTask(task)
@@ -370,7 +368,20 @@ function TasksPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <AppLayout
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+      aside={
+        <ProgressPanel
+          tasks={tasks}
+          userStats={userStats}
+          recentAchievement={recentAchievement}
+          onRecentAchievementClose={() => setRecentAchievement(null)}
+          userStatsLoading={progressPanelLoading}
+          tasksLoading={progressPanelLoading}
+        />
+      }
+    >
       {showErrorOverlay ? (
         <AppState
           title="Не удалось загрузить данные"
@@ -384,216 +395,202 @@ function TasksPage() {
           onAction={() => window.location.reload()}
         />
       ) : null}
-      <Header searchQuery={searchQuery} onSearchChange={setSearchQuery} />
+      {loading && !selectedTask ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <Skeleton height={28} width={260} radius="sm" mb={20} />
+              <Skeleton mt={8} height={16} width={360} radius="sm" />
+            </div>
+            <Skeleton height={36} width={180} radius="md" />
+          </div>
 
-      <div className="flex flex-1">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-          // you can expand Sidebar component later to show courses
-        />
-
-        <main
-          className={`flex-1 transition-all duration-300 ${
-            sidebarCollapsed ? "ml-16" : "ml-64"
-          }`}
-        >
-          <div className="flex gap-6 p-6 max-w-7xl mx-auto">
-            <div className="flex-1">
-              {loading && !selectedTask ? (
-                <div className="space-y-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Skeleton height={28} width={260} radius="sm" mb={20} />
-                      <Skeleton mt={8} height={16} width={360} radius="sm" />
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+            {Array.from({ length: 12 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="relative w-full h-[240px]"
+                style={{ perspective: "1000px" }}
+              >
+                <div
+                  className="relative w-full h-full"
+                  style={{ transformStyle: "preserve-3d" }}
+                >
+                  <div
+                    className="absolute w-full h-full rounded-xl border border-gray-200 bg-white p-4 flex flex-col"
+                    style={{ backfaceVisibility: "hidden" }}
+                  >
+                    <div className="absolute top-4 right-4">
+                      <Skeleton height={24} width={24} circle />
                     </div>
-                    <Skeleton height={36} width={180} radius="md" />
-                  </div>
+                    <div className="flex flex-col h-full justify-between pt-4">
+                      <div className="pr-7 min-w-0">
+                        <Skeleton height={20} width="80%" radius="sm" mb={15} />
+                        <Skeleton height={18} width="90%" radius="sm" />
+                      </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
-                    {Array.from({ length: 12 }).map((_, idx) => (
-                      <div
-                        key={idx}
-                        className="relative w-full h-[240px]"
-                        style={{ perspective: "1000px" }}
-                      >
-                        <div
-                          className="relative w-full h-full"
-                          style={{ transformStyle: "preserve-3d" }}
-                        >
-                          <div
-                            className="absolute w-full h-full rounded-xl border border-gray-200 bg-white p-4 flex flex-col"
-                            style={{ backfaceVisibility: "hidden" }}
-                          >
-                            <div className="absolute top-4 right-4">
-                              <Skeleton height={24} width={24} circle />
-                            </div>
-                            <div className="flex flex-col h-full justify-between pt-4">
-                              <div className="pr-7 min-w-0">
-                                <Skeleton
-                                  height={20}
-                                  width="80%"
-                                  radius="sm"
-                                  mb={15}
-                                />
-                                <Skeleton height={18} width="90%" radius="sm" />
-                              </div>
-
-                              <div className="mt-4 flex justify-end w-full">
-                                <div className="flex flex-wrap justify-end gap-3">
-                                  {Array.from({ length: 4 }).map(
-                                    (_, badgeIdx) => (
-                                      <Skeleton
-                                        key={badgeIdx}
-                                        height={22}
-                                        width={
-                                          badgeIdx === 0
-                                            ? 80
-                                            : badgeIdx === 1
-                                              ? 100
-                                              : badgeIdx === 2
-                                                ? 120
-                                                : 80
-                                        }
-                                        radius="xl"
-                                      />
-                                    ),
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div
-                            className="absolute w-full h-full rounded-xl border border-gray-200 bg-white p-4 flex flex-col"
-                            style={{
-                              backfaceVisibility: "hidden",
-                              transform: "rotateY(180deg)",
-                            }}
-                          >
-                            <div className="flex-1 flex flex-col">
-                              <Skeleton
-                                height={16}
-                                width="40%"
-                                radius="sm"
-                                mb={8}
-                              />
-                              <div className="space-y-2">
-                                <Skeleton
-                                  height={14}
-                                  width="100%"
-                                  radius="sm"
-                                />
-                                <Skeleton height={14} width="95%" radius="sm" />
-                                <Skeleton height={14} width="90%" radius="sm" />
-                                <Skeleton height={14} width="85%" radius="sm" />
-                              </div>
-                            </div>
-                            <Skeleton height={36} width="100%" radius="md" />
-                          </div>
+                      <div className="mt-4 flex justify-end w-full">
+                        <div className="flex flex-wrap justify-end gap-3">
+                          {Array.from({ length: 4 }).map((_, badgeIdx) => (
+                            <Skeleton
+                              key={badgeIdx}
+                              height={22}
+                              width={
+                                badgeIdx === 0
+                                  ? 80
+                                  : badgeIdx === 1
+                                    ? 100
+                                    : badgeIdx === 2
+                                      ? 120
+                                      : 80
+                              }
+                              radius="xl"
+                            />
+                          ))}
                         </div>
                       </div>
-                    ))}
+                    </div>
+                  </div>
+
+                  <div
+                    className="absolute w-full h-full rounded-xl border border-gray-200 bg-white p-4 flex flex-col"
+                    style={{
+                      backfaceVisibility: "hidden",
+                      transform: "rotateY(180deg)",
+                    }}
+                  >
+                    <div className="flex-1 flex flex-col">
+                      <Skeleton height={16} width="40%" radius="sm" mb={8} />
+                      <div className="space-y-2">
+                        <Skeleton height={14} width="100%" radius="sm" />
+                        <Skeleton height={14} width="95%" radius="sm" />
+                        <Skeleton height={14} width="90%" radius="sm" />
+                        <Skeleton height={14} width="85%" radius="sm" />
+                      </div>
+                    </div>
+                    <Skeleton height={36} width="100%" radius="md" />
                   </div>
                 </div>
-              ) : (
-                <>
-                  {selectedTask ? (
-                    <TaskView
-                      task={selectedTask}
-                      onBack={handleBackToGrid}
-                      onComplete={handleTaskComplete}
-                      courseId={selectedCourseId || ""}
-                      userId={effectiveUserId}
-                      onAchievementUnlocked={(a) => setRecentAchievement(a)}
-                    />
-                  ) : (
-                    <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <Title order={2}>{pageTitle}</Title>
-                          <p className="text-gray-600 mt-1">{pageSubtitle}</p>
-                        </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <>
+          {selectedTask ? (
+            <TaskView
+              task={selectedTask}
+              onBack={handleBackToGrid}
+              onComplete={handleTaskComplete}
+              courseId={selectedCourseId || ""}
+              userId={effectiveUserId}
+              onAchievementUnlocked={(a) => setRecentAchievement(a)}
+            />
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Title order={2}>{pageTitle}</Title>
+                  <p className="text-gray-600 mt-1">{pageSubtitle}</p>
+                </div>
 
-                        <div className="flex items-center gap-3">
-                          <select
-                            value={selectedCourseId ?? ""}
-                            onChange={(e) => {
-                              const value = e.currentTarget.value
-                              setSelectedCourseId(value)
-                              const next = new URLSearchParams(searchParams)
-                              next.set("course", value)
-                              setSearchParams(next, { replace: true })
-                            }}
-                            className="rounded-md border px-3 py-1"
-                          >
-                            {courses.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.title}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-                      {showErrorOverlay ? (
-                        <div className="py-10 flex justify-center">
-                          <AppState
-                            title="Не удалось загрузить данные"
-                            actionLabel="Обновить страницу"
-                            onAction={() => window.location.reload()}
-                          />
-                        </div>
-                      ) : showEmptyOverlay ? (
-                        <div className="py-10 flex justify-center">
-                          <AppState
-                            title="Курсы не найдены"
-                            actionLabel="Обновить страницу"
-                            onAction={() => window.location.reload()}
-                          />
-                        </div>
-                      ) : null}
-                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
-                        {visibleTasks.map((task) => (
-                          <TaskCard
-                            key={task.id}
-                            task={task}
-                            onSelect={handleTaskSelect}
-                            courseId={selectedCourseId || ""}
-                          />
-                        ))}
-                      </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={selectedCourseId ?? ""}
+                    onChange={(e) => {
+                      const value = e.currentTarget.value
+                      setSelectedCourseId(value)
+                      const next = new URLSearchParams(searchParams)
+                      next.set("course", value)
+                      setSearchParams(next, { replace: true })
+                    }}
+                    className="rounded-md border px-3 py-1"
+                  >
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
 
-                      {hasMore && (
-                        <div className="flex justify-center pt-2">
-                          <button
-                            type="button"
-                            onClick={loadMore}
-                            className="rounded-lg border border-gray-200 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                          >
-                            Показать больше
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
+                  <select
+                    value={statusFilter ?? ""}
+                    onChange={(e) => {
+                      const value = e.currentTarget.value
+                      const next = new URLSearchParams(searchParams)
+                      if (!value) next.delete("status")
+                      else next.set("status", value)
+                      setSearchParams(next, { replace: true })
+                    }}
+                    className="rounded-md border px-3 py-1"
+                  >
+                    <option value="">Все</option>
+                    <option value="completed">Выполненные</option>
+                    <option value="not_started">Невыполненные</option>
+                    <option value="in_progress">В процессе</option>
+                  </select>
+                </div>
+              </div>
+              {showErrorOverlay ? (
+                <div className="py-10 flex justify-center">
+                  <AppState
+                    title="Не удалось загрузить данные"
+                    actionLabel="Обновить страницу"
+                    onAction={() => window.location.reload()}
+                  />
+                </div>
+              ) : showEmptyOverlay ? (
+                <div className="py-10 flex justify-center">
+                  <AppState
+                    title="Курсы не найдены"
+                    actionLabel="Обновить страницу"
+                    onAction={() => window.location.reload()}
+                  />
+                </div>
+              ) : sortedTasks.length === 0 ? (
+                <Box className="py-16 min-h-[40vh] flex flex-col items-center justify-center gap-4 text-center">
+                  <Title order={5} fw={400} m={0} mb={30}>
+                    Таких задач пока нет
+                  </Title>
+                  <AppButton
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams)
+                      next.delete("status")
+                      setSearchParams(next, { replace: true })
+                      setSearchQuery("")
+                    }}
+                  >
+                    Сбросить фильтр
+                  </AppButton>
+                </Box>
+              ) : null}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+                {visibleTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    onSelect={handleTaskSelect}
+                    courseId={selectedCourseId || ""}
+                  />
+                ))}
+              </div>
+
+              {hasMore && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    onClick={loadMore}
+                    className="rounded-lg border border-gray-200 bg-white px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Показать больше
+                  </button>
+                </div>
               )}
             </div>
-
-            <ProgressPanel
-              tasks={tasks}
-              userStats={userStats}
-              recentAchievement={recentAchievement}
-              onRecentAchievementClose={() => setRecentAchievement(null)}
-              userStatsLoading={progressPanelLoading}
-              tasksLoading={progressPanelLoading}
-            />
-          </div>
-        </main>
-      </div>
-
-      <Footer />
-    </div>
+          )}
+        </>
+      )}
+    </AppLayout>
   )
 }
 
@@ -609,6 +606,14 @@ export default function App() {
       <Routes>
         <Route
           path="/"
+          element={
+            <ProtectedRoute>
+              <TheoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tasks"
           element={
             <ProtectedRoute>
               <TasksPage />
@@ -647,14 +652,7 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/theory"
-          element={
-            <ProtectedRoute>
-              <TheoryPage />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/theory" element={<Navigate to="/" replace />} />
         <Route
           path="/progress"
           element={

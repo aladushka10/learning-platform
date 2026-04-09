@@ -4,7 +4,7 @@ export function CategoryProgressBars({
   isLoading = false,
   math,
   cs,
-  labels = { math: "Математика", cs: "Информатика" },
+  labels = { math: "Математика", cs: "Программирование" },
   colors = { math: "blue", cs: "blue" },
 }: {
   isLoading?: boolean
