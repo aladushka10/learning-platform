@@ -1,6 +1,5 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { useSelector } from "react-redux"
 import {
   Badge,
   Container,
@@ -18,6 +17,7 @@ import { AppButton } from "../../components/AppButton/AppButton"
 import { AppLayout } from "../../components/AppLayout/AppLayout"
 import { AppState } from "../../components/AppState/AppState"
 import { useAdminUsersProgress } from "../../services/progress/progress.hooks"
+import { formatLectureTimeMs } from "../../hooks/useLectureTracking"
 
 function displayName(row: {
   firstName: string
@@ -31,7 +31,6 @@ function displayName(row: {
 export default function AdminUsersProgressPage() {
   const navigate = useNavigate()
   const { data, isLoading, error, refetch } = useAdminUsersProgress(true)
-  const isAdmin = useSelector((state: any) => state.signIn?.isAdmin) as boolean
 
   const sorted = useMemo(() => {
     const users = data?.users ?? []
@@ -50,7 +49,7 @@ export default function AdminUsersProgressPage() {
           <Group justify="space-between" wrap="wrap">
             <Group gap="sm" align="center">
               <IconUsers size={28} className="text-blue-600" />
-              <Title order={2}>Прогресс пользователей</Title>
+              <Title order={2}>Прогресс для всех</Title>
             </Group>
             <AppButton
               variant="subtle"
@@ -87,6 +86,9 @@ export default function AdminUsersProgressPage() {
                   <Table.Tr>
                     <Table.Th>Пользователь</Table.Th>
                     <Table.Th>Роль</Table.Th>
+                    <Table.Th ta="center">Визиты лекций</Table.Th>
+                    <Table.Th ta="center">Время на лекциях</Table.Th>
+                    <Table.Th ta="center">Лекций с визитами</Table.Th>
                     <Table.Th ta="center">Завершено</Table.Th>
                     <Table.Th ta="center">В процессе</Table.Th>
                     <Table.Th ta="center">Не начато</Table.Th>
@@ -97,7 +99,15 @@ export default function AdminUsersProgressPage() {
                 </Table.Thead>
                 <Table.Tbody>
                   {sorted.map((row) => (
-                    <Table.Tr key={row.id}>
+                    <Table.Tr
+                      key={row.id}
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        navigate(
+                          `/progress?student=${encodeURIComponent(row.id)}`,
+                        )
+                      }}
+                    >
                       <Table.Td>
                         <Stack gap={0}>
                           <Text fw={500} c="dark" size="sm">
@@ -114,10 +124,24 @@ export default function AdminUsersProgressPage() {
                             Админ
                           </Badge>
                         ) : (
-                          <Badge size="sm" color="gray" variant="light">
+                          <Badge
+                            size="sm"
+                            color="gray"
+                            variant="light"
+                            display="block"
+                          >
                             Студент
                           </Badge>
                         )}
+                      </Table.Td>
+                      <Table.Td ta="center">
+                        {row.lectureVisitCountTotal}
+                      </Table.Td>
+                      <Table.Td className="min-w-28">
+                        {formatLectureTimeMs(row.lectureTimeMsTotal)}
+                      </Table.Td>
+                      <Table.Td ta="center">
+                        {row.lectureDistinctWithVisits}
                       </Table.Td>
                       <Table.Td ta="center">
                         {row.completedTasks} / {row.totalTasks}

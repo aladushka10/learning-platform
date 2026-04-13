@@ -345,7 +345,35 @@ app.get("/tasks/:id/stats", (req, res) => {
   })
 })
 
-// Lectures CRUD
+app.post("/lectures/:lectureId/track", (req, res) => {
+  const userId = getAuthUserId(req)
+  if (!userId) return res.status(401).json({ error: "unauthorized" })
+  const { lectureId } = req.params
+  if (!db.getLectureById(lectureId)) {
+    return res.status(404).json({ error: "not_found" })
+  }
+  const registerVisit = !!req.body?.registerVisit
+  const timeMs = Number(req.body?.timeMs) || 0
+  db.addUserLectureTrack(userId, lectureId, { registerVisit, timeMs })
+  res.json({ ok: true })
+})
+
+app.get("/lectures/:lectureId/stats/me", (req, res) => {
+  const userId = getAuthUserId(req)
+  if (!userId) return res.status(401).json({ error: "unauthorized" })
+  const { lectureId } = req.params
+  if (!db.getLectureById(lectureId)) {
+    return res.status(404).json({ error: "not_found" })
+  }
+  const row = db.getUserLectureStats(userId, lectureId)
+  res.json({
+    lectureId,
+    visitCount: row?.visitCount ?? 0,
+    totalTimeMs: row?.totalTimeMs ?? 0,
+    lastVisitAt: row?.lastVisitAt ?? null,
+  })
+})
+
 app.get("/lectures/:id", (req, res) => {
   const l = db.getLectureById(req.params.id)
   if (!l) return res.status(404).json({ error: "not_found" })
@@ -495,6 +523,7 @@ function handleAdminUsersProgressSummary(req, res) {
     const achievementsUnlocked = (stats.achievements || []).filter(
       (a) => a.unlockedAt != null,
     ).length
+    const lec = db.getUserLectureStatsAggregated(u.id)
     return {
       id: u.id,
       email: u.email,
@@ -508,6 +537,9 @@ function handleAdminUsersProgressSummary(req, res) {
       completionRate: stats.completionRate,
       streakDays: stats.streakDays,
       achievementsUnlocked,
+      lectureVisitCountTotal: lec.totalVisitCount,
+      lectureTimeMsTotal: lec.totalTimeMs,
+      lectureDistinctWithVisits: lec.lecturesWithVisits,
     }
   })
 

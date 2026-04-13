@@ -122,7 +122,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 const StudentLearningRoute = ({ children }: { children: React.ReactNode }) => {
   const isAdmin = useSelector((state: any) => state.signIn?.isAdmin) as boolean
 
-  if (isAdmin) return <Navigate to="/admin/users-progress" replace />
+  if (isAdmin) return <Navigate to="/tasks" replace />
 
   return <>{children}</>
 }
@@ -700,21 +700,21 @@ export default function App() {
         />
         <Route path="/theory" element={<Navigate to="/" replace />} />
         <Route
-          path="/progress"
+          path="/admin/users-progress"
           element={
             <ProtectedRoute>
-              <StudentLearningRoute>
-                <ProgressPage />
-              </StudentLearningRoute>
+              <AdminRoute>
+                <AdminUsersProgressPage />
+              </AdminRoute>
             </ProtectedRoute>
           }
         />
         <Route
-          path="/admin/users-progress"
+          path="/progress"
           element={
-            <AdminRoute>
-              <AdminUsersProgressPage />
-            </AdminRoute>
+            <ProtectedRoute>
+              <ProgressPage />
+            </ProtectedRoute>
           }
         />
         <Route

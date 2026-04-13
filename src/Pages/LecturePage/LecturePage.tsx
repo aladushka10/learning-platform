@@ -24,6 +24,10 @@ import remarkMath from "remark-math"
 import rehypeKatex from "rehype-katex"
 import { LecturesService } from "../../services/lectures/lectures.service"
 import { AppState } from "../../components/AppState/AppState"
+import {
+  formatLectureTimeMs,
+  useLectureTracking,
+} from "../../hooks/useLectureTracking"
 interface LectureData {
   id: string
   title: string
@@ -39,6 +43,8 @@ const LecturePage = () => {
   const [lecture, setLecture] = useState<LectureData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const lectureStats = useLectureTracking(lectureId)
 
   useEffect(() => {
     const loadLecture = async () => {
@@ -120,6 +126,12 @@ const LecturePage = () => {
           </Box>
           <Box>
             <Title order={2}> {lecture.title}</Title>
+            {lectureStats ? (
+              <Text size="sm" c="dimmed" mt={6}>
+                Заходов: {lectureStats.visitCount}. Время на странице (активная
+                вкладка): {formatLectureTimeMs(lectureStats.totalTimeMs)}.
+              </Text>
+            ) : null}
           </Box>
         </Group>
 
