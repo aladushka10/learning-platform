@@ -29,3 +29,22 @@ export const UserStatsResponseSchema = z.object({
     .optional(),
 })
 
+export const AdminUserProgressRowSchema = z.object({
+  id: z.string(),
+  email: z.string(),
+  firstName: z.string(),
+  lastName: z.string(),
+  isAdmin: z.boolean(),
+  totalTasks: z.number(),
+  completedTasks: z.number(),
+  inProgressTasks: z.number(),
+  notStartedTasks: z.number(),
+  completionRate: z.number(),
+  streakDays: z.number(),
+  achievementsUnlocked: z.number(),
+})
+
+export const AdminUsersProgressResponseSchema = z.object({
+  users: z.array(AdminUserProgressRowSchema),
+})
+

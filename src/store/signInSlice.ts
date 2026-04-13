@@ -15,6 +15,7 @@ interface SignInState {
   firstName?: string | null
   lastName?: string | null
   avatarId?: string | null
+  isAdmin?: boolean
   initialized: boolean
   isLoading: boolean
   error: string | null
@@ -27,6 +28,7 @@ const initialState: SignInState = {
   firstName: null,
   lastName: null,
   avatarId: null,
+  isAdmin: false,
   initialized: false,
   isLoading: false,
   error: null,
@@ -102,6 +104,7 @@ const signInSlice = createSlice({
       state.firstName = action.payload.firstName || null
       state.lastName = action.payload.lastName || null
       state.avatarId = action.payload.avatarId ?? null
+      state.isAdmin = action.payload.isAdmin ?? false
       state.error = null
       state.isLoading = false
     },
@@ -116,6 +119,7 @@ const signInSlice = createSlice({
       state.firstName = null
       state.lastName = null
       state.avatarId = null
+      state.isAdmin = false
       state.isLoading = false
     },
   },
@@ -136,6 +140,7 @@ const signInSlice = createSlice({
           state.lastName = action.payload.userDetails.lastName || null
           state.userId = action.payload.userDetails.id || null
           state.avatarId = action.payload.userDetails.avatarId ?? null
+          state.isAdmin = action.payload.userDetails.isAdmin ?? false
         }
       })
       .addCase(signInUser.rejected, (state, action) => {
@@ -156,12 +161,14 @@ const signInSlice = createSlice({
           state.firstName = action.payload.user.firstName || null
           state.lastName = action.payload.user.lastName || null
           state.avatarId = action.payload.user.avatarId ?? null
+          state.isAdmin = action.payload.user.isAdmin ?? false
         } else {
           state.userId = null
           state.username = null
           state.firstName = null
           state.lastName = null
           state.avatarId = null
+          state.isAdmin = false
         }
       })
       .addCase(hydrateAuth.rejected, (state) => {
@@ -173,6 +180,7 @@ const signInSlice = createSlice({
         state.firstName = null
         state.lastName = null
         state.avatarId = null
+        state.isAdmin = false
       })
       .addCase(signOut.fulfilled, (state) => {
         state.initialized = true
@@ -182,6 +190,7 @@ const signInSlice = createSlice({
         state.firstName = null
         state.lastName = null
         state.avatarId = null
+        state.isAdmin = false
       })
       .addCase(signUpUser.fulfilled, (state, action: PayloadAction<any>) => {
         // Sign-up also sets session cookie, so we can mark as logged in.
@@ -194,6 +203,7 @@ const signInSlice = createSlice({
         state.firstName = details.firstName || null
         state.lastName = details.lastName || null
         state.avatarId = details.avatarId ?? null
+        state.isAdmin = details.isAdmin ?? false
       })
   },
 })

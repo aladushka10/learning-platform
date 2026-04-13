@@ -2,6 +2,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  Shield,
   Target,
   TrendingUp,
   User,
@@ -10,6 +11,7 @@ import {
 } from "lucide-react"
 import { ActionIcon, Box, Flex, NavLink, Stack, Tooltip } from "@mantine/core"
 import { useLocation, useNavigate } from "react-router-dom"
+import { useSelector } from "react-redux"
 import { AppButton } from "../AppButton/AppButton"
 
 interface SidebarProps {
@@ -17,16 +19,28 @@ interface SidebarProps {
   onToggleCollapse: () => void
 }
 
-const menuItems = [
+const studentMenuItems = [
   { icon: BookOpen, label: "Теория", path: "/" },
   { icon: Target, label: "Задачи", path: "/tasks" },
   { icon: TrendingUp, label: "Прогресс", path: "/progress" },
   { icon: User, label: "Профиль", path: "/profile" },
-]
+] as const
+
+const adminMenuItems = [
+  { icon: BookOpen, label: "Теория", path: "/" },
+  { icon: Shield, label: "Прогресс всех", path: "/admin/users-progress" },
+  { icon: User, label: "Профиль", path: "/profile" },
+] as const
 
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
+  const isAdmin = useSelector(
+    (state: { signIn?: { isAdmin?: boolean } }) =>
+      Boolean(state.signIn?.isAdmin),
+  )
+
+  const menuItems = isAdmin ? adminMenuItems : studentMenuItems
 
   return (
     <Box
@@ -45,7 +59,9 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                   : item.path === "/tasks"
                     ? location.pathname === "/tasks" ||
                       location.pathname.startsWith("/course/")
-                    : location.pathname.startsWith(item.path)
+                    : item.path === "/admin/users-progress"
+                      ? location.pathname.startsWith("/admin/users-progress")
+                      : location.pathname.startsWith(item.path)
 
               const content = (
                 <NavLink
