@@ -49,6 +49,7 @@ interface TaskData {
     explanation: string
     topic?: string
     difficulty?: string
+    answerHint?: string
   }
   ord: number
 }
@@ -350,6 +351,15 @@ const TaskSolverPage = () => {
                   <p className="text-red-700">{error}</p>
                 </div>
               )}
+
+              {task.meta?.answerHint ? (
+                <p className="text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  <span className="font-medium text-slate-900">
+                    Формат ответа:{" "}
+                  </span>
+                  {task.meta.answerHint}
+                </p>
+              ) : null}
 
               <Textarea
                 placeholder="Введите ваше решение..."

@@ -5,6 +5,9 @@ export const LECTURES_ENDPOINTS = {
   lectureQuiz: (lectureId: string) => `/lectures/${lectureId}/quiz`,
   submitLectureQuiz: (lectureId: string) =>
     `/lectures/${lectureId}/quiz/submit`,
+  trackLecture: (lectureId: string) => `/lectures/${lectureId}/track`,
+  myLectureStats: (lectureId: string) =>
+    `/lectures/${lectureId}/stats/me`,
 }
 
 export const LECTURES_QUERY_KEYS = {

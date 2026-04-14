@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useMemo, useState } from "react"
+import {
+  Navigate,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom"
 import { useSelector } from "react-redux"
 import { IconArrowLeft, IconChartLine } from "@tabler/icons-react"
 import {
@@ -111,13 +116,21 @@ function toLabel(d: Date) {
 
 const ProgressPage = () => {
   const navigate = useNavigate()
-  const userId = useSelector((s: any) => s.signIn?.userId) as string | null
+  const [searchParams] = useSearchParams()
+  const selfUserId = useSelector((s: any) => s.signIn?.userId) as string | null
+  const isAdmin = useSelector((s: any) => s.signIn?.isAdmin) as boolean
   const { courseId } = useParams<{ courseId: string; taskId: string }>()
+
+  const studentFromQuery = searchParams.get("student")
+  const effectiveUserId = useMemo(() => {
+    if (!isAdmin) return selfUserId
+    return studentFromQuery
+  }, [isAdmin, selfUserId, studentFromQuery])
 
   const [range, setRange] = useState<RangeKey>("30d")
   const days = range === "7d" ? 7 : range === "90d" ? 90 : 30
 
-  const { data, isLoading, error } = useUserProgress(userId)
+  const { data, isLoading, error, refetch } = useUserProgress(effectiveUserId)
 
   const needsCategoryFallback = useMemo(() => {
     const raw = data?.tasks ?? []
@@ -280,6 +293,20 @@ const ProgressPage = () => {
     window.scrollTo(0, 0)
   }
 
+  if (!isAdmin && !selfUserId) {
+    return (
+      <Container size="lg" py="xl" className="min-h-screen">
+        <Group justify="center" py="xl">
+          <Loader />
+        </Group>
+      </Container>
+    )
+  }
+
+  if (isAdmin && !studentFromQuery) {
+    return <Navigate to="/admin/users-progress" replace />
+  }
+
   return (
     <Container size="lg" py="xl" className="min-h-screen">
       <Stack gap="xl">
@@ -292,7 +319,11 @@ const ProgressPage = () => {
               size="md"
               leftSection={<IconArrowLeft size={20} />}
               onClick={() => {
-                navigate(`/tasks?course=${courseId || ""}`)
+                if (isAdmin) {
+                  navigate("/admin/users-progress")
+                } else {
+                  navigate(`/tasks?course=${courseId || ""}`)
+                }
                 window.scrollTo(0, 0)
               }}
             >
@@ -452,8 +483,8 @@ const ProgressPage = () => {
           ) : error ? (
             <AppState
               title="Не удалось загрузить прогресс"
-              actionLabel="Обновить страницу"
-              onAction={() => window.location.reload()}
+              actionLabel="Повторить"
+              onAction={() => refetch()}
             />
           ) : (
             <Box h={320}>

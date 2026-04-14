@@ -42,9 +42,11 @@ export const AdminUserProgressRowSchema = z.object({
   completionRate: z.number(),
   streakDays: z.number(),
   achievementsUnlocked: z.number(),
+  lectureVisitCountTotal: z.number(),
+  lectureTimeMsTotal: z.number(),
+  lectureDistinctWithVisits: z.number(),
 })
 
 export const AdminUsersProgressResponseSchema = z.object({
   users: z.array(AdminUserProgressRowSchema),
 })
-

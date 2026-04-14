@@ -2,10 +2,10 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Shield,
   Target,
   TrendingUp,
   User,
+  Users,
   Text,
   Group,
 } from "lucide-react"
@@ -28,16 +28,15 @@ const studentMenuItems = [
 
 const adminMenuItems = [
   { icon: BookOpen, label: "Теория", path: "/" },
-  { icon: Shield, label: "Прогресс всех", path: "/admin/users-progress" },
+  { icon: Users, label: "Прогресс всех", path: "/admin/users-progress" },
   { icon: User, label: "Профиль", path: "/profile" },
 ] as const
 
 export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const navigate = useNavigate()
   const location = useLocation()
-  const isAdmin = useSelector(
-    (state: { signIn?: { isAdmin?: boolean } }) =>
-      Boolean(state.signIn?.isAdmin),
+  const isAdmin = useSelector((state: { signIn?: { isAdmin?: boolean } }) =>
+    Boolean(state.signIn?.isAdmin),
   )
 
   const menuItems = isAdmin ? adminMenuItems : studentMenuItems
@@ -60,8 +59,11 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                     ? location.pathname === "/tasks" ||
                       location.pathname.startsWith("/course/")
                     : item.path === "/admin/users-progress"
-                      ? location.pathname.startsWith("/admin/users-progress")
-                      : location.pathname.startsWith(item.path)
+                      ? location.pathname === "/admin/users-progress" ||
+                        (location.pathname === "/progress" &&
+                          new URLSearchParams(location.search).has("student"))
+                      : location.pathname === item.path ||
+                        location.pathname.startsWith(`${item.path}/`)
 
               const content = (
                 <NavLink

@@ -32,3 +32,10 @@ export const SubmitLectureQuizResponseSchema = z.object({
   score: z.number(),
   total: z.number(),
 })
+
+export const UserLectureStatsSchema = z.object({
+  lectureId: z.string(),
+  visitCount: z.number(),
+  totalTimeMs: z.number(),
+  lastVisitAt: z.number().nullable().optional(),
+})

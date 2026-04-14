@@ -214,6 +214,18 @@ function init() {
   ).run()
 
   db.prepare(
+    `CREATE TABLE IF NOT EXISTS user_lecture_stats (
+      userId TEXT NOT NULL,
+      lectureId TEXT NOT NULL,
+      visitCount INTEGER NOT NULL DEFAULT 0,
+      totalTimeMs INTEGER NOT NULL DEFAULT 0,
+      lastVisitAt INTEGER,
+      PRIMARY KEY (userId, lectureId),
+      FOREIGN KEY (userId) REFERENCES users(id)
+    )`,
+  ).run()
+
+  db.prepare(
     `CREATE TABLE IF NOT EXISTS achievements (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -378,6 +390,59 @@ module.exports = {
       .run(data.title, data.content, data.ord, id),
   deleteLecture: (id) =>
     db.prepare("DELETE FROM lectures WHERE id = ?").run(id),
+
+  addUserLectureTrack: (userId, lectureId, opts = {}) => {
+    const registerVisit = !!opts.registerVisit
+    const raw = Number(opts.timeMs) || 0
+    const timeMs = Math.max(0, Math.min(Math.floor(raw), 60 * 60 * 60 * 1000))
+    const dVisit = registerVisit ? 1 : 0
+    const now = Date.now()
+    const existing = db
+      .prepare(
+        "SELECT visitCount, totalTimeMs FROM user_lecture_stats WHERE userId = ? AND lectureId = ?",
+      )
+      .get(userId, lectureId)
+    if (existing) {
+      db.prepare(
+        `UPDATE user_lecture_stats
+         SET visitCount = visitCount + ?,
+             totalTimeMs = totalTimeMs + ?,
+             lastVisitAt = ?
+         WHERE userId = ? AND lectureId = ?`,
+      ).run(dVisit, timeMs, now, userId, lectureId)
+    } else {
+      db.prepare(
+        `INSERT INTO user_lecture_stats (userId, lectureId, visitCount, totalTimeMs, lastVisitAt)
+         VALUES (?, ?, ?, ?, ?)`,
+      ).run(userId, lectureId, dVisit, timeMs, now)
+    }
+  },
+
+  getUserLectureStats: (userId, lectureId) =>
+    db
+      .prepare(
+        `SELECT userId, lectureId, visitCount, totalTimeMs, lastVisitAt
+         FROM user_lecture_stats WHERE userId = ? AND lectureId = ?`,
+      )
+      .get(userId, lectureId),
+
+  getUserLectureStatsAggregated: (userId) => {
+    const row = db
+      .prepare(
+        `SELECT
+           COALESCE(SUM(visitCount), 0) AS totalVisitCount,
+           COALESCE(SUM(totalTimeMs), 0) AS totalTimeMs,
+           SUM(CASE WHEN visitCount > 0 THEN 1 ELSE 0 END) AS lecturesWithVisits
+         FROM user_lecture_stats
+         WHERE userId = ?`,
+      )
+      .get(userId)
+    return {
+      totalVisitCount: Number(row?.totalVisitCount) || 0,
+      totalTimeMs: Number(row?.totalTimeMs) || 0,
+      lecturesWithVisits: Number(row?.lecturesWithVisits) || 0,
+    }
+  },
 
   // lecture quizzes
   upsertLectureQuiz: (lectureId, title) => {
@@ -881,6 +946,236 @@ module.exports = {
   },
 }
 
+function getHigherMathSeedTasks() {
+  const courseId = "higher-math"
+  return [
+    {
+      id: "task-1",
+      courseId,
+      title: "Вычисление предела",
+      description:
+        "Найдите: lim[x→2] (x^2-4)/(x-2). Степень записывайте как ^ (например x^2), умножение — * или без звёздочки: 2*x и 2x эквивалентны.",
+      meta: JSON.stringify({
+        type: "numeric",
+        answer: 4,
+        topic: "lec-1",
+        explanation:
+          "Числитель: x^2-4 = (x-2)*(x+2). После сокращения на (x-2) остаётся x+2. При x→2 ответ 4.",
+      }),
+      ord: 1,
+    },
+    {
+      id: "task-2",
+      courseId,
+      title: "Производная полинома",
+      description:
+        "Найдите f'(x), если f(x) = x^2 + 3*x - 5. Ответ в виде формулы, например 2*x+3.",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "2*x+3",
+        topic: "lec-3",
+        explanation: "(x^2)'=2*x, (3*x)'=3, (-5)'=0 ⇒ f'(x)=2*x+3.",
+      }),
+      ord: 2,
+    },
+    {
+      id: "task-3",
+      courseId,
+      title: "Производная произведения",
+      description:
+        "Найдите производную f(x) = x*sin(x). Между сомножителями можно писать * или опускать его — при проверке это учитывается.",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "sin(x)+x*cos(x)",
+        topic: "lec-3",
+        explanation:
+          "(u*v)'=u'*v+u*v'. Здесь u=x, v=sin(x) ⇒ f'(x)=sin(x)+x*cos(x).",
+      }),
+      ord: 3,
+    },
+    {
+      id: "task-4",
+      courseId,
+      title: "Интеграл полинома",
+      description: "Найдите ∫(3*x^2+2*x)dx. Не забудьте +C.",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "x^3+x^2+C",
+        topic: "lec-5",
+        explanation: "∫3*x^2 dx=x^3, ∫2*x dx=x^2, плюс константа C.",
+      }),
+      ord: 4,
+    },
+    {
+      id: "task-5",
+      courseId,
+      title: "Интегрирование по частям",
+      description: "Найдите ∫x*e^x dx (показательная: e^x).",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "e^x*(x-1)+C",
+        topic: "lec-5",
+        explanation: "По частям: u=x, dv=e^x dx ⇒ e^x*(x-1)+C.",
+      }),
+      ord: 5,
+    },
+    {
+      id: "task-6",
+      courseId,
+      title: "Предел при бесконечности",
+      description: "Найдите lim[x→∞] (3*x^2+2)/(x^2-5). Ответ — число.",
+      meta: JSON.stringify({
+        type: "numeric",
+        answer: 3,
+        topic: "lec-1",
+        explanation:
+          "Разделите числитель и знаменатель на x^2: (3+2/x^2)/(1-5/x^2) → 3.",
+      }),
+      ord: 6,
+    },
+    {
+      id: "task-7",
+      courseId,
+      title: "Односторонний предел",
+      description: "Найдите lim[x→0+] 1/x. Ответ: +inf или +∞ (бесконечность).",
+      meta: JSON.stringify({
+        type: "theory",
+        answer: "+inf",
+        topic: "lec-1",
+        explanation:
+          "При x→0+ величина 1/x неограниченно растёт; запишите +inf или +∞.",
+      }),
+      ord: 7,
+    },
+    {
+      id: "task-8",
+      courseId,
+      title: "Непрерывность функции",
+      description:
+        "Является ли f(x)=|x| непрерывной в 0? Ответ одним словом: Да или Нет.",
+      meta: JSON.stringify({
+        type: "theory",
+        answer: "Да",
+        topic: "lec-2",
+        explanation:
+          "|x| определена в 0, предел при x→0 равен 0 и совпадает с f(0).",
+      }),
+      ord: 8,
+    },
+    {
+      id: "task-9",
+      courseId,
+      title: "Производная синуса",
+      description: "Найдите производную sin(x).",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "cos(x)",
+        topic: "lec-4",
+        explanation: "(sin(x))'=cos(x).",
+      }),
+      ord: 9,
+    },
+    {
+      id: "task-10",
+      courseId,
+      title: "Производная экспоненты",
+      description: "Найдите производную e^x.",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "e^x",
+        topic: "lec-4",
+        explanation: "(e^x)'=e^x.",
+      }),
+      ord: 10,
+    },
+    {
+      id: "task-11",
+      courseId,
+      title: "Экстремум функции",
+      description:
+        "Найдите экстремумы f(x)=x^2-4*x.\n\nКак записать ответ: через запятую укажите координату x и тип — латиницей min (минимум) или max (максимум). Пример: x=2,min. Допустимо: x=2,минимум.",
+      meta: JSON.stringify({
+        type: "analysis",
+        answer: "x=2,min",
+        topic: "lec-3",
+        answerHint:
+          "Ожидаемый формат без пробелов: x=2,min или x=2,max. Слово «минимум» по-русски тоже засчитывается.",
+        explanation:
+          "f'(x)=2*x-4=0 ⇒ x=2. f''(x)=2>0 ⇒ минимум. Введите: x=2,min",
+      }),
+      ord: 11,
+    },
+    {
+      id: "task-12",
+      courseId,
+      title: "Вторая производная",
+      description: "Найдите f''(x), если f(x)=x^3.",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "6*x",
+        topic: "lec-3",
+        explanation: "f'(x)=3*x^2, f''(x)=6*x.",
+      }),
+      ord: 12,
+    },
+    {
+      id: "task-13",
+      courseId,
+      title: "Неопределённый интеграл",
+      description: "Найдите ∫x dx. Ответ: x^2/2+C (можно x^2/2 + C).",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "x^2/2+C",
+        topic: "lec-5",
+        explanation: "∫x dx = x^2/2 + C.",
+      }),
+      ord: 13,
+    },
+    {
+      id: "task-14",
+      courseId,
+      title: "Интеграл синуса",
+      description: "Найдите ∫sin(x)dx.",
+      meta: JSON.stringify({
+        type: "formula",
+        answer: "-cos(x)+C",
+        topic: "lec-5",
+        explanation: "∫sin(x)dx = -cos(x) + C.",
+      }),
+      ord: 14,
+    },
+    {
+      id: "task-15",
+      courseId,
+      title: "Определённый интеграл",
+      description: "Найдите ∫[0,1] x dx. Ответ — число (0.5 или 1/2).",
+      meta: JSON.stringify({
+        type: "numeric",
+        answer: 0.5,
+        topic: "lec-6",
+        explanation: "Первообразная x^2/2, подстановка: 1/2-0=0.5.",
+      }),
+      ord: 15,
+    },
+  ]
+}
+
+function applyHigherMathCourseTaskPatches() {
+  const courseId = "higher-math"
+  getHigherMathSeedTasks().forEach((t) => {
+    const row = module.exports.getTaskById(t.id)
+    if (!row || row.courseId !== courseId) return
+    try {
+      module.exports.updateTask(t.id, {
+        title: t.title,
+        description: t.description,
+        meta: t.meta,
+        ord: row.ord,
+      })
+    } catch (e) {}
+  })
+}
+
 function seedIfEmpty() {
   const courses = module.exports.getCourses()
   const courseId = "higher-math"
@@ -1112,222 +1407,10 @@ $$
     }
   } catch (e) {}
 
-  // tasks (15 tasks)
   try {
     const existingTasks = module.exports.getTasks(courseId)
     if (!existingTasks || existingTasks.length === 0) {
-      const tasks = [
-        {
-          id: "task-1",
-          courseId,
-          title: "Вычисление предела",
-          description: "Найдите: lim[x→2] (x² - 4)/(x - 2)",
-          meta: JSON.stringify({
-            type: "numeric",
-            answer: 4,
-            topic: "lec-1",
-            explanation:
-              "Раскройте скобки в числителе: (x² - 4) = (x - 2)(x + 2). Сокращая на (x - 2), получаем (x + 2). При x → 2 результат равен 4.",
-          }),
-          ord: 1,
-        },
-        {
-          id: "task-2",
-          courseId,
-          title: "Производная полинома",
-          description: "Найдите f'(x) для f(x) = x² + 3x - 5",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "2x + 3",
-            topic: "lec-3",
-            explanation:
-              "Применяя правило дифференцирования по слагаемым: (x²)' = 2x, (3x)' = 3, (-5)' = 0. Итого: f'(x) = 2x + 3",
-          }),
-          ord: 2,
-        },
-        {
-          id: "task-3",
-          courseId,
-          title: "Производная произведения",
-          description: "Найдите производную: f(x) = x · sin(x)",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "sin(x) + x·cos(x)",
-            topic: "lec-3",
-            explanation:
-              "Используйте правило произведения: (u·v)' = u'·v + u·v'. Здесь u = x, v = sin(x), поэтому f'(x) = 1·sin(x) + x·cos(x)",
-          }),
-          ord: 3,
-        },
-        {
-          id: "task-4",
-          courseId,
-          title: "Интеграл полинома",
-          description: "Найдите: ∫(3x² + 2x)dx",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "x³ + x² + C",
-            topic: "lec-5",
-            explanation:
-              "Интегрируйте каждое слагаемое отдельно: ∫3x²dx = x³, ∫2xdx = x², не забудьте константу интегрирования C",
-          }),
-          ord: 4,
-        },
-        {
-          id: "task-5",
-          courseId,
-          title: "Интегрирование по частям",
-          description: "Найдите: ∫x·eˣ dx",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "eˣ(x - 1) + C",
-            topic: "lec-5",
-            explanation:
-              "Используйте формулу интегрирования по частям: ∫u dv = uv - ∫v du. Пусть u = x, dv = eˣdx. Тогда du = dx, v = eˣ. Результат: x·eˣ - eˣ = eˣ(x - 1) + C",
-          }),
-          ord: 5,
-        },
-        {
-          id: "task-6",
-          courseId,
-          title: "Предел при бесконечности",
-          description: "Найдите lim[x→∞] (3x² + 2)/(x² - 5)",
-          meta: JSON.stringify({
-            type: "numeric",
-            answer: 3,
-            topic: "lec-1",
-            explanation:
-              "Разделите числитель и знаменатель на x² (старшую степень). Получаете (3 + 2/x²) / (1 - 5/x²). При x → ∞ дроби с x стремятся к 0, поэтому результат = 3/1 = 3",
-          }),
-          ord: 6,
-        },
-        {
-          id: "task-7",
-          courseId,
-          title: "Односторонний предел",
-          description: "Найдите lim[x→0+] 1/x",
-          meta: JSON.stringify({
-            type: "theory",
-            answer: "+∞",
-            topic: "lec-1",
-            explanation:
-              "При приближении x к 0 справа (x > 0), значение 1/x становится сколь угодно большим и положительным, поэтому предел равен +∞",
-          }),
-          ord: 7,
-        },
-        {
-          id: "task-8",
-          courseId,
-          title: "Непрерывность функции",
-          description: "Является ли f(x)=|x| непрерывной в 0?",
-          meta: JSON.stringify({
-            type: "theory",
-            answer: "Да",
-            topic: "lec-2",
-            explanation:
-              "Функция |x| непрерывна в точке 0, так как: 1) она определена в 0 (f(0)=0), 2) существует предел lim[x→0] |x| = 0, 3) предел равен значению функции",
-          }),
-          ord: 8,
-        },
-        {
-          id: "task-9",
-          courseId,
-          title: "Производная синуса",
-          description: "Найдите производную sin(x)",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "cos(x)",
-            topic: "lec-4",
-            explanation:
-              "По таблице производных: (sin x)' = cos x. Это одна из основных формул, которую нужно запомнить",
-          }),
-          ord: 9,
-        },
-        {
-          id: "task-10",
-          courseId,
-          title: "Производная экспоненты",
-          description: "Найдите производную e^x",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "e^x",
-            topic: "lec-4",
-            explanation:
-              "По таблице производных: (eˣ)' = eˣ. Экспонента — единственная функция, производная которой равна самой себе",
-          }),
-          ord: 10,
-        },
-        {
-          id: "task-11",
-          courseId,
-          title: "Экстремум функции",
-          description: "Найдите экстремумы f(x)=x²-4x",
-          meta: JSON.stringify({
-            type: "analysis",
-            answer: "x=2 — минимум",
-            topic: "lec-3",
-            explanation:
-              "Найдите f'(x) = 2x - 4. Приравняйте к нулю: 2x - 4 = 0 → x = 2. Проверьте вторую производную: f''(x) = 2 > 0, значит это минимум",
-          }),
-          ord: 11,
-        },
-        {
-          id: "task-12",
-          courseId,
-          title: "Вторая производная",
-          description: "Найдите f''(x), если f(x)=x³",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "6x",
-            topic: "lec-3",
-            explanation:
-              "Сначала найдите первую производную: f'(x) = 3x². Затем дифференцируйте ещё раз: f''(x) = 6x",
-          }),
-          ord: 12,
-        },
-        {
-          id: "task-13",
-          courseId,
-          title: "Неопределённый интеграл",
-          description: "∫x dx",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "x²/2 + C",
-            topic: "lec-5",
-            explanation:
-              "Используйте формулу: ∫xⁿ dx = xⁿ⁺¹/(n+1) + C. Здесь n = 1, поэтому ∫x dx = x²/2 + C",
-          }),
-          ord: 13,
-        },
-        {
-          id: "task-14",
-          courseId,
-          title: "Интеграл синуса",
-          description: "∫sin(x) dx",
-          meta: JSON.stringify({
-            type: "formula",
-            answer: "-cos(x) + C",
-            topic: "lec-5",
-            explanation:
-              "По таблице интегралов: ∫sin x dx = -cos x + C. Обратите внимание на знак минус",
-          }),
-          ord: 14,
-        },
-        {
-          id: "task-15",
-          courseId,
-          title: "Определённый интеграл",
-          description: "∫[0,1] x dx",
-          meta: JSON.stringify({
-            type: "numeric",
-            answer: 0.5,
-            topic: "lec-6",
-            explanation:
-              "Используйте формулу Ньютона–Лейбница: ∫₀¹ x dx = [x²/2]₀¹ = 1²/2 - 0²/2 = 0.5",
-          }),
-          ord: 15,
-        },
-      ]
+      const tasks = getHigherMathSeedTasks()
       tasks.forEach((t) => {
         try {
           module.exports.createTask(t)
@@ -1373,7 +1456,7 @@ $$
             id: uuidv4(),
             task_id: "task-2",
             input: "derivative",
-            expected_output: "2x + 3",
+            expected_output: "2*x+3",
           },
         ]
         testCases.forEach((tc) => {
@@ -3209,6 +3292,7 @@ function seedLectureQuizzesForCourse(courseId) {
 seedAchievements()
 seedAdmin()
 seedIfEmpty()
+applyHigherMathCourseTaskPatches()
 seedProgrammingCourse()
 seedLectureQuizzesForCourse("higher-math")
 seedLectureQuizzesForCourse("programming-js")
