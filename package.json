@@ -7,7 +7,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "dev:all": "concurrently \"npm run dev\" \"npm --prefix server run dev\"",
-    "postinstall": "npm install --prefix server",
+    "postinstall": "node scripts/postinstall-server.cjs",
     "start": "npm --prefix server start"
   },
   "dependencies": {

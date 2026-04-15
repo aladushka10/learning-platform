@@ -1,12 +1,3 @@
-/**
- * Vercel Routing Middleware: проксирует /api/* на Railway (один origin на Vercel → cookie работают).
- *
- * Vercel → Project → Settings → Environment Variables:
- *   RAILWAY_BACKEND_URL = https://ВАШ-СЕРВИС.up.railway.app  (без / в конце)
- *
- * URL: Railway → сервис → Settings → Networking → публичный домен.
- */
-
 export const config = {
   matcher: "/api/:path*",
 }
