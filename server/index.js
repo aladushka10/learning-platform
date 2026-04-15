@@ -15,6 +15,7 @@ function getRunJsInVmFresh() {
 }
 
 const app = express()
+app.set("trust proxy", 1)
 const PORT = process.env.PORT || 4000
 
 const AUTH_COOKIE = "token"
@@ -921,6 +922,10 @@ app.delete("/progress/:id", (req, res) => {
 
 app.get("/", (req, res) => {
   res.send("Learning Platform API is running")
+})
+
+app.get("/favicon.ico", (_req, res) => {
+  res.status(204).end()
 })
 
 // Routes
