@@ -35,6 +35,7 @@ export const AdminUserProgressRowSchema = z.object({
   firstName: z.string(),
   lastName: z.string(),
   isAdmin: z.boolean(),
+  role: z.string().optional(),
   totalTasks: z.number(),
   completedTasks: z.number(),
   inProgressTasks: z.number(),

@@ -28,7 +28,20 @@ const studentMenuItems = [
 
 const adminMenuItems = [
   { icon: BookOpen, label: "Теория", path: "/" },
+  { icon: Target, label: "Назначить задачи", path: "/admin/assignments" },
+  { icon: Text, label: "Создать задачу", path: "/admin/create-task" },
+  { icon: Target, label: "Мои задачи", path: "/admin/my-tasks" },
+  { icon: Users, label: "Роли и ученики", path: "/admin/roles" },
   { icon: Users, label: "Прогресс всех", path: "/admin/users-progress" },
+  { icon: User, label: "Профиль", path: "/profile" },
+] as const
+
+const teacherMenuItems = [
+  { icon: BookOpen, label: "Теория", path: "/" },
+  { icon: Target, label: "Назначить задачи", path: "/teacher/assignments" },
+  { icon: Target, label: "Мои задачи", path: "/teacher/my-tasks" },
+  { icon: Text, label: "Создать задачу", path: "/teacher/create-task" },
+  { icon: TrendingUp, label: "Прогресс", path: "/progress" },
   { icon: User, label: "Профиль", path: "/profile" },
 ] as const
 
@@ -38,8 +51,17 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
   const isAdmin = useSelector((state: { signIn?: { isAdmin?: boolean } }) =>
     Boolean(state.signIn?.isAdmin),
   )
+  const role = useSelector((state: { signIn?: { role?: string | null } }) =>
+    state.signIn?.role ? String(state.signIn.role) : null,
+  )
 
-  const menuItems = isAdmin ? adminMenuItems : studentMenuItems
+  const effectiveRole = role ?? (isAdmin ? "admin" : "student")
+  const menuItems =
+    effectiveRole === "admin"
+      ? adminMenuItems
+      : effectiveRole === "teacher"
+        ? teacherMenuItems
+        : studentMenuItems
 
   return (
     <Box
@@ -58,10 +80,24 @@ export function Sidebar({ collapsed, onToggleCollapse }: SidebarProps) {
                   : item.path === "/tasks"
                     ? location.pathname === "/tasks" ||
                       location.pathname.startsWith("/course/")
+                    : item.path === "/admin/assignments"
+                      ? location.pathname === "/admin/assignments"
+                  : item.path === "/admin/create-task"
+                    ? location.pathname === "/admin/create-task"
+                  : item.path === "/admin/my-tasks"
+                    ? location.pathname === "/admin/my-tasks"
+                    : item.path === "/teacher/assignments"
+                      ? location.pathname === "/teacher/assignments"
+                    : item.path === "/teacher/my-tasks"
+                      ? location.pathname === "/teacher/my-tasks"
+                    : item.path === "/teacher/create-task"
+                      ? location.pathname === "/teacher/create-task"
                     : item.path === "/admin/users-progress"
                       ? location.pathname === "/admin/users-progress" ||
                         (location.pathname === "/progress" &&
                           new URLSearchParams(location.search).has("student"))
+                    : item.path === "/admin/roles"
+                      ? location.pathname === "/admin/roles"
                       : location.pathname === item.path ||
                         location.pathname.startsWith(`${item.path}/`)
 

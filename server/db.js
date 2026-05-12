@@ -43,8 +43,10 @@ function init() {
       title TEXT NOT NULL,
       description TEXT,
       meta TEXT,
+      createdBy TEXT,
       ord INTEGER,
-      FOREIGN KEY(courseId) REFERENCES courses(id)
+      FOREIGN KEY(courseId) REFERENCES courses(id),
+      FOREIGN KEY(createdBy) REFERENCES users(id)
     )`,
   ).run()
 
@@ -95,6 +97,7 @@ function init() {
       lastName TEXT,
       avatarId TEXT,
       isAdmin INTEGER NOT NULL DEFAULT 0,
+      role TEXT,
       createdAt INTEGER
     )`,
   ).run()
@@ -112,9 +115,39 @@ function init() {
         "ALTER TABLE users ADD COLUMN isAdmin INTEGER NOT NULL DEFAULT 0",
       ).run()
     }
+    const hasRole = cols.some((c) => c && c.name === "role")
+    if (!hasRole) {
+      db.prepare("ALTER TABLE users ADD COLUMN role TEXT").run()
+      // best-effort backfill from isAdmin
+      try {
+        db.prepare(
+          "UPDATE users SET role = CASE WHEN isAdmin = 1 THEN 'admin' ELSE 'student' END WHERE role IS NULL OR role = ''",
+        ).run()
+      } catch {}
+    }
   } catch (e) {
     // best-effort migration
   }
+
+  // migration: add createdBy for existing tasks
+  try {
+    const taskCols = db.prepare("PRAGMA table_info(tasks)").all()
+    const hasCreatedBy = taskCols.some((c) => c && c.name === "createdBy")
+    if (!hasCreatedBy) {
+      db.prepare("ALTER TABLE tasks ADD COLUMN createdBy TEXT").run()
+    }
+  } catch {}
+
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS teacher_students (
+      teacherId TEXT NOT NULL,
+      studentId TEXT NOT NULL,
+      createdAt INTEGER,
+      PRIMARY KEY (teacherId, studentId),
+      FOREIGN KEY(teacherId) REFERENCES users(id),
+      FOREIGN KEY(studentId) REFERENCES users(id)
+    )`,
+  ).run()
 
   db.prepare(
     `CREATE TABLE IF NOT EXISTS solutions (
@@ -149,6 +182,23 @@ function init() {
       updatedAt INTEGER,
       FOREIGN KEY(userId) REFERENCES users(id),
       FOREIGN KEY(taskId) REFERENCES tasks(id)
+    )`,
+  ).run()
+
+  db.prepare(
+    `CREATE TABLE IF NOT EXISTS task_assignments (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      taskId TEXT NOT NULL,
+      assignedBy TEXT NOT NULL,
+      assignedAt INTEGER NOT NULL,
+      dueAt INTEGER,
+      note TEXT,
+      status TEXT NOT NULL DEFAULT 'assigned',
+      UNIQUE(userId, taskId),
+      FOREIGN KEY(userId) REFERENCES users(id),
+      FOREIGN KEY(taskId) REFERENCES tasks(id),
+      FOREIGN KEY(assignedBy) REFERENCES users(id)
     )`,
   ).run()
 
@@ -563,47 +613,134 @@ module.exports = {
   getTasks: (courseId) =>
     db
       .prepare(
-        "SELECT id, courseId, title, description, meta, ord FROM tasks WHERE courseId = ? ORDER BY ord ASC",
+        "SELECT id, courseId, title, description, meta, createdBy, ord FROM tasks WHERE courseId = ? ORDER BY ord ASC",
       )
       .all(courseId),
   getTaskById: (id) => db.prepare("SELECT * FROM tasks WHERE id = ?").get(id),
+  // task assignments (admin -> student)
+  upsertTaskAssignment: (a) => {
+    db.prepare(
+      `INSERT INTO task_assignments (id, userId, taskId, assignedBy, assignedAt, dueAt, note, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(userId, taskId) DO UPDATE SET
+         assignedBy = excluded.assignedBy,
+         assignedAt = excluded.assignedAt,
+         dueAt = excluded.dueAt,
+         note = excluded.note,
+         status = excluded.status`,
+    ).run(
+      a.id || uuidv4(),
+      a.userId,
+      a.taskId,
+      a.assignedBy,
+      a.assignedAt || Date.now(),
+      a.dueAt ?? null,
+      a.note ?? null,
+      a.status || "assigned",
+    )
+  },
+  deleteTaskAssignment: (id) =>
+    db.prepare("DELETE FROM task_assignments WHERE id = ?").run(id),
+  listTaskAssignmentsByUser: (userId) =>
+    db
+      .prepare(
+        `SELECT
+           ta.id,
+           ta.userId,
+           ta.taskId,
+           ta.assignedBy,
+           ta.assignedAt,
+           ta.dueAt,
+           ta.note,
+           ta.status,
+           t.courseId,
+           t.title as taskTitle,
+           t.description as taskDescription,
+           t.meta as taskMeta,
+           c.title as courseTitle
+         FROM task_assignments ta
+         JOIN tasks t ON t.id = ta.taskId
+         JOIN courses c ON c.id = t.courseId
+         WHERE ta.userId = ?
+         ORDER BY ta.assignedAt DESC`,
+      )
+      .all(userId),
   createTask: (t) =>
     db
       .prepare(
-        "INSERT INTO tasks (id, courseId, title, description, meta, ord) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO tasks (id, courseId, title, description, meta, createdBy, ord) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(t.id, t.courseId, t.title, t.description, t.meta, t.ord),
+      .run(
+        t.id,
+        t.courseId,
+        t.title,
+        t.description,
+        t.meta,
+        t.createdBy || null,
+        t.ord,
+      ),
   updateTask: (id, data) =>
     db
       .prepare(
-        "UPDATE tasks SET title = ?, description = ?, meta = ?, ord = ? WHERE id = ?",
+        "UPDATE tasks SET title = ?, description = ?, meta = ?, ord = ?, createdBy = COALESCE(createdBy, ?) WHERE id = ?",
       )
-      .run(data.title, data.description, data.meta, data.ord, id),
-  deleteTask: (id) => db.prepare("DELETE FROM tasks WHERE id = ?").run(id),
+      .run(data.title, data.description, data.meta, data.ord, data.createdBy || null, id),
+  deleteTask: (id) => {
+    const taskId = String(id)
+    const run = db.transaction(() => {
+      // Remove dependent rows first to avoid FK errors.
+      // Order matters for check_results -> solutions.
+      try {
+        db.prepare(
+          "DELETE FROM check_results WHERE solution_id IN (SELECT id FROM solutions WHERE task_id = ?)",
+        ).run(taskId)
+      } catch {}
+      try {
+        db.prepare("DELETE FROM solutions WHERE task_id = ?").run(taskId)
+      } catch {}
+      try {
+        db.prepare("DELETE FROM progress WHERE taskId = ?").run(taskId)
+      } catch {}
+      try {
+        db.prepare("DELETE FROM task_assignments WHERE taskId = ?").run(taskId)
+      } catch {}
+      try {
+        db.prepare("DELETE FROM task_stats WHERE taskId = ?").run(taskId)
+      } catch {}
+      try {
+        db.prepare("DELETE FROM task_categories WHERE task_id = ?").run(taskId)
+      } catch {}
+      try {
+        db.prepare("DELETE FROM test_cases WHERE task_id = ?").run(taskId)
+      } catch {}
+      db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId)
+    })
+    return run()
+  },
 
   // users
   getUsers: () =>
     db
       .prepare(
-        "SELECT id, email, firstName, lastName, avatarId, isAdmin, createdAt FROM users ORDER BY createdAt DESC",
+        "SELECT id, email, firstName, lastName, avatarId, isAdmin, role, createdAt FROM users ORDER BY createdAt DESC",
       )
       .all(),
   getUserById: (id) =>
     db
       .prepare(
-        "SELECT id, email, passwordHash, firstName, lastName, avatarId, isAdmin, createdAt FROM users WHERE id = ?",
+        "SELECT id, email, passwordHash, firstName, lastName, avatarId, isAdmin, role, createdAt FROM users WHERE id = ?",
       )
       .get(id),
   getUserByEmail: (email) =>
     db
       .prepare(
-        "SELECT id, email, passwordHash, firstName, lastName, avatarId, isAdmin, createdAt FROM users WHERE email = ?",
+        "SELECT id, email, passwordHash, firstName, lastName, avatarId, isAdmin, role, createdAt FROM users WHERE email = ?",
       )
       .get(email),
   createUser: (u) =>
     db
       .prepare(
-        "INSERT INTO users (id, email, passwordHash, firstName, lastName, avatarId, isAdmin, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO users (id, email, passwordHash, firstName, lastName, avatarId, isAdmin, role, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
       )
       .run(
         u.id,
@@ -613,12 +750,19 @@ module.exports = {
         u.lastName,
         u.avatarId || null,
         u.isAdmin ? 1 : 0,
+        u.role || (u.isAdmin ? "admin" : "student"),
         u.createdAt,
       ),
   setUserAdmin: (id, isAdmin) =>
     db
       .prepare("UPDATE users SET isAdmin = ? WHERE id = ?")
       .run(isAdmin ? 1 : 0, id),
+  setUserRole: (id, role) =>
+    db
+      .prepare(
+        "UPDATE users SET role = ?, isAdmin = CASE WHEN ? = 'admin' THEN 1 ELSE 0 END WHERE id = ?",
+      )
+      .run(role, role, id),
   updateUser: (id, data) =>
     db
       .prepare(
@@ -628,6 +772,52 @@ module.exports = {
   updateUserAvatar: (id, avatarId) =>
     db.prepare("UPDATE users SET avatarId = ? WHERE id = ?").run(avatarId, id),
   deleteUser: (id) => db.prepare("DELETE FROM users WHERE id = ?").run(id),
+
+  // teacher <-> students
+  upsertTeacherStudent: ({ teacherId, studentId }) =>
+    db
+      .prepare(
+        `INSERT INTO teacher_students (teacherId, studentId, createdAt)
+         VALUES (?, ?, ?)
+         ON CONFLICT(teacherId, studentId) DO UPDATE SET createdAt = excluded.createdAt`,
+      )
+      .run(teacherId, studentId, Date.now()),
+  deleteTeacherStudent: ({ teacherId, studentId }) =>
+    db
+      .prepare(
+        "DELETE FROM teacher_students WHERE teacherId = ? AND studentId = ?",
+      )
+      .run(teacherId, studentId),
+  listStudentsByTeacher: (teacherId) =>
+    db
+      .prepare(
+        `SELECT u.id, u.email, u.firstName, u.lastName, u.avatarId, u.role, u.createdAt
+         FROM teacher_students ts
+         JOIN users u ON u.id = ts.studentId
+         WHERE ts.teacherId = ?
+         ORDER BY u.createdAt DESC`,
+      )
+      .all(teacherId),
+  isStudentOfTeacher: ({ teacherId, studentId }) =>
+    Boolean(
+      db
+        .prepare(
+          "SELECT 1 as ok FROM teacher_students WHERE teacherId = ? AND studentId = ?",
+        )
+        .get(teacherId, studentId),
+    ),
+
+  // task assignments helpers
+  getTaskAssignmentById: (id) =>
+    db.prepare("SELECT * FROM task_assignments WHERE id = ?").get(id),
+
+  // role helpers
+  clearOtherAdmins: (keepUserId) =>
+    db
+      .prepare(
+        "UPDATE users SET role = 'student', isAdmin = 0 WHERE id != ? AND (role = 'admin' OR isAdmin = 1)",
+      )
+      .run(keepUserId),
 
   // categories
   getCategories: () =>
@@ -2261,10 +2451,14 @@ function seedAdmin() {
         lastName: "",
         avatarId: null,
         isAdmin: 1,
+        role: "admin",
         createdAt: now,
       })
     } else if (!existing.isAdmin) {
       module.exports.setUserAdmin(existing.id, true)
+      try {
+        module.exports.setUserRole(existing.id, "admin")
+      } catch {}
     }
   } catch (e) {
     // best-effort

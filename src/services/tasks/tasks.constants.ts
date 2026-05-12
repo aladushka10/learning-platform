@@ -1,6 +1,7 @@
 export const TASKS_BASE_URL = "/api"
 
 export const TASKS_ENDPOINTS = {
+  taskById: (taskId: string) => `/tasks/${taskId}`,
   taskSolutions: (taskId: string) => `/tasks/${taskId}/solutions`,
   taskOpen: (taskId: string) => `/tasks/${taskId}/open`,
   taskStats: (taskId: string) => `/tasks/${taskId}/stats`,
