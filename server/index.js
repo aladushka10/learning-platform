@@ -61,22 +61,33 @@ function adminLearningForbidden(res) {
   return res.status(403).json({ error: "admin_learning_forbidden" })
 }
 
+function secureCookieSuffix(req) {
+  if (!req) return ""
+  if (req.secure) return "; Secure"
+  const proto = String(req.headers["x-forwarded-proto"] || "")
+    .split(",")[0]
+    .trim()
+  return proto === "https" ? "; Secure" : ""
+}
+
 function setAuthCookie(res, userId) {
   const token = jwt.sign({ sub: userId }, JWT_SECRET, {
     expiresIn: JWT_MAX_AGE_SEC,
   })
+  const sec = secureCookieSuffix(res.req)
   res.setHeader(
     "Set-Cookie",
     `${AUTH_COOKIE}=${encodeURIComponent(
       token,
-    )}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${JWT_MAX_AGE_SEC}`,
+    )}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${JWT_MAX_AGE_SEC}${sec}`,
   )
 }
 
 function clearAuthCookie(res) {
+  const sec = secureCookieSuffix(res.req)
   res.setHeader(
     "Set-Cookie",
-    `${AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+    `${AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${sec}`,
   )
 }
 
