@@ -61,22 +61,82 @@ function adminLearningForbidden(res) {
   return res.status(403).json({ error: "admin_learning_forbidden" })
 }
 
+function getUserRole(u) {
+  if (!u) return "student"
+  if (u.role) return String(u.role)
+  return u.isAdmin ? "admin" : "student"
+}
+
+function requireAdmin(req, res) {
+  const authId = getAuthUserId(req)
+  if (!authId) {
+    res.status(401).json({ error: "unauthorized" })
+    return null
+  }
+  const u = db.getUserById(authId)
+  if (!u?.isAdmin && getUserRole(u) !== "admin") {
+    res.status(403).json({ error: "forbidden" })
+    return null
+  }
+  return u
+}
+
+function requireTeacherOrAdmin(req, res) {
+  const authId = getAuthUserId(req)
+  if (!authId) {
+    res.status(401).json({ error: "unauthorized" })
+    return null
+  }
+  const u = db.getUserById(authId)
+  const role = getUserRole(u)
+  if (role !== "teacher" && role !== "admin") {
+    res.status(403).json({ error: "forbidden" })
+    return null
+  }
+  return u
+}
+
+function requireTeacher(req, res) {
+  const authId = getAuthUserId(req)
+  if (!authId) {
+    res.status(401).json({ error: "unauthorized" })
+    return null
+  }
+  const u = db.getUserById(authId)
+  if (getUserRole(u) !== "teacher") {
+    res.status(403).json({ error: "forbidden" })
+    return null
+  }
+  return u
+}
+
+function secureCookieSuffix(req) {
+  if (!req) return ""
+  if (req.secure) return "; Secure"
+  const proto = String(req.headers["x-forwarded-proto"] || "")
+    .split(",")[0]
+    .trim()
+  return proto === "https" ? "; Secure" : ""
+}
+
 function setAuthCookie(res, userId) {
   const token = jwt.sign({ sub: userId }, JWT_SECRET, {
     expiresIn: JWT_MAX_AGE_SEC,
   })
+  const sec = secureCookieSuffix(res.req)
   res.setHeader(
     "Set-Cookie",
     `${AUTH_COOKIE}=${encodeURIComponent(
       token,
-    )}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${JWT_MAX_AGE_SEC}`,
+    )}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${JWT_MAX_AGE_SEC}${sec}`,
   )
 }
 
 function clearAuthCookie(res) {
+  const sec = secureCookieSuffix(res.req)
   res.setHeader(
     "Set-Cookie",
-    `${AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`,
+    `${AUTH_COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${sec}`,
   )
 }
 
@@ -317,15 +377,38 @@ app.get("/tasks/:id", (req, res) => {
 })
 
 app.put("/tasks/:id", (req, res) => {
+  const actor = requireTeacherOrAdmin(req, res)
+  if (!actor) return
   const existing = db.getTaskById(req.params.id)
   if (!existing) return res.status(404).json({ error: "not_found" })
-  db.updateTask(req.params.id, req.body)
+  const role = getUserRole(actor)
+  if (
+    role === "teacher" &&
+    existing.createdBy &&
+    existing.createdBy !== actor.id
+  ) {
+    return res.status(403).json({ error: "forbidden" })
+  }
+  db.updateTask(req.params.id, { ...req.body, createdBy: actor.id })
   res.json({ ok: true })
 })
 
 app.delete("/tasks/:id", (req, res) => {
-  db.deleteTask(req.params.id)
-  res.status(204).end()
+  const actor = requireTeacherOrAdmin(req, res)
+  if (!actor) return
+  const existing = db.getTaskById(req.params.id)
+  if (!existing) return res.status(404).json({ error: "not_found" })
+  const role = getUserRole(actor)
+  if (role === "teacher" && String(existing.createdBy || "") !== String(actor.id)) {
+    return res.status(403).json({ error: "forbidden" })
+  }
+  try {
+    db.deleteTask(req.params.id)
+    res.status(204).end()
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    res.status(500).json({ error: "delete_failed", detail: msg })
+  }
 })
 
 // Task stats (opens/attempts/successes) for recommendations
@@ -518,7 +601,8 @@ function handleAdminUsersProgressSummary(req, res) {
   const authUser = db.getUserById(authId)
   if (!authUser?.isAdmin) return res.status(403).json({ error: "forbidden" })
 
-  const users = db.getUsers().filter((u) => !u.isAdmin)
+  // Show only students in the "progress all" table (exclude teachers/admins).
+  const users = db.getUsers().filter((u) => getUserRole(u) === "student")
   const rows = users.map((u) => {
     const stats = buildUserProgressStats(u.id)
     const achievementsUnlocked = (stats.achievements || []).filter(
@@ -531,6 +615,7 @@ function handleAdminUsersProgressSummary(req, res) {
       firstName: u.firstName || "",
       lastName: u.lastName || "",
       isAdmin: Boolean(u.isAdmin),
+      role: getUserRole(u),
       totalTasks: stats.totalTasks,
       completedTasks: stats.completedTasks,
       inProgressTasks: stats.inProgressTasks,
@@ -549,6 +634,286 @@ function handleAdminUsersProgressSummary(req, res) {
 
 app.get("/users/all/progress-summary", handleAdminUsersProgressSummary)
 app.get("/api/users/all/progress-summary", handleAdminUsersProgressSummary)
+
+// ===== Admin: assign tasks to students =====
+function handleAdminStudents(req, res) {
+  const admin = requireAdmin(req, res)
+  if (!admin) return
+  const students = db
+    .getUsers()
+    .filter((u) => !u.isAdmin && getUserRole(u) === "student")
+    .map((u) => ({
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName || "",
+      lastName: u.lastName || "",
+    }))
+  res.json({ students })
+}
+
+function handleAdminSetUserRole(req, res) {
+  const admin = requireAdmin(req, res)
+  if (!admin) return
+  const userId = req.params.id
+  const roleRaw = req.body?.role
+  const role = roleRaw == null ? null : String(roleRaw)
+  if (!userId || !role) return res.status(400).json({ error: "invalid" })
+  if (!["student", "teacher", "admin"].includes(role)) {
+    return res.status(400).json({ error: "invalid_role" })
+  }
+  const user = db.getUserById(String(userId))
+  if (!user) return res.status(404).json({ error: "user_not_found" })
+
+  if (role === "admin") {
+    // ensure exactly one admin
+    db.clearOtherAdmins(String(userId))
+  }
+  db.setUserRole(String(userId), role)
+  const updated = db.getUserById(String(userId))
+  res.json({ ok: true, user: updated })
+}
+
+function handleAdminUpsertTeacherStudent(req, res) {
+  const admin = requireAdmin(req, res)
+  if (!admin) return
+  const teacherId = req.body?.teacherId ? String(req.body.teacherId) : null
+  const studentId = req.body?.studentId ? String(req.body.studentId) : null
+  if (!teacherId || !studentId) return res.status(400).json({ error: "invalid" })
+  const teacher = db.getUserById(teacherId)
+  const student = db.getUserById(studentId)
+  if (!teacher || getUserRole(teacher) !== "teacher") {
+    return res.status(404).json({ error: "teacher_not_found" })
+  }
+  if (!student || getUserRole(student) !== "student") {
+    return res.status(404).json({ error: "student_not_found" })
+  }
+  db.upsertTeacherStudent({ teacherId, studentId })
+  res.json({ ok: true })
+}
+
+function handleAdminDeleteTeacherStudent(req, res) {
+  const admin = requireAdmin(req, res)
+  if (!admin) return
+  const teacherId = req.query?.teacherId ? String(req.query.teacherId) : null
+  const studentId = req.query?.studentId ? String(req.query.studentId) : null
+  if (!teacherId || !studentId) return res.status(400).json({ error: "invalid" })
+  db.deleteTeacherStudent({ teacherId, studentId })
+  res.json({ ok: true })
+}
+
+function handleAdminListTeacherStudents(req, res) {
+  const admin = requireAdmin(req, res)
+  if (!admin) return
+  const teacherId = req.query?.teacherId ? String(req.query.teacherId) : null
+  if (!teacherId) return res.status(400).json({ error: "teacherId_required" })
+  const teacher = db.getUserById(teacherId)
+  if (!teacher || getUserRole(teacher) !== "teacher") {
+    return res.status(404).json({ error: "teacher_not_found" })
+  }
+  const students = db.listStudentsByTeacher(teacherId).map((u) => ({
+    id: u.id,
+    email: u.email,
+    firstName: u.firstName || "",
+    lastName: u.lastName || "",
+    avatarId: u.avatarId ?? null,
+  }))
+  res.json({ students })
+}
+
+function handleAdminListAssignments(req, res) {
+  const admin = requireAdmin(req, res)
+  if (!admin) return
+  const userId = req.query?.userId ? String(req.query.userId) : null
+  if (!userId) return res.status(400).json({ error: "userId_required" })
+  const rows = db.listTaskAssignmentsByUser(userId)
+  res.json({ assignments: rows })
+}
+
+function handleAdminUpsertAssignment(req, res) {
+  const admin = requireAdmin(req, res)
+  if (!admin) return
+  const userId = req.body?.userId ? String(req.body.userId) : null
+  const taskId = req.body?.taskId ? String(req.body.taskId) : null
+  const dueAtRaw = req.body?.dueAt
+  const dueAt =
+    dueAtRaw == null || dueAtRaw === ""
+      ? null
+      : Number.isFinite(Number(dueAtRaw))
+        ? Number(dueAtRaw)
+        : null
+  const note = req.body?.note == null ? null : String(req.body.note)
+
+  if (!userId || !taskId) {
+    return res.status(400).json({ error: "invalid" })
+  }
+
+  const user = db.getUserById(userId)
+  if (!user || getUserRole(user) !== "student") {
+    return res.status(404).json({ error: "user_not_found" })
+  }
+  const task = db.getTaskById(taskId)
+  if (!task) return res.status(404).json({ error: "task_not_found" })
+
+  db.upsertTaskAssignment({
+    userId,
+    taskId,
+    assignedBy: admin.id,
+    assignedAt: Date.now(),
+    dueAt,
+    note,
+    status: "assigned",
+  })
+
+  const rows = db.listTaskAssignmentsByUser(userId)
+  res.json({ ok: true, assignments: rows })
+}
+
+function handleAdminDeleteAssignment(req, res) {
+  const admin = requireAdmin(req, res)
+  if (!admin) return
+  const id = req.params.id
+  if (!id) return res.status(400).json({ error: "invalid" })
+  db.deleteTaskAssignment(String(id))
+  res.json({ ok: true })
+}
+
+app.get("/admin/students", handleAdminStudents)
+app.get("/api/admin/students", handleAdminStudents)
+app.post("/admin/users/:id/role", handleAdminSetUserRole)
+app.post("/api/admin/users/:id/role", handleAdminSetUserRole)
+app.post("/admin/teacher-students", handleAdminUpsertTeacherStudent)
+app.post("/api/admin/teacher-students", handleAdminUpsertTeacherStudent)
+app.get("/admin/teacher-students", handleAdminListTeacherStudents)
+app.get("/api/admin/teacher-students", handleAdminListTeacherStudents)
+app.delete("/admin/teacher-students", handleAdminDeleteTeacherStudent)
+app.delete("/api/admin/teacher-students", handleAdminDeleteTeacherStudent)
+app.get("/admin/task-assignments", handleAdminListAssignments)
+app.get("/api/admin/task-assignments", handleAdminListAssignments)
+app.post("/admin/task-assignments", handleAdminUpsertAssignment)
+app.post("/api/admin/task-assignments", handleAdminUpsertAssignment)
+app.delete("/admin/task-assignments/:id", handleAdminDeleteAssignment)
+app.delete("/api/admin/task-assignments/:id", handleAdminDeleteAssignment)
+
+// Student (and admin) can view student's assignments.
+function handleUserAssignments(req, res) {
+  const authId = getAuthUserId(req)
+  if (!authId) return res.status(401).json({ error: "unauthorized" })
+  const userId = req.params.id
+  const authUser = db.getUserById(authId)
+  if (!authUser) return res.status(401).json({ error: "unauthorized" })
+  const authRole = getUserRole(authUser)
+  if (
+    authId !== userId &&
+    authRole !== "admin" &&
+    !(
+      authRole === "teacher" &&
+      db.isStudentOfTeacher({ teacherId: authId, studentId: userId })
+    )
+  ) {
+    return res.status(403).json({ error: "forbidden" })
+  }
+  const rows = db.listTaskAssignmentsByUser(userId)
+  res.json({ assignments: rows })
+}
+app.get("/users/:id/task-assignments", handleUserAssignments)
+app.get("/api/users/:id/task-assignments", handleUserAssignments)
+
+// ===== Teacher: own students + assign tasks =====
+function handleTeacherStudents(req, res) {
+  const teacher = requireTeacher(req, res)
+  if (!teacher) return
+  const rows = db.listStudentsByTeacher(teacher.id)
+  const students = rows
+    .filter((u) => getUserRole(u) === "student")
+    .map((u) => ({
+      id: u.id,
+      email: u.email,
+      firstName: u.firstName || "",
+      lastName: u.lastName || "",
+      avatarId: u.avatarId ?? null,
+    }))
+  res.json({ students })
+}
+
+function handleTeacherListAssignments(req, res) {
+  const teacher = requireTeacher(req, res)
+  if (!teacher) return
+  const userId = req.query?.userId ? String(req.query.userId) : null
+  if (!userId) return res.status(400).json({ error: "userId_required" })
+  if (!db.isStudentOfTeacher({ teacherId: teacher.id, studentId: userId })) {
+    return res.status(403).json({ error: "forbidden" })
+  }
+  const rows = db.listTaskAssignmentsByUser(userId)
+  // teacher can see all assignments for the student (admin + teacher),
+  // but can only delete what they assigned (see delete handler).
+  res.json({ assignments: rows })
+}
+
+function handleTeacherUpsertAssignment(req, res) {
+  const teacher = requireTeacher(req, res)
+  if (!teacher) return
+  const userId = req.body?.userId ? String(req.body.userId) : null
+  const taskId = req.body?.taskId ? String(req.body.taskId) : null
+  const dueAtRaw = req.body?.dueAt
+  const dueAt =
+    dueAtRaw == null || dueAtRaw === ""
+      ? null
+      : Number.isFinite(Number(dueAtRaw))
+        ? Number(dueAtRaw)
+        : null
+  const note = req.body?.note == null ? null : String(req.body.note)
+
+  if (!userId || !taskId) {
+    return res.status(400).json({ error: "invalid" })
+  }
+
+  if (!db.isStudentOfTeacher({ teacherId: teacher.id, studentId: userId })) {
+    return res.status(403).json({ error: "forbidden" })
+  }
+
+  const user = db.getUserById(userId)
+  if (!user || getUserRole(user) !== "student") {
+    return res.status(404).json({ error: "user_not_found" })
+  }
+  const task = db.getTaskById(taskId)
+  if (!task) return res.status(404).json({ error: "task_not_found" })
+
+  db.upsertTaskAssignment({
+    userId,
+    taskId,
+    assignedBy: teacher.id,
+    assignedAt: Date.now(),
+    dueAt,
+    note,
+    status: "assigned",
+  })
+
+  const rows = db.listTaskAssignmentsByUser(userId)
+  res.json({ ok: true, assignments: rows })
+}
+
+function handleTeacherDeleteAssignment(req, res) {
+  const teacher = requireTeacher(req, res)
+  if (!teacher) return
+  const id = req.params.id
+  if (!id) return res.status(400).json({ error: "invalid" })
+  const a = db.getTaskAssignmentById(String(id))
+  if (!a) return res.status(404).json({ error: "not_found" })
+  if (String(a.assignedBy) !== String(teacher.id)) {
+    return res.status(403).json({ error: "forbidden" })
+  }
+  db.deleteTaskAssignment(String(id))
+  res.json({ ok: true })
+}
+
+app.get("/teacher/students", handleTeacherStudents)
+app.get("/api/teacher/students", handleTeacherStudents)
+app.get("/teacher/task-assignments", handleTeacherListAssignments)
+app.get("/api/teacher/task-assignments", handleTeacherListAssignments)
+app.post("/teacher/task-assignments", handleTeacherUpsertAssignment)
+app.post("/api/teacher/task-assignments", handleTeacherUpsertAssignment)
+app.delete("/teacher/task-assignments/:id", handleTeacherDeleteAssignment)
+app.delete("/api/teacher/task-assignments/:id", handleTeacherDeleteAssignment)
 
 app.get("/users/:id", (req, res) => {
   const u = db.getUserById(req.params.id)
@@ -964,6 +1329,8 @@ app.get("/courses/:id/tasks", (req, res) => {
 })
 
 app.post("/courses/:id/tasks", (req, res) => {
+  const actor = requireTeacherOrAdmin(req, res)
+  if (!actor) return
   if (!req.body?.title) {
     return res.status(400).json({ error: "invalid" })
   }
@@ -975,6 +1342,7 @@ app.post("/courses/:id/tasks", (req, res) => {
     description: req.body.description || "",
     meta: req.body.meta || "",
     ord: req.body.ord || 0,
+    createdBy: actor.id,
   }
 
   db.createTask(task)
@@ -1018,6 +1386,7 @@ app.post("/auth/sign-in", (req, res) => {
       lastName: user.lastName,
       avatarId: user.avatarId ?? null,
       isAdmin: Boolean(user.isAdmin),
+      role: getUserRole(user),
     },
   })
 })
@@ -1039,6 +1408,7 @@ app.get("/auth/me", (req, res) => {
     lastName: user.lastName,
     avatarId: user.avatarId ?? null,
     isAdmin: Boolean(user.isAdmin),
+    role: getUserRole(user),
     createdAt: user.createdAt,
   })
 })
@@ -1056,6 +1426,7 @@ app.get("/auth/user", (req, res) => {
       lastName: u.lastName,
       avatarId: u.avatarId ?? null,
       isAdmin: Boolean(u.isAdmin),
+      role: getUserRole(u),
       createdAt: u.createdAt,
     })
   }
@@ -1074,6 +1445,7 @@ app.get("/auth/user", (req, res) => {
       lastName: user.lastName,
       avatarId: user.avatarId ?? null,
       isAdmin: Boolean(user.isAdmin),
+      role: getUserRole(user),
       createdAt: user.createdAt,
     })
   }
@@ -1088,6 +1460,7 @@ app.get("/auth/user", (req, res) => {
     lastName: user.lastName,
     avatarId: user.avatarId ?? null,
     isAdmin: Boolean(user.isAdmin),
+    role: getUserRole(user),
     createdAt: user.createdAt,
   })
 })
@@ -1111,6 +1484,7 @@ app.post("/auth/sign-up", (req, res) => {
     firstName: firstName || "",
     lastName: lastName || "",
     isAdmin: 0,
+    role: "student",
     createdAt: Date.now(),
   }
 
@@ -1125,6 +1499,7 @@ app.post("/auth/sign-up", (req, res) => {
       lastName: user.lastName,
       avatarId: user.avatarId ?? null,
       isAdmin: false,
+      role: getUserRole(user),
     },
   })
 })

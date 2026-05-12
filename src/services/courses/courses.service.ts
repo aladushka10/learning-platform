@@ -3,6 +3,7 @@ import {
   CourseLecturesSchema,
   CoursesSchema,
   CourseTasksSchema,
+  CourseTaskSchema,
 } from "./courses.contract"
 import type { Course, CourseLecture, CourseTask } from "./courses.type"
 
@@ -60,6 +61,26 @@ export class CoursesService {
       )
     }
     return CourseLecturesSchema.parse(await res.json())
+  }
+
+  static async createCourseTask(
+    courseId: string,
+    payload: { title: string; description?: string; meta?: any; ord?: number },
+  ): Promise<CourseTask> {
+    const res = await fetch(
+      `${CoursesService.baseURL}${COURSES_ENDPOINTS.courseTasks(courseId)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify(payload),
+      },
+    )
+    if (!res.ok) {
+      throw new Error(await CoursesService.parseError(res, "Не удалось создать задачу"))
+    }
+    return CourseTaskSchema.parse(await res.json())
   }
 }
 

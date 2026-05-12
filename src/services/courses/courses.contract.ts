@@ -12,6 +12,7 @@ export const CourseTaskSchema = z.object({
   title: z.string().optional().default(""),
   description: z.string().optional().default(""),
   meta: z.any().optional(),
+  createdBy: z.string().nullable().optional(),
   ord: z.number().optional().default(0),
 })
 

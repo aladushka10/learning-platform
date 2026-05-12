@@ -18,18 +18,34 @@ import LecturePage from "./Pages/LecturePage/LecturePage"
 import TheoryPage from "./Pages/TheoryPage/TheoryPage"
 import ProgressPage from "./Pages/ProgressPage/ProgressPage"
 import AdminUsersProgressPage from "./Pages/AdminUsersProgressPage/AdminUsersProgressPage"
+import AdminTaskAssignmentsPage from "./Pages/AdminTaskAssignmentsPage/AdminTaskAssignmentsPage"
+import AdminRolesPage from "./Pages/AdminRolesPage/AdminRolesPage"
+import TeacherCreateTaskPage from "./Pages/TeacherCreateTaskPage/TeacherCreateTaskPage"
+import TeacherMyTasksPage from "./Pages/TeacherMyTasksPage/TeacherMyTasksPage"
 import ProfilePage from "./Pages/ProfilePage/ProfilePage"
 import AchievementsPage from "./Pages/AchievementsPage/AchievementsPage"
 import QuizPage from "./Pages/QuizPage/QuizPage"
 import SignIn from "./Pages/SignIn/SignIn"
 import SignUp from "./Pages/SignUp/SignUp"
 import { hydrateAuth } from "./store/signInSlice"
-import { Box, Loader, Skeleton, Title } from "@mantine/core"
+import {
+  ActionIcon,
+  Box,
+  Loader,
+  Modal,
+  Stack,
+  Skeleton,
+  Title,
+  Tooltip,
+} from "@mantine/core"
 import { useUserProgress } from "./services/progress/progress.hooks"
 import { usePagination } from "./hooks/usePagination"
 import { AppState } from "./components/AppState/AppState"
 import { AppButton } from "./components/AppButton/AppButton"
 import { AppLayout } from "./components/AppLayout/AppLayout"
+import { CoursesService } from "./services/courses/courses.service"
+import { AssignmentsService } from "./services/assignments/assignments.service"
+import { IconFilter } from "@tabler/icons-react"
 
 export interface Task {
   id: string
@@ -119,6 +135,38 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>
 }
 
+const TeacherOrAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const auth = useSelector((state: any) => state.signIn?.auth) as boolean
+  const initialized = useSelector(
+    (state: any) => state.signIn?.initialized,
+  ) as boolean
+  const isAdmin = useSelector((state: any) => state.signIn?.isAdmin) as boolean
+  const role = useSelector((state: any) => state.signIn?.role) as
+    | "student"
+    | "teacher"
+    | "admin"
+    | null
+  const effectiveRole = role ?? (isAdmin ? "admin" : "student")
+
+  if (!initialized) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader size="lg" />
+          <p className="text-gray-600">Загрузка...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!auth) return <Navigate to="/sign-in" replace />
+  if (effectiveRole !== "admin" && effectiveRole !== "teacher") {
+    return <Navigate to="/tasks" replace />
+  }
+
+  return <>{children}</>
+}
+
 const StudentLearningRoute = ({ children }: { children: React.ReactNode }) => {
   const isAdmin = useSelector((state: any) => state.signIn?.isAdmin) as boolean
 
@@ -151,6 +199,8 @@ function TasksPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
+  const [assignedTaskIds, setAssignedTaskIds] = useState<Set<string>>(new Set())
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   const statusFilterParam = searchParams.get("status")
   const statusFilter =
@@ -165,6 +215,11 @@ function TasksPage() {
     typeFilterParam === "math" || typeFilterParam === "cs"
       ? (typeFilterParam as "math" | "cs")
       : null
+
+  const assignedFilterParam = searchParams.get("assigned")
+  const assignedOnly = assignedFilterParam === "1"
+
+  const sortParam = searchParams.get("sort")
 
   const typeLabel =
     typeFilter === "math"
@@ -232,9 +287,7 @@ function TasksPage() {
     const load = async () => {
       setLoading(true)
       try {
-        const res = await fetch("/api/courses")
-        if (!res.ok) throw new Error("failed to load courses")
-        const data: Course[] = await res.json()
+        const data: Course[] = await CoursesService.getCourses()
         setCourses(data)
         if (data.length > 0) {
           const fromQuery = searchParams.get("course")
@@ -265,6 +318,26 @@ function TasksPage() {
   }, [])
 
   useEffect(() => {
+    if (!effectiveUserId) {
+      setAssignedTaskIds(new Set())
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await AssignmentsService.getUserAssignments(effectiveUserId)
+        if (cancelled) return
+        setAssignedTaskIds(new Set(res.assignments.map((a) => a.taskId)))
+      } catch {
+        if (!cancelled) setAssignedTaskIds(new Set())
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [effectiveUserId])
+
+  useEffect(() => {
     if (!selectedCourseId) {
       setTasks([])
       return
@@ -273,15 +346,10 @@ function TasksPage() {
     const loadTasks = async () => {
       setLoading(true)
       try {
-        const [tasksRes, lecturesRes] = await Promise.all([
-          fetch(`/api/courses/${selectedCourseId}/tasks`),
-          fetch(`/api/courses/${selectedCourseId}/lectures`),
+        const [rawTasks, lectures] = await Promise.all([
+          CoursesService.getCourseTasks(selectedCourseId),
+          CoursesService.getCourseLectures(selectedCourseId).catch(() => []),
         ])
-        if (!tasksRes.ok) throw new Error("failed to load tasks")
-        const rawTasks = await tasksRes.json()
-        const lectures: { id: string; title: string }[] = lecturesRes.ok
-          ? await lecturesRes.json()
-          : []
         const lectureTitleByTopic: Record<string, string> = {}
         lectures.forEach((l: any) => {
           lectureTitleByTopic[l.id] = formatLectureTitle(l.title || l.id)
@@ -356,7 +424,8 @@ function TasksPage() {
     (task) =>
       task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      task.topic.toLowerCase().includes(searchQuery.toLowerCase()),
+      task.topic.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (task.lectureTitle || "").toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
   const statusFilteredTasks = statusFilter
@@ -365,8 +434,27 @@ function TasksPage() {
       )
     : filteredTasks
 
-  // Keep backend order (ord ASC) without extra sorting.
-  const sortedTasks = statusFilteredTasks
+  const assignedFilteredTasks = assignedOnly
+    ? statusFilteredTasks.filter((t) => assignedTaskIds.has(t.id))
+    : statusFilteredTasks
+
+  const difficultyRank = (d: string) =>
+    d === "Easy" ? 1 : d === "Medium" ? 2 : d === "Hard" ? 3 : 999
+
+  const sortedTasks =
+    sortParam === "difficulty_asc"
+      ? [...assignedFilteredTasks].sort(
+          (a, b) =>
+            difficultyRank(a.difficulty) - difficultyRank(b.difficulty) ||
+            a.title.localeCompare(b.title, "ru"),
+        )
+      : sortParam === "difficulty_desc"
+        ? [...assignedFilteredTasks].sort(
+            (a, b) =>
+              difficultyRank(b.difficulty) - difficultyRank(a.difficulty) ||
+              a.title.localeCompare(b.title, "ru"),
+          )
+        : assignedFilteredTasks
   const {
     displayedItems: visibleTasks,
     hasMore,
@@ -376,7 +464,7 @@ function TasksPage() {
 
   useEffect(() => {
     reset()
-  }, [selectedCourseId, searchQuery, statusFilter, reset])
+  }, [selectedCourseId, searchQuery, statusFilter, assignedOnly, sortParam, reset])
 
   const handleTaskSelect = (task: Task) => {
     setSelectedTask(task)
@@ -547,6 +635,44 @@ function TasksPage() {
                       ))}
                     </select>
 
+                    <Tooltip label="Фильтры" withArrow>
+                      <ActionIcon
+                        variant="default"
+                        size="lg"
+                        radius="md"
+                        onClick={() => setFiltersOpen(true)}
+                      >
+                        <IconFilter size={18} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </div>
+
+                  <AppButton
+                    variant="outline"
+                    size="xs"
+                    onClick={() => {
+                      const next = new URLSearchParams(searchParams)
+                      next.delete("status")
+                      next.delete("assigned")
+                      next.delete("sort")
+                      setSearchParams(next, { replace: true })
+                      setSearchQuery("")
+                    }}
+                  >
+                    Сбросить фильтр
+                  </AppButton>
+                </div>
+              </div>
+
+              <Modal
+                opened={filtersOpen}
+                onClose={() => setFiltersOpen(false)}
+                title="Фильтры"
+                centered
+              >
+                <Stack gap="sm">
+                  <div>
+                    <div className="text-sm font-medium mb-1">Статус</div>
                     <select
                       value={statusFilter ?? ""}
                       onChange={(e) => {
@@ -556,7 +682,7 @@ function TasksPage() {
                         else next.set("status", value)
                         setSearchParams(next, { replace: true })
                       }}
-                      className="rounded-md border px-3 py-1"
+                      className="w-full rounded-md border px-3 py-2"
                     >
                       <option value="">Все</option>
                       <option value="completed">Выполненные</option>
@@ -565,20 +691,64 @@ function TasksPage() {
                     </select>
                   </div>
 
+                  <div>
+                    <div className="text-sm font-medium mb-1">Назначения</div>
+                    <select
+                      value={assignedOnly ? "1" : ""}
+                      onChange={(e) => {
+                        const value = e.currentTarget.value
+                        const next = new URLSearchParams(searchParams)
+                        if (!value) next.delete("assigned")
+                        else next.set("assigned", value)
+                        setSearchParams(next, { replace: true })
+                      }}
+                      className="w-full rounded-md border px-3 py-2"
+                    >
+                      <option value="">Все задачи</option>
+                      <option value="1">Только назначенные</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <div className="text-sm font-medium mb-1">Сортировка</div>
+                    <select
+                      value={
+                        sortParam === "difficulty_asc"
+                          ? "difficulty_asc"
+                          : sortParam === "difficulty_desc"
+                            ? "difficulty_desc"
+                            : ""
+                      }
+                      onChange={(e) => {
+                        const value = e.currentTarget.value
+                        const next = new URLSearchParams(searchParams)
+                        if (!value) next.delete("sort")
+                        else next.set("sort", value)
+                        setSearchParams(next, { replace: true })
+                      }}
+                      className="w-full rounded-md border px-3 py-2"
+                    >
+                      <option value="">По порядку</option>
+                      <option value="difficulty_asc">Лёгкие → сложные</option>
+                      <option value="difficulty_desc">Сложные → лёгкие</option>
+                    </select>
+                  </div>
+
                   <AppButton
                     variant="outline"
-                    size="xs"
                     onClick={() => {
                       const next = new URLSearchParams(searchParams)
                       next.delete("status")
+                      next.delete("assigned")
+                      next.delete("sort")
                       setSearchParams(next, { replace: true })
                       setSearchQuery("")
                     }}
                   >
-                    Сбросить фильтр
+                    Сбросить фильтры
                   </AppButton>
-                </div>
-              </div>
+                </Stack>
+              </Modal>
               {showErrorOverlay ? (
                 <div className="py-10 flex justify-center">
                   <AppState
@@ -700,11 +870,81 @@ export default function App() {
         />
         <Route path="/theory" element={<Navigate to="/" replace />} />
         <Route
+          path="/admin/assignments"
+          element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <AdminTaskAssignmentsPage />
+              </AdminRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/assignments"
+          element={
+            <ProtectedRoute>
+              <TeacherOrAdminRoute>
+                <AdminTaskAssignmentsPage />
+              </TeacherOrAdminRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/create-task"
+          element={
+            <ProtectedRoute>
+              <TeacherOrAdminRoute>
+                <TeacherCreateTaskPage />
+              </TeacherOrAdminRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/create-task"
+          element={
+            <ProtectedRoute>
+              <TeacherOrAdminRoute>
+                <TeacherCreateTaskPage />
+              </TeacherOrAdminRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/my-tasks"
+          element={
+            <ProtectedRoute>
+              <TeacherOrAdminRoute>
+                <TeacherMyTasksPage />
+              </TeacherOrAdminRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/my-tasks"
+          element={
+            <ProtectedRoute>
+              <TeacherOrAdminRoute>
+                <TeacherMyTasksPage />
+              </TeacherOrAdminRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/admin/users-progress"
           element={
             <ProtectedRoute>
               <AdminRoute>
                 <AdminUsersProgressPage />
+              </AdminRoute>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/roles"
+          element={
+            <ProtectedRoute>
+              <AdminRoute>
+                <AdminRolesPage />
               </AdminRoute>
             </ProtectedRoute>
           }

@@ -7,6 +7,7 @@ export const AuthUserSchema = z.object({
   lastName: z.string().nullable().optional(),
   avatarId: z.string().nullable().optional(),
   isAdmin: z.boolean().optional(),
+  role: z.enum(["student", "teacher", "admin"]).optional(),
 })
 
 export const AuthSessionSchema = AuthUserSchema.extend({

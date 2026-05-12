@@ -23,9 +23,14 @@ export class TasksService {
   private static async parseError(res: Response, fallback: string) {
     try {
       const data = (await res.json()) as ErrorPayload
-      return data.detail || data.message || data.error || data.title || fallback
+      const msg = data.detail || data.message || data.error || data.title
+      return msg ? `${res.status}: ${msg}` : `${res.status}: ${fallback}`
     } catch {
-      return fallback
+      try {
+        const text = (await res.text()).trim()
+        if (text) return `${res.status}: ${text}`
+      } catch {}
+      return `${res.status}: ${fallback}`
     }
   }
 
@@ -73,6 +78,20 @@ export class TasksService {
       throw new Error(await TasksService.parseError(res, "Failed to fetch task stats"))
     }
     return TaskStatsSchema.parse(await res.json())
+  }
+
+  static async deleteTask(taskId: string): Promise<{ ok: true } | { ok: boolean } | void> {
+    const res = await fetch(`${TasksService.baseURL}${TASKS_ENDPOINTS.taskById(taskId)}`, {
+      method: "DELETE",
+      credentials: "include",
+      cache: "no-store",
+    })
+    if (!res.ok) {
+      throw new Error(await TasksService.parseError(res, "Failed to delete task"))
+    }
+    // backend returns 204; keep it tolerant
+    if (res.status === 204) return
+    return res.json().catch(() => undefined)
   }
 
   static async createCheckResult(params: {

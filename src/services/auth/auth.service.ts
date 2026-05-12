@@ -82,14 +82,41 @@ export class AuthService {
   }
 
   static async getSession(): Promise<AuthSession> {
-    const res = await fetch(`${AuthService.baseURL}${AUTH_ENDPOINTS.me}`, {
-      credentials: "include",
-    })
+    const url = `${AuthService.baseURL}${AUTH_ENDPOINTS.me}`
+    const maxAttempts = 4
+    let lastErr: Error | null = null
 
-    if (!res.ok) {
-      throw new Error(await AuthService.parseError(res, "Unauthorized"))
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const res = await fetch(url, {
+          credentials: "include",
+          cache: "no-store",
+        })
+
+        if (res.ok) {
+          return AuthSessionSchema.parse(await res.json())
+        }
+
+        const retryable = [502, 503, 504].includes(res.status)
+        if (retryable && attempt < maxAttempts - 1) {
+          await new Promise((r) => setTimeout(r, 350 * (attempt + 1)))
+          continue
+        }
+
+        throw new Error(await AuthService.parseError(res, "Unauthorized"))
+      } catch (e: unknown) {
+        const err = e instanceof Error ? e : new Error(String(e))
+        lastErr = err
+        const networkish =
+          err.name === "TypeError" || /fetch|network|Failed to fetch/i.test(err.message)
+        if (networkish && attempt < maxAttempts - 1) {
+          await new Promise((r) => setTimeout(r, 350 * (attempt + 1)))
+          continue
+        }
+        throw err
+      }
     }
 
-    return AuthSessionSchema.parse(await res.json())
+    throw lastErr ?? new Error("Session request failed")
   }
 }
